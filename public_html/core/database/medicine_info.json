@@ -1,7 +1,7 @@
 [
  {
   "ingredient": "Paracetamol",
-  "keywords": "paracetamol,acetaminophen",
+  "keywords": "paracetamol,acetaminophen,dolo,crocin,calpol,pacimol,p 650,sumo l",
   "use": "Fever and mild to moderate pain",
   "rx": 0,
   "storage": "Below 30 °C, dry place",
@@ -12,7 +12,7 @@
  },
  {
   "ingredient": "Ibuprofen",
-  "keywords": "ibuprofen",
+  "keywords": "ibuprofen,brufen,ibugesic",
   "use": "Pain, swelling and fever",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -23,7 +23,7 @@
  },
  {
   "ingredient": "Aceclofenac",
-  "keywords": "aceclofenac",
+  "keywords": "aceclofenac,zerodol,hifenac,aceclo",
   "use": "Joint, muscle and dental pain",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -34,7 +34,7 @@
  },
  {
   "ingredient": "Diclofenac",
-  "keywords": "diclofenac",
+  "keywords": "diclofenac,voveran,dynapar,voltaren",
   "use": "Pain and swelling (tablets, injection or gel)",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -45,7 +45,7 @@
  },
  {
   "ingredient": "Etoricoxib",
-  "keywords": "etoricoxib",
+  "keywords": "etoricoxib,nucoxia,etoshine,etody",
   "use": "Arthritis and joint pain",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -56,7 +56,7 @@
  },
  {
   "ingredient": "Nimesulide",
-  "keywords": "nimesulide",
+  "keywords": "nimesulide,nise,nimulid",
   "use": "Short-term pain relief",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -67,7 +67,7 @@
  },
  {
   "ingredient": "Tramadol",
-  "keywords": "tramadol",
+  "keywords": "tramadol,tramazac,contramal",
   "use": "Moderate to severe pain",
   "rx": 1,
   "storage": "Below 30 °C, locked away",
@@ -78,7 +78,7 @@
  },
  {
   "ingredient": "Aspirin",
-  "keywords": "aspirin,acetylsalicylic",
+  "keywords": "aspirin,acetylsalicylic,ecosprin,disprin,loprin",
   "use": "Heart protection (low dose) or pain",
   "rx": 1,
   "storage": "Below 30 °C, dry place",
@@ -100,7 +100,7 @@
  },
  {
   "ingredient": "Cetirizine",
-  "keywords": "cetirizine,cetrizine",
+  "keywords": "cetirizine,cetrizine,cetzine,okacet,alerid,zyrtec",
   "use": "Allergy, sneezing, itching, hives",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -111,7 +111,7 @@
  },
  {
   "ingredient": "Levocetirizine",
-  "keywords": "levocetirizine,levocetrizine",
+  "keywords": "levocetirizine,levocetrizine,levocet,xyzal,teczine",
   "use": "Allergy and runny nose",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -122,7 +122,7 @@
  },
  {
   "ingredient": "Fexofenadine",
-  "keywords": "fexofenadine",
+  "keywords": "fexofenadine,allegra,fexova",
   "use": "Allergy without much drowsiness",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -133,7 +133,7 @@
  },
  {
   "ingredient": "Montelukast",
-  "keywords": "montelukast",
+  "keywords": "montelukast,montair,montek,romilast",
   "use": "Asthma control and allergic cold",
   "rx": 1,
   "storage": "Below 30 °C, protect from light",
@@ -155,7 +155,7 @@
  },
  {
   "ingredient": "Pantoprazole",
-  "keywords": "pantoprazole",
+  "keywords": "pantoprazole,pantocid,pan 40,pantop",
   "use": "Acidity, reflux and ulcers",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -166,7 +166,7 @@
  },
  {
   "ingredient": "Omeprazole",
-  "keywords": "omeprazole",
+  "keywords": "omeprazole,omez,ocid",
   "use": "Acidity, reflux and ulcers",
   "rx": 1,
   "storage": "Below 25 °C",
@@ -177,7 +177,7 @@
  },
  {
   "ingredient": "Rabeprazole",
-  "keywords": "rabeprazole",
+  "keywords": "rabeprazole,razo,rablet,happi",
   "use": "Acidity, reflux and ulcers",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -188,7 +188,7 @@
  },
  {
   "ingredient": "Famotidine",
-  "keywords": "famotidine",
+  "keywords": "famotidine,famocid,topcid",
   "use": "Acidity and ulcers",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -199,7 +199,7 @@
  },
  {
   "ingredient": "Ranitidine",
-  "keywords": "ranitidine",
+  "keywords": "ranitidine,rantac,aciloc,zinetac",
   "use": "Acidity and ulcers",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -210,7 +210,7 @@
  },
  {
   "ingredient": "Domperidone",
-  "keywords": "domperidone",
+  "keywords": "domperidone,domstal,vomistop",
   "use": "Nausea, vomiting and bloating",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -221,7 +221,7 @@
  },
  {
   "ingredient": "Ondansetron",
-  "keywords": "ondansetron",
+  "keywords": "ondansetron,emeset,vomikind,ondem",
   "use": "Nausea and vomiting",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -254,7 +254,7 @@
  },
  {
   "ingredient": "Loperamide",
-  "keywords": "loperamide",
+  "keywords": "loperamide,eldoper,lopamide",
   "use": "Loose motions",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -265,7 +265,7 @@
  },
  {
   "ingredient": "ORS",
-  "keywords": "oral rehydration,ors,rehydration salts",
+  "keywords": "oral rehydration,ors,rehydration salts,electral",
   "use": "Dehydration from loose motions, vomiting or heat",
   "rx": 0,
   "storage": "Dry place. Use mixed solution within 24 hours",
@@ -276,7 +276,7 @@
  },
  {
   "ingredient": "Metronidazole",
-  "keywords": "metronidazole",
+  "keywords": "metronidazole,flagyl,metrogyl",
   "use": "Amoebic dysentery and some infections",
   "rx": 1,
   "storage": "Below 30 °C, protect from light",
@@ -287,7 +287,7 @@
  },
  {
   "ingredient": "Lactic acid bacillus",
-  "keywords": "lactic acid bacillus,lactobacillus,probiotic",
+  "keywords": "lactic acid bacillus,lactobacillus,probiotic,sporlac,vizylac",
   "use": "Probiotic for loose motions",
   "rx": 0,
   "storage": "Cool, dry place",
@@ -298,7 +298,7 @@
  },
  {
   "ingredient": "Lactulose",
-  "keywords": "lactulose",
+  "keywords": "lactulose,duphalac,looz",
   "use": "Constipation",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -309,7 +309,7 @@
  },
  {
   "ingredient": "Amoxicillin",
-  "keywords": "amoxicillin,amoxycillin",
+  "keywords": "amoxicillin,amoxycillin,novamox,amoxil",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 25 °C, dry. Mixed syrup in fridge, use within 7 days",
@@ -320,7 +320,7 @@
  },
  {
   "ingredient": "Amoxicillin + Clavulanate",
-  "keywords": "clavulanate,clavulanic",
+  "keywords": "clavulanate,clavulanic,augmentin,clavam,moxikind cv,amoxyclav",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 25 °C, dry place",
@@ -331,7 +331,7 @@
  },
  {
   "ingredient": "Azithromycin",
-  "keywords": "azithromycin",
+  "keywords": "azithromycin,azithral,azee,zithromax",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -342,7 +342,7 @@
  },
  {
   "ingredient": "Cefixime",
-  "keywords": "cefixime",
+  "keywords": "cefixime,taxim o,zifi,cefspan",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 25 °C",
@@ -353,7 +353,7 @@
  },
  {
   "ingredient": "Cefpodoxime",
-  "keywords": "cefpodoxime",
+  "keywords": "cefpodoxime,cepodem,monocef o",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 25 °C",
@@ -364,7 +364,7 @@
  },
  {
   "ingredient": "Cefuroxime",
-  "keywords": "cefuroxime",
+  "keywords": "cefuroxime,ceftum,zocef",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -375,7 +375,7 @@
  },
  {
   "ingredient": "Cephalexin",
-  "keywords": "cephalexin,cefalexin",
+  "keywords": "cephalexin,cefalexin,phexin,sporidex",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 25 °C",
@@ -386,7 +386,7 @@
  },
  {
   "ingredient": "Ciprofloxacin",
-  "keywords": "ciprofloxacin",
+  "keywords": "ciprofloxacin,ciplox,cifran",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -397,7 +397,7 @@
  },
  {
   "ingredient": "Ofloxacin",
-  "keywords": "ofloxacin",
+  "keywords": "ofloxacin,zanocin,oflox",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -408,7 +408,7 @@
  },
  {
   "ingredient": "Levofloxacin",
-  "keywords": "levofloxacin",
+  "keywords": "levofloxacin,levoflox,glevo",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -419,7 +419,7 @@
  },
  {
   "ingredient": "Doxycycline",
-  "keywords": "doxycycline",
+  "keywords": "doxycycline,doxy 1,doxt",
   "use": "Bacterial infections (antibiotic)",
   "rx": 1,
   "storage": "Below 25 °C, protect from light",
@@ -430,7 +430,7 @@
  },
  {
   "ingredient": "Norfloxacin",
-  "keywords": "norfloxacin",
+  "keywords": "norfloxacin,norflox",
   "use": "Urine and gut infections (antibiotic)",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -441,7 +441,7 @@
  },
  {
   "ingredient": "Metformin",
-  "keywords": "metformin",
+  "keywords": "metformin,glycomet,gluformin,obimet",
   "use": "Type 2 diabetes",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -452,7 +452,7 @@
  },
  {
   "ingredient": "Glimepiride",
-  "keywords": "glimepiride",
+  "keywords": "glimepiride,amaryl,glimy,glimisave",
   "use": "Type 2 diabetes",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -463,7 +463,7 @@
  },
  {
   "ingredient": "Gliclazide",
-  "keywords": "gliclazide",
+  "keywords": "gliclazide,diamicron,reclide",
   "use": "Type 2 diabetes",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -474,7 +474,7 @@
  },
  {
   "ingredient": "Vildagliptin",
-  "keywords": "vildagliptin",
+  "keywords": "vildagliptin,galvus,zomelis",
   "use": "Type 2 diabetes",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -485,7 +485,7 @@
  },
  {
   "ingredient": "Sitagliptin",
-  "keywords": "sitagliptin",
+  "keywords": "sitagliptin,januvia,istavel",
   "use": "Type 2 diabetes",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -496,7 +496,7 @@
  },
  {
   "ingredient": "Dapagliflozin",
-  "keywords": "dapagliflozin",
+  "keywords": "dapagliflozin,forxiga,oxra,dapaglyn",
   "use": "Type 2 diabetes, heart and kidney protection",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -507,7 +507,7 @@
  },
  {
   "ingredient": "Empagliflozin",
-  "keywords": "empagliflozin",
+  "keywords": "empagliflozin,jardiance",
   "use": "Type 2 diabetes, heart protection",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -518,7 +518,7 @@
  },
  {
   "ingredient": "Insulin",
-  "keywords": "insulin,glargine",
+  "keywords": "insulin,glargine,mixtard,lantus,huminsulin",
   "use": "Diabetes",
   "rx": 1,
   "storage": "Unopened: refrigerator 2–8 °C. Never freeze",
@@ -529,7 +529,7 @@
  },
  {
   "ingredient": "Amlodipine",
-  "keywords": "amlodipine",
+  "keywords": "amlodipine,amlong,amlokind,stamlo,amlopres",
   "use": "High blood pressure and angina",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -540,7 +540,7 @@
  },
  {
   "ingredient": "Telmisartan",
-  "keywords": "telmisartan",
+  "keywords": "telmisartan,telma,telmikind,telsar",
   "use": "High blood pressure",
   "rx": 1,
   "storage": "Below 30 °C, keep in the strip",
@@ -551,7 +551,7 @@
  },
  {
   "ingredient": "Losartan",
-  "keywords": "losartan",
+  "keywords": "losartan,losar,repace,losacar",
   "use": "High blood pressure",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -562,7 +562,7 @@
  },
  {
   "ingredient": "Atenolol",
-  "keywords": "atenolol",
+  "keywords": "atenolol,tenormin,aten",
   "use": "High blood pressure and heart rhythm",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -573,7 +573,7 @@
  },
  {
   "ingredient": "Metoprolol",
-  "keywords": "metoprolol",
+  "keywords": "metoprolol,metolar,met xl,betaloc",
   "use": "High blood pressure and heart conditions",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -584,7 +584,7 @@
  },
  {
   "ingredient": "Ramipril",
-  "keywords": "ramipril",
+  "keywords": "ramipril,cardace,ramistar",
   "use": "High blood pressure and heart protection",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -595,7 +595,7 @@
  },
  {
   "ingredient": "Atorvastatin",
-  "keywords": "atorvastatin",
+  "keywords": "atorvastatin,atorva,lipvas,storvas,tonact",
   "use": "High cholesterol",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -606,7 +606,7 @@
  },
  {
   "ingredient": "Rosuvastatin",
-  "keywords": "rosuvastatin",
+  "keywords": "rosuvastatin,rosuvas,rozavel,crestor",
   "use": "High cholesterol",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -617,7 +617,7 @@
  },
  {
   "ingredient": "Clopidogrel",
-  "keywords": "clopidogrel",
+  "keywords": "clopidogrel,clopilet,deplatt,plavix",
   "use": "Prevents blood clots after heart attack or stent",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -628,7 +628,7 @@
  },
  {
   "ingredient": "Levothyroxine",
-  "keywords": "levothyroxine,thyroxine",
+  "keywords": "levothyroxine,thyroxine,thyronorm,eltroxin,thyrox",
   "use": "Low thyroid (hypothyroidism)",
   "rx": 1,
   "storage": "Below 25 °C, protect from light and moisture",
@@ -639,7 +639,7 @@
  },
  {
   "ingredient": "Salbutamol",
-  "keywords": "salbutamol,levosalbutamol",
+  "keywords": "salbutamol,levosalbutamol,asthalin,ventolin",
   "use": "Quick relief of wheeze and breathlessness",
   "rx": 1,
   "storage": "Below 30 °C, away from heat",
@@ -650,7 +650,7 @@
  },
  {
   "ingredient": "Budesonide",
-  "keywords": "budesonide",
+  "keywords": "budesonide,budecort,pulmicort",
   "use": "Asthma and COPD control (inhaled steroid)",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -672,7 +672,7 @@
  },
  {
   "ingredient": "Calcium + Vitamin D3",
-  "keywords": "calcium,calcitriol",
+  "keywords": "calcium,calcitriol,shelcal,calcimax",
   "use": "Bone health",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -683,7 +683,7 @@
  },
  {
   "ingredient": "Vitamin D3",
-  "keywords": "cholecalciferol,vitamin d3",
+  "keywords": "cholecalciferol,vitamin d3,uprise d3,calcirol,d rise",
   "use": "Vitamin D deficiency",
   "rx": 0,
   "storage": "Below 30 °C, protect from light",
@@ -694,7 +694,7 @@
  },
  {
   "ingredient": "Iron + Folic acid",
-  "keywords": "ferrous,iron,folic acid,carbonyl iron",
+  "keywords": "ferrous,iron,folic acid,carbonyl iron,livogen,autrin,dexorange",
   "use": "Anaemia and pregnancy supplement",
   "rx": 0,
   "storage": "Below 30 °C. Keep away from children",
@@ -705,7 +705,7 @@
  },
  {
   "ingredient": "Vitamin B complex",
-  "keywords": "vitamin b-complex,vitamin b complex,methylcobalamin,mecobalamin,pyridoxine",
+  "keywords": "vitamin b-complex,vitamin b complex,methylcobalamin,mecobalamin,pyridoxine,becosules,neurobion",
   "use": "Vitamin B supplement and nerve health",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -716,7 +716,7 @@
  },
  {
   "ingredient": "Clotrimazole",
-  "keywords": "clotrimazole,miconazole,ketoconazole,luliconazole,sertaconazole",
+  "keywords": "clotrimazole,miconazole,ketoconazole,luliconazole,sertaconazole,candid",
   "use": "Fungal skin infections",
   "rx": 0,
   "storage": "Below 30 °C",
@@ -760,7 +760,7 @@
  },
  {
   "ingredient": "Alprazolam",
-  "keywords": "alprazolam",
+  "keywords": "alprazolam,alprax,restyl",
   "use": "Anxiety",
   "rx": 1,
   "storage": "Below 30 °C, locked away",
@@ -771,7 +771,7 @@
  },
  {
   "ingredient": "Clonazepam",
-  "keywords": "clonazepam",
+  "keywords": "clonazepam,clonotril,rivotril",
   "use": "Seizures and panic disorder",
   "rx": 1,
   "storage": "Below 30 °C, locked away",
@@ -782,7 +782,7 @@
  },
  {
   "ingredient": "Escitalopram",
-  "keywords": "escitalopram",
+  "keywords": "escitalopram,nexito,cipralex",
   "use": "Depression and anxiety",
   "rx": 1,
   "storage": "Below 30 °C",
@@ -793,7 +793,7 @@
  },
  {
   "ingredient": "Albendazole",
-  "keywords": "albendazole,mebendazole,ivermectin,pyrantel",
+  "keywords": "albendazole,mebendazole,ivermectin,pyrantel,zentel,bandy",
   "use": "Worm infections",
   "rx": 0,
   "storage": "Below 30 °C",

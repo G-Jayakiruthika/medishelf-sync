@@ -67,4 +67,17 @@ return [
     // Register at https://bhashini.gov.in/ulca and copy your User ID and API key.
     'bhashini_user_id' => '',
     'bhashini_api_key' => '',
+
+    // ---- Optional: AI (smarter support replies, "ask your data" answers, the in-app assistant) ----
+    // Everything works without it (rules and templates). With a key, answers are written by the AI,
+    // always from numbers and records the site computed itself.
+    // 'anthropic' = Claude API (console.anthropic.com), 'openai' = any OpenAI-compatible endpoint.
+    'ai_provider' => '',                 // '' (off), 'anthropic' or 'openai'
+    'ai_api_key'  => '',
+    'ai_model'    => 'claude-haiku-5-5', // a small, low-cost model is enough
+    'ai_base_url' => '',                 // only for 'openai': e.g. https://api.openai.com/v1
+    'ai_monthly_limit' => 3000,          // stop calling the AI after this many calls in a month
+
+    // ---- Optional: IndexNow (tells Bing and other search engines about new pages straight away) ----
+    'indexnow_on' => true,
 ];

@@ -16,6 +16,19 @@ const MIGRATION_COLUMNS = [
         'course_days' => 'TINYINT UNSIGNED NULL AFTER usual_times',
         'food' => 'VARCHAR(20) NULL AFTER course_days',
     ],
+    'users' => [
+        'last_seen_at' => 'DATETIME NULL AFTER onboarded',
+        'ai_opt_in' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER last_seen_at',
+    ],
+    'contact_messages' => [
+        'category' => 'VARCHAR(12) NULL AFTER handled',
+        'priority' => 'VARCHAR(6) NULL AFTER category',
+        'sentiment' => 'VARCHAR(8) NULL AFTER priority',
+        'due_at' => 'DATETIME NULL AFTER sentiment',
+        'suggested' => 'TEXT NULL AFTER due_at',
+        'reply' => 'TEXT NULL AFTER suggested',
+        'replied_at' => 'DATETIME NULL AFTER reply',
+    ],
     'members' => [
         'account_id' => 'INT UNSIGNED NULL AFTER is_self',
     ],
@@ -65,9 +78,13 @@ function migrate(): array
     // 4. Link each owner's own "self" member to their login (used by the "did you take it?" check).
     $n = q('UPDATE members m JOIN users u ON u.id = m.user_id SET m.account_id = u.id WHERE m.is_self = 1 AND m.account_id IS NULL')->rowCount();
     if ($n) $done[] = "linked $n self members to their logins";
-    // 5. Ingredient data that came with this version (usual schedules).
-    if (function_exists('load_info_json') && (int) q("SELECT COUNT(*) FROM medicine_info WHERE usual_times <> '' OR course_days IS NOT NULL")->fetchColumn() === 0) {
-        $done[] = 'loaded ' . load_info_json(APP_DIR . '/database/medicine_info.json') . ' ingredient schedules';
+    // 5. Ingredient data that came with this version (usual schedules, brand names): reload when the file changes.
+    $file = APP_DIR . '/database/medicine_info.json';
+    $hash = is_file($file) ? md5_file($file) : '';
+    $have = q("SELECT v FROM system_state WHERE k = 'info_json_hash'")->fetchColumn();
+    if (function_exists('load_info_json') && $hash && $have !== $hash) {
+        $done[] = 'loaded ' . load_info_json($file) . ' ingredient guides';
+        q("INSERT INTO system_state (k, v) VALUES ('info_json_hash', ?) ON DUPLICATE KEY UPDATE v = VALUES(v)", [$hash]);
     }
     return $done;
 }

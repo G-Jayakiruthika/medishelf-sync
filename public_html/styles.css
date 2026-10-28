@@ -399,3 +399,13 @@ dialog.sheet { grid-template-columns: minmax(0, 1fr); }
 .box-events .ev { overflow-wrap: anywhere; }
 .slot header .slot-all { background: rgba(255,255,255,.18); color: #fff; border: 1px solid rgba(255,255,255,.55); margin-left: auto; margin-right: 8px; }
 .box-events .ev .mono { font-size: .78rem; }
+
+/* ---------- v7: safety check, AI helper, habit patterns ---------- */
+.safety-card { display: grid; gap: 10px; margin-bottom: 18px; border-left: 5px solid var(--bad); }
+.safety-card h3 { margin: 0; }
+.safety-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.safety-list li { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--bad-soft); }
+.safety-list li.medium { background: var(--warn-soft); }
+.safety-list li.low { background: var(--ai-soft); }
+.safety-list small { color: var(--muted); }
+.adh-row .pattern { color: var(--ink); font-weight: 600; }

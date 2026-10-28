@@ -133,6 +133,18 @@ The repository has three GitHub workflows (in `.github/workflows/`):
   Your `core/config.php` on the server is never overwritten.
 - **Live site health** checks the live site every morning at 8:00 and e-mails you if something is wrong (site down, broken page, certificate expiring, installer open).
 
+## 16. Autopilot and AI (optional)
+The autopilot needs nothing extra: it runs with the cron job (section 8). Every hour it checks the site and fixes safe problems; every morning it looks for unusual numbers, prepares growth tips and sends pages to search engines (IndexNow); at 9 am it sends the admins a digest; at 10 am it sends families helpful reminders (first medicine, medicines expiring, near the Free limit; at most one a week each). Switch any of these off in Admin → Autopilot settings.
+
+**AI is optional.** Without it, data questions, support drafts, the in-app helper and digests use rules and templates. With it, answers and drafts are written by the AI, always from numbers and records the site computed itself. In `core/config.php`:
+```php
+'ai_provider' => 'anthropic',          // or 'openai' for any OpenAI-compatible service
+'ai_api_key'  => 'your-key',           // console.anthropic.com → API keys
+'ai_model'    => 'claude-haiku-5-5',   // a small, low-cost model is enough
+'ai_monthly_limit' => 3000,            // calls per month, then it falls back to rules
+```
+Families must switch on **Account → AI helper** themselves before their questions are sent to the AI; mention your AI provider in the privacy policy before turning this on.
+
 ## Troubleshooting
 
 | Problem | Fix |

@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=6">
+<link rel="stylesheet" href="/styles.css?v=7">
 </head>
 <body>
 
@@ -108,6 +108,10 @@
         <div class="stat warn"><b id="statSoon">0</b><span data-i18n="statSoon">Use soon</span></div>
         <div class="stat bad"><b id="statExpired">0</b><span data-i18n="statExpired">Expired</span></div>
       </div>
+    </div>
+    <div class="panel safety-card" id="safetyCard" hidden role="region" aria-labelledby="safetyHead">
+      <div><h3 id="safetyHead" data-i18n="safetyTitle">Safety check</h3><p class="muted" data-i18n="safetyDesc">Checked automatically every time a medicine is added.</p></div>
+      <ul class="safety-list" id="safetyList"></ul>
     </div>
     <div class="section-head"><h2 data-i18n="cabinetTitle">Your cabinet</h2><button class="btn btn-ghost btn-sm" type="button" id="btnShop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 4h2l2.4 11h11L21 7H6.2M9 20a1 1 0 1 0 0-.01M18 20a1 1 0 1 0 0-.01"/></svg><span data-i18n="shopTitle">Shopping list</span></button></div>
     <div class="chips" id="memberFilter" style="margin-bottom:14px"></div>
@@ -309,6 +313,11 @@
           <button class="link" type="button" id="calRenew" data-i18n="calRenew" style="justify-self:start;font-size:.85rem">Make a new private link</button>
         </div>
       </div>
+      <div class="panel stack" id="aiCard">
+        <h3 data-i18n="aiTitle">AI helper (optional)</h3>
+        <label class="switch"><input type="checkbox" id="aiOptIn"><span class="track" aria-hidden="true"></span><span data-i18n="aiDesc">Lets Ask answer questions about your family's medicines in your language.</span></label>
+        <p class="muted" id="aiOffNote" hidden data-i18n="aiOff">Not available on this site yet.</p>
+      </div>
       <div class="panel stack" id="boxCard">
         <h3 data-i18n="boxTitle">Smart pillbox</h3>
         <p class="muted" data-i18n="boxDesc">A pill organiser with a sensor in each lid. Opening the right lid at dose time ticks the dose by itself.</p>
@@ -443,8 +452,9 @@
 <script src="/i18n-auto.js?v=4"></script>
 <script src="/i18n-smart.js?v=5"></script>
 <script src="/i18n-care.js?v=6"></script>
+<script src="/i18n-autopilot.js?v=7"></script>
 <script src="/rx-parse.js?v=5"></script>
-<script src="/app.js?v=6"></script>
+<script src="/app.js?v=7"></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer></script>
 </body>

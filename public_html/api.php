@@ -9,6 +9,15 @@ require __DIR__ . '/core/plans.php';
 require __DIR__ . '/core/automations.php';
 require __DIR__ . '/core/doses.php';
 require __DIR__ . '/core/pillbox.php';
+require __DIR__ . '/core/ai.php';
+require __DIR__ . '/core/autopilot.php';
+require __DIR__ . '/core/support.php';
+require __DIR__ . '/core/health.php';
+require __DIR__ . '/core/safety.php';
+require __DIR__ . '/core/assistant.php';
+require_once __DIR__ . '/core/migrate.php';
+// Right after an update the new columns must exist before anything reads them (cheap: compares two file dates).
+try { migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
 
 security_headers();
 start_session();
@@ -26,7 +35,7 @@ try {
     case 'session':
         $u = current_user();
         json_out(['user' => $u ? public_user($u) : null, 'csrf' => $_SESSION['csrf'], 'consentVersion' => config('consent_version'),
-                  'features' => ['mail' => mail_enabled(), 'push' => push_enabled(), 'bhashini' => bhashini_enabled()]]);
+                  'features' => ['mail' => mail_enabled(), 'push' => push_enabled(), 'bhashini' => bhashini_enabled(), 'ai' => ai_enabled()]]);
 
     case 'signup':
         rate_limit('signup', null, 5, 60);
@@ -160,6 +169,7 @@ try {
     /* ---------------- App data ---------------- */
     case 'bootstrap':
         $uid = $hid;
+        q('UPDATE users SET last_seen_at = NOW() WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < NOW() - INTERVAL 30 MINUTE)', [$user['id']]);
         $members = q('SELECT id, name, relation, allergies, is_self FROM members WHERE user_id = ? ORDER BY is_self DESC, id', [$uid])->fetchAll();
         $items = q('SELECT id, member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end FROM cabinet_items WHERE user_id = ? ORDER BY exp_month', [$uid])->fetchAll();
         $today = date('Y-m-d');
@@ -175,6 +185,7 @@ try {
             'reminders' => ['enabled' => (bool) $rem['enabled'], 'm' => $rem['m_time'], 'a' => $rem['a_time'], 'e' => $rem['e_time'], 'b' => $rem['b_time']],
             'kit' => $kit,
             'billing' => billing_public($user),
+            'alerts' => safety_alerts($uid),
         ]);
 
     case 'member_save':
@@ -532,9 +543,26 @@ try {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) fail('bad_email', 'Please enter a valid e-mail address.');
         if (mb_strlen($msg) < 10 || mb_strlen($msg) > 4000) fail('bad_message', 'Please write a message between 10 and 4000 characters.');
         q('INSERT INTO contact_messages (name, email, topic, message) VALUES (?,?,?,?)', [$name, $email, $topic, $msg]);
+        $mid = (int) db()->lastInsertId();
         log_attempt('contact', true);
-        if (mail_enabled() && config('support_email')) send_mail((string) config('support_email'), "[Contact/$topic] $name", "From: $name <$email>\nTopic: $topic\n\n$msg");
-        json_out(['ok' => true]);
+        $tr = null;
+        try { $tr = support_process($mid); } catch (Throwable $e) { error_log('support: ' . $e->getMessage()); }   // sorting must never lose a message
+        if (mail_enabled() && config('support_email')) send_mail((string) config('support_email'), '[' . ticket_no($mid) . ($tr ? '/' . $tr['category'] . '/' . $tr['priority'] : '') . "] $name", "From: $name <$email>\nTopic: $topic\n\n$msg");
+        json_out(['ok' => true, 'ticket' => ticket_no($mid)]);
+
+    /* ---------------- Smart helpers for families ---------------- */
+    case 'safety_check':
+        json_out(['alerts' => safety_alerts($hid)]);
+
+    case 'assistant_ask':
+        rate_limit('assistant', null, 40, 60);
+        log_attempt('assistant', false);   // counts towards the limit (40 questions an hour)
+        json_out(assistant_answer($user, $hid, (string) (input()['q'] ?? '')));
+
+    case 'ai_opt_in':
+        $on = !empty(input()['on']) ? 1 : 0;
+        q('UPDATE users SET ai_opt_in = ? WHERE id = ?', [$on, $user['id']]);
+        json_out(['ok' => true, 'aiOptIn' => (bool) $on, 'available' => ai_enabled()]);
 
     /* ---------------- Admin ---------------- */
     case 'admin_stats':
@@ -565,11 +593,84 @@ try {
 
     case 'admin_messages':
         require_admin($user);
-        json_out(['messages' => q('SELECT id, name, email, topic, message, handled, created_at FROM contact_messages ORDER BY handled, id DESC LIMIT 100')->fetchAll()]);
+        $rows = q("SELECT id, name, email, topic, message, handled, created_at, category, priority, sentiment, due_at, suggested, reply, replied_at FROM contact_messages
+                   ORDER BY handled, FIELD(priority, 'high', 'normal', 'low'), due_at, id DESC LIMIT 100")->fetchAll();
+        foreach ($rows as &$r) { $r['ticket'] = ticket_no((int) $r['id']); $r['overdue'] = !$r['handled'] && $r['due_at'] && $r['due_at'] < date('Y-m-d H:i:s'); }
+        unset($r);
+        json_out(['messages' => $rows, 'mail' => mail_enabled()]);
+
+    case 'admin_message_reply':   // send the (edited) drafted reply and close the ticket
+        require_admin($user);
+        $in = input();
+        $id = (int) ($in['id'] ?? 0);
+        $text = trim((string) ($in['reply'] ?? ''));
+        $m = q('SELECT * FROM contact_messages WHERE id = ?', [$id])->fetch();
+        if (!$m) fail('not_found', 'Message not found.', 404);
+        if (mb_strlen($text) < 5) fail('empty', 'Write a reply first.');
+        $sent = mail_enabled() && send_mail((string) $m['email'], 'Re: your message · ' . ticket_no($id) . ' · ' . site_title(), $text . "\n\n---\nYou wrote:\n" . mb_substr((string) $m['message'], 0, 1500));
+        q('UPDATE contact_messages SET reply = ?, replied_at = NOW(), handled = 1 WHERE id = ?', [$text, $id]);
+        audit($user, 'support_reply', ticket_no($id) . ($sent ? ' (e-mailed)' : ' (saved, e-mail off)'));
+        json_out(['ok' => true, 'emailed' => $sent, 'mailto' => $sent ? null : 'mailto:' . rawurlencode((string) $m['email']) . '?subject=' . rawurlencode('Re: your message · ' . ticket_no($id)) . '&body=' . rawurlencode($text)]);
+
+    case 'admin_message_retriage':
+        require_admin($user);
+        json_out(['ok' => true] + (support_process((int) (input()['id'] ?? 0), false) ?? []));
+
+    /* ---------------- Admin autopilot ---------------- */
+    case 'admin_autopilot':
+        require_admin($user);
+        json_out([
+            'insights' => q('SELECT id, day, kind, metric, severity, title, body FROM insights WHERE dismissed = 0 AND day >= CURDATE() - INTERVAL 14 DAY ORDER BY day DESC, FIELD(severity, \'high\', \'medium\', \'low\', \'good\'), id DESC LIMIT 30')->fetchAll(),
+            'health' => health_checks(),
+            'growth' => growth_segments(8),
+            'ai' => ai_usage(),
+            'settings' => ['digest_on' => state_get('digest_on', '1') === '1', 'nudges_on' => state_get('nudges_on', '1') === '1', 'ack_on' => state_get('ack_on', '1') === '1',
+                           'ai_on' => state_get('ai_on', '1') === '1', 'autoheal_on' => state_get('autoheal_on', '1') === '1'],
+            'log' => q('SELECT kind, title, created_at FROM autopilot_log ORDER BY id DESC LIMIT 25')->fetchAll(),
+            'audit' => q('SELECT a.action, a.detail, a.created_at, u.name FROM audit_log a LEFT JOIN users u ON u.id = a.user_id ORDER BY a.id DESC LIMIT 20')->fetchAll(),
+            'lastRun' => state_get('autopilot_last_run'), 'indexnow' => state_get('indexnow_last'),
+        ]);
+
+    case 'admin_ask':
+        require_admin($user);
+        rate_limit('admin_ask', null, 60, 60); log_attempt('admin_ask', false);
+        json_out(ask_data((string) (input()['q'] ?? '')));
+
+    case 'admin_settings':
+        require_admin($user);
+        $in = input(); $changed = [];
+        foreach (['digest_on', 'nudges_on', 'ack_on', 'ai_on', 'autoheal_on'] as $k) if (array_key_exists($k, $in)) { state_set($k, $in[$k] ? '1' : '0'); $changed[] = "$k=" . ($in[$k] ? 'on' : 'off'); }
+        audit($user, 'autopilot_settings', implode(', ', $changed));
+        json_out(['ok' => true]);
+
+    case 'admin_run':   // "Run the autopilot now": checks, repairs, anomaly scan and growth tips
+        require_admin($user);
+        $fixed = self_heal();
+        $anom = detect_anomalies();
+        $tips = growth_insights();
+        state_set('autopilot_last_run', date('Y-m-d H:i:s'));
+        audit($user, 'autopilot_run', count($fixed) . ' fixes, ' . count($anom) . ' anomalies');
+        json_out(['ok' => true, 'fixed' => $fixed, 'anomalies' => count($anom), 'tips' => count($tips)]);
+
+    case 'admin_insight_dismiss':
+        require_admin($user);
+        q('UPDATE insights SET dismissed = 1 WHERE id = ?', [(int) (input()['id'] ?? 0)]);
+        json_out(['ok' => true]);
+
+    case 'admin_digest':   // preview of the daily digest e-mail
+        require_admin($user);
+        json_out(build_digest());
+
+    case 'admin_indexnow':
+        require_admin($user);
+        $r = indexnow_submit(true);
+        audit($user, 'indexnow', json_encode($r));
+        json_out(['ok' => true] + $r);
 
     case 'admin_message_done':
         require_admin($user);
         q('UPDATE contact_messages SET handled = 1 WHERE id = ?', [(int) (input()['id'] ?? 0)]);
+        audit($user, 'support_done', ticket_no((int) (input()['id'] ?? 0)));
         json_out(['ok' => true]);
 
     case 'admin_import':
@@ -579,6 +680,7 @@ try {
         $rows = parse_list_file((string) ($in['content'] ?? ''));
         if (!$rows) fail('empty', 'No rows found. Use CSV (drug_code,generic_name,unit_size) or pipe format.');
         if (count($rows) > 20000) fail('too_big', 'Import at most 20,000 rows at a time.');
+        audit($user, 'catalog_import', "$source: " . count($rows) . ' rows');
         json_out(import_catalog($rows, $source ?: 'import'));
 
     default:
@@ -633,7 +735,7 @@ function public_user(array $u): array
     $pi = plan_info($u);
     return ['id' => (int) $u['id'], 'name' => $u['name'], 'email' => $u['email'], 'phone' => $u['phone'], 'language' => $u['language'],
             'admin' => $u['role'] === 'admin', 'consentCurrent' => $u['consent_version'] === config('consent_version'),
-            'plan' => $pi['plan'], 'planUntil' => $pi['until'], 'owner' => $pi['owner'], 'weeklyEmail' => (bool) $u['weekly_email'], 'onboarded' => (bool) $u['onboarded']];
+            'plan' => $pi['plan'], 'planUntil' => $pi['until'], 'owner' => $pi['owner'], 'weeklyEmail' => (bool) $u['weekly_email'], 'onboarded' => (bool) $u['onboarded'], 'aiOptIn' => (bool) ($u['ai_opt_in'] ?? 0)];
 }
 
 function automation_public(array $a): array

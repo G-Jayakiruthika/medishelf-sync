@@ -2,7 +2,7 @@
    Data lives only in this browser (localStorage). Loaded before every other script on preview pages. */
 (function () {
   "use strict";
-  var KEY = "ab-demo-v2", DATA = null, dataPromise = null;
+  var KEY = "ab-demo-v3", DATA = null, dataPromise = null;
   var today = new Date(), iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   var TODAY = iso(today);
   var ym = function (add) { var d = new Date(today.getFullYear(), today.getMonth() + add, 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
@@ -25,8 +25,10 @@
       it(6, "Pantoprazole 40 mg", 3, ym(7), ["m"], "PAN5521", 28, null, "pantoprazole"),
       it(7, "Atorvastatin 10 mg", 3, ym(13), ["b"], "ATV7705", 30, null, "atorvastatin"),
       it(8, "Azithromycin 500 mg", 5, ym(18), ["m"], "AZX2309", 3, dayAdd(2), "azithromycin"),
-      it(9, "ORS sachet", 4, ym(-2), [], "ORS1002", null, null, null)
+      it(9, "ORS sachet", 4, ym(-2), [], "ORS1002", null, null, null),
+      it(10, "Crocin 500", 1, ym(6), ["e"], "CRO8812", 15, null, "paracetamol")
     ];
+    items[0].times = ["m"];
     // A week of history, so the weekly report and the pillbox have something to show.
     var taken = [], rnd = 7;
     var next = function () { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
@@ -46,7 +48,18 @@
       auto: { refill: true, refillDays: 5, missed: true, missedAfter: 60, course: true, cleanup: true, timing: true, calendar: true },
       reminders: { 1: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, 2: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" } },
       payments: [{ created_at: TODAY + " 10:12", period: "year", amount: 399, status: "paid", order_id: "demo_order_1", name: "Lakshmi" }],
-      messages: [{ id: 1, name: "Priya S", email: "priya@example.in", topic: "help", message: "Can my father use this on his phone in Tamil?", handled: 0, created_at: TODAY + " 09:40" }] };
+      messages: [
+        triage({ id: 3, name: "Ravi Kumar", email: "ravi.k@example.in", topic: "billing", message: "Money was debited twice from my UPI but Premium is not active!! Please refund one.", handled: 0, created_at: TODAY + " 08:12" }),
+        triage({ id: 2, name: "Meena", email: "meena@example.in", topic: "privacy", message: "Please delete my account and all my personal data.", handled: 0, created_at: dayAdd(-1) + " 19:05" }),
+        triage({ id: 1, name: "Priya S", email: "priya@example.in", topic: "help", message: "Can my father use this on his phone in Tamil? Thank you, great app!", handled: 0, created_at: dayAdd(-2) + " 09:40" })],
+      ai: false, settings: { digest_on: true, nudges_on: true, ack_on: true, ai_on: true, autoheal_on: true },
+      insights: [{ id: 1, day: dayAdd(-1), kind: "anomaly", metric: "messages", severity: "high", title: "Support messages jumped to 9 on " + dayAdd(-1).slice(5), body: "Usually about 2 a day. Something may be confusing or broken; read the newest support messages." },
+        { id: 2, day: TODAY, kind: "growth", metric: "upgrade", severity: "medium", title: "4 free families are close to the Free plan limits", body: "They are active and near 30 medicines or 4 people. The autopilot sends them one friendly note; consider a first-month discount." },
+        { id: 3, day: dayAdd(-1), kind: "anomaly", metric: "signups", severity: "good", title: "Sign-ups jumped to 23 on " + dayAdd(-1).slice(5), body: "Usually about 6 a day. Find out where they came from (Where visitors come from) and do more of it." },
+        { id: 4, day: TODAY, kind: "growth", metric: "source", severity: "good", title: "Top source this week: whatsapp (420 visitors)", body: "Do more of what brings these visitors." }],
+      log: [{ kind: "heal", title: "Activated Premium for 1 payment(s) that got stuck", created_at: TODAY + " 07:00" }, { kind: "digest", title: "Daily digest sent (2)", created_at: TODAY + " 09:00" },
+        { kind: "growth", title: "Sent 7 helpful reminders", created_at: TODAY + " 10:00" }, { kind: "heal", title: "Sorted 3 support messages", created_at: dayAdd(-1) + " 22:00" }, { kind: "seo", title: "IndexNow: submitted 846 of 846 pages", created_at: dayAdd(-2) + " 06:05" }],
+      audit: [{ action: "support_reply", detail: "AB-000117 (e-mailed)", created_at: dayAdd(-1) + " 18:20", name: "Lakshmi" }] };
   }
   var S;
   try { S = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { S = null; }
@@ -78,15 +91,74 @@
       usage: { members: S.members.filter(function (m) { return m.hid === h; }).length, items: S.items.filter(function (i) { return i.hid === h; }).length, accounts: S.users.filter(function (x) { return x.id === h || x.household === h; }).length },
       payments: "demo", prices: { month: 49, year: 399 } };
   }
-  function pubUser(u) { return { id: u.id, name: u.name, email: u.email, phone: u.phone, language: u.language, admin: u.role === "admin", consentCurrent: true, plan: premium(u) ? "premium" : "free", planUntil: premium(u) ? owner(u).planUntil : null, owner: !u.household, weeklyEmail: u.weekly, onboarded: u.onboarded }; }
+  function pubUser(u) { return { id: u.id, name: u.name, email: u.email, phone: u.phone, language: u.language, admin: u.role === "admin", consentCurrent: true, plan: premium(u) ? "premium" : "free", planUntil: premium(u) ? owner(u).planUntil : null, owner: !u.household, weeklyEmail: u.weekly, onboarded: u.onboarded, aiOptIn: !!u.aiOptIn }; }
   function pubItem(i) {
     var info = i.info_id ? infoById(i.info_id) : (i.ing ? infoBySlug(i.ing) : null);
     return { id: i.id, member_id: i.member_id, name: i.name, catalog_id: i.catalog_id, info: info, batch: i.batch, mfg: i.mfg, exp: i.exp, quantity: i.quantity, times: i.times, notes: i.notes, stock: i.stock, perDose: i.perDose || 1, courseEnd: i.courseEnd };
+  }
+  function admin() { var u = need(); if (u.role !== "admin") fail(403, "forbidden", "Only administrators can do this."); return u; }
+  function demoAsk(q) {
+    q = q.toLowerCase();
+    var days = /week|7 days/.test(q) ? 7 : /today/.test(q) ? 1 : 30, label = days === 7 ? "the last 7 days" : days === 1 ? "today" : "the last 30 days";
+    var series = function (base, spread) { var pts = []; for (var i = days - 1; i >= 0; i--) pts.push({ d: dayAdd(-i), n: Math.max(0, Math.round(base + Math.sin(i * 1.7) * spread + (i < 2 ? spread : 0))) }); return pts; };
+    var sum = function (pts) { return pts.reduce(function (a, p) { return a + p.n; }, 0); };
+    var M = [[/revenue|money|earn|sales|₹/, "Revenue (₹)", 300, 220, true], [/sign|new user|joined|registration/, "Sign-ups", 7, 5], [/visitor|traffic|visits/, "Website visitors", 170, 50], [/dose|adherence|taken/, "Doses taken", 700, 60], [/fail/, "Failed payments", 0.4, 0.6], [/message|support|ticket/, "Support messages", 2, 2], [/pillbox|box|iot/, "Pillbox openings", 40, 8], [/medicines added|added|scan/, "Medicines added", 45, 15]];
+    if (/where|source|come from|channel/.test(q)) return { answer: "Most visitors in " + label + " came from google.com (812), whatsapp (420) and direct visits (390). WhatsApp is growing fastest; keep sharing links with ?utm_source=whatsapp.", table: [{ label: "google.com", n: 812 }, { label: "whatsapp", n: 420 }, { label: "(direct)", n: 390 }, { label: "instagram", n: 118 }], chart: null, ai: false };
+    if (/top page|popular/.test(q)) return { answer: "Top pages: the home page (1,210 views), Paracetamol 500 mg (402) and How to read the expiry date (388).", table: [{ label: "/", n: 1210 }, { label: "/medicines/paracetamol-tablets-ip-500-mg-23", n: 402 }, { label: "/guides/how-to-read-expiry-date-on-medicine", n: 388 }], chart: null, ai: false };
+    if (/conversion|convert/.test(q)) return { answer: "Free → Premium conversion: 7.2% (9 of 125 families).", chart: null, table: null, ai: false };
+    var hit = M.find(function (m) { return m[0].test(q); });
+    if (!hit) return { answer: "I can answer questions about sign-ups, active families, doses, medicines added, revenue, purchases, failed payments, visitors, page views, support messages, pillbox openings, Premium families and conversion, top pages and traffic sources. Try \"revenue this week\" or \"where do visitors come from\".", chart: null, table: null, ai: false };
+    var pts = series(hit[2], hit[3]), prev = Math.round(sum(pts) * 0.82), cur = sum(pts), chg = prev ? Math.round(100 * (cur - prev) / prev) : 0;
+    return { answer: hit[1] + " in " + label + ": " + (hit[4] ? "₹" : "") + cur.toLocaleString("en-IN") + " (" + (chg >= 0 ? "+" : "") + chg + "% vs the period before).", chart: days > 1 ? { label: hit[1], points: pts } : null, table: null, ai: false };
   }
   function nowHM() { var n = new Date(); return String(n.getHours()).padStart(2, "0") + ":" + String(n.getMinutes()).padStart(2, "0"); }
   function dueNow(h, slot) { return S.items.filter(function (i) { return i.hid === h && (i.times || []).indexOf(slot) >= 0 && (!i.courseEnd || i.courseEnd >= TODAY); }); }
   function pubDevice(d) { return { id: d.id, name: d.name, memberId: d.memberId, compartments: d.compartments, paired: d.paired, pairCode: d.paired ? null : d.pairCode, battery: d.battery, firmware: d.firmware, lastSeen: d.lastSeen, online: d.paired && !!d.lastSeen && d.lastSeen.slice(0, 10) === TODAY }; }
   function myDevice(id) { var h = hid(need()), d = S.devices.find(function (x) { return x.id === id && x.hid === h; }); if (!d) fail(404, "not_found", "That record was not found."); return d; }
+  /* Same rules as core/support.php (shortened) */
+  function triage(m) {
+    var t = (m.topic + " " + m.message).toLowerCase(), cat = "other";
+    var rules = [["privacy", /delete my|erase|my data|privacy|personal data/], ["billing", /refund|charged|debited|payment|premium|upi|razorpay/], ["bug", /not working|crash|error|blank|stuck|can't|cannot/], ["medical", /side effect|can i take|overdose|dose of/], ["feature", /please add|feature|suggest/]];
+    rules.some(function (r) { if (r[1].test(t)) { cat = r[0]; return true; } return false; });
+    var prio = cat === "privacy" || /refund|charged|debited|overdose/.test(t) ? "high" : cat === "feature" ? "low" : "normal";
+    var sent = /worst|useless|fraud|!!/.test(t) ? "negative" : /thank|great|love/.test(t) ? "positive" : "neutral";
+    var first = m.name.split(" ")[0], h = prio === "high" ? 24 : prio === "normal" ? 72 : 168;
+    var d = new Date(m.created_at.replace(" ", "T")); d.setHours(d.getHours() + h);
+    var body = { billing: "Thank you for writing about your payment. Premium never renews by itself, so you are never charged without paying yourself. If money was taken twice, the extra amount is refunded to the same UPI account within 5–7 working days once we confirm it; reply with the Razorpay payment ID from your SMS and we'll check it today.",
+      privacy: "Thank you for your request about your personal data. You can download everything we hold (Account → Download my data) and delete your account and all its data at any time (Account → Delete my account). If you'd like us to do it for you, reply from this e-mail address to confirm.",
+      other: "Thank you for your message. Yes: the app works in Tamil and 9 other Indian languages. Choose தமிழ் in the language menu, and the voice assistant will speak Tamil too.",
+      bug: "Thank you for telling us, and sorry for the trouble. Could you tell us your phone model and browser, and the steps that led to the problem?" }[cat] || "Thank you for your message. We'll get back to you soon.";
+    return Object.assign(m, { category: cat, priority: prio, sentiment: sent, due_at: iso(d) + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"),
+      suggested: "Hello " + first + ",\n\n" + body + "\n\nWarm regards,\nAushadhBox support", ticket: "AB-" + String(m.id).padStart(6, "0") });
+  }
+  /* Same tables as core/safety.php */
+  var CLS = { nsaid: ["Ibuprofen", "Aceclofenac", "Diclofenac", "Etoricoxib", "Nimesulide", "Aspirin"], antihistamine: ["Cetirizine", "Levocetirizine", "Fexofenadine", "Chlorpheniramine"], ppi: ["Pantoprazole", "Omeprazole", "Rabeprazole"],
+    penicillin: ["Amoxicillin", "Amoxicillin + Clavulanate"], quinolone: ["Ciprofloxacin", "Ofloxacin", "Levofloxacin", "Norfloxacin"], bp_raas: ["Telmisartan", "Losartan", "Ramipril"], statin: ["Atorvastatin", "Rosuvastatin"], benzo: ["Alprazolam", "Clonazepam"], minerals: ["Antacid", "Calcium + Vitamin D3", "Iron + Folic acid"] };
+  var SAMEKIND = ["nsaid", "antihistamine", "ppi", "penicillin", "quinolone", "bp_raas", "statin", "benzo"];
+  var PAIRS = [["nsaid", "Clopidogrel", "high", "bleed"], ["nsaid", "bp_raas", "medium", "kidney"], ["Clopidogrel", "Omeprazole", "medium", "clopi"], ["Tramadol", "benzo", "high", "breathing"], ["Tramadol", "Escitalopram", "high", "serotonin"]];
+  var GAPS = [["quinolone", "minerals", 2], ["Doxycycline", "minerals", 2], ["Levothyroxine", "minerals", 4]];
+  var clsOf = function (ing) { return Object.keys(CLS).find(function (c) { return CLS[c].indexOf(ing) >= 0; }) || null; };
+  var matches = function (ing, spec) { return ing === spec || (CLS[spec] && CLS[spec].indexOf(ing) >= 0); };
+  function safety(h) {
+    var out = [], seen = {}, add = function (a) { var k = a.code + a.items.join(","); if (!seen[k]) { seen[k] = 1; out.push(a); } };
+    var people = {};
+    S.items.filter(function (i) { return i.hid === h; }).forEach(function (i) { var inf = pubItem(i).info; if (inf) (people[i.member_id || 0] = people[i.member_id || 0] || []).push({ i: i, ing: inf.ingredient }); });
+    Object.keys(people).forEach(function (pid) {
+      var mem = S.members.find(function (m) { return m.id === Number(pid); }), who = mem ? mem.name : "", allergy = (mem && mem.allergies || "").toLowerCase();
+      people[pid].forEach(function (x) { var hit = allergy && (allergy.indexOf(x.ing.split(" + ")[0].toLowerCase()) >= 0 || (allergy.indexOf("penicillin") >= 0 && matches(x.ing, "penicillin"))) ? (allergy.split(",")[0].trim() || x.ing) : null;
+        if (hit) add({ level: "high", code: "allergy", memberId: Number(pid) || null, items: [x.i.id], p: { who: who, allergy: hit, a: x.i.name, ing: x.ing } }); });
+      var use = people[pid].filter(function (x) { return x.i.times.length && (!x.i.courseEnd || x.i.courseEnd >= TODAY) && (!x.i.exp || x.i.exp >= TODAY.slice(0, 7)); });
+      for (var a = 0; a < use.length; a++) for (var b = a + 1; b < use.length; b++) {
+        var A = use[a], B = use[b], base = { memberId: Number(pid) || null, items: [A.i.id, B.i.id] }, p = { who: who, a: A.i.name, b: B.i.name, ing: A.ing };
+        if (A.ing === B.ing) { add(Object.assign({ level: "high", code: "same", p: p }, base)); continue; }
+        var ca = clsOf(A.ing); if (ca && ca === clsOf(B.ing) && SAMEKIND.indexOf(ca) >= 0) add(Object.assign({ level: "medium", code: "kind", p: p }, base));
+        PAIRS.forEach(function (r) { if ((matches(A.ing, r[0]) && matches(B.ing, r[1])) || (matches(A.ing, r[1]) && matches(B.ing, r[0]))) add(Object.assign({ level: r[2], code: "pair", p: Object.assign({ why: r[3] }, p) }, base)); });
+        var shared = A.i.times.filter(function (x) { return B.i.times.indexOf(x) >= 0; });
+        if (shared.length) GAPS.forEach(function (r) { if ((matches(A.ing, r[0]) && matches(B.ing, r[1])) || (matches(A.ing, r[1]) && matches(B.ing, r[0]))) add(Object.assign({ level: "low", code: "gap", p: Object.assign({ h: r[2], slot: shared[0] }, p) }, base)); });
+      }
+    });
+    return out.sort(function (x, y) { return ["high", "medium", "low"].indexOf(x.level) - ["high", "medium", "low"].indexOf(y.level); });
+  }
   function fail(status, code, message) { var e = new Error(message); e.status = status; e.code = code; throw e; }
   function need() { var u = me(); if (!u) fail(401, "not_signed_in", "Please sign in."); return u; }
 
@@ -109,7 +181,7 @@
       return { user: pubUser(u), today: TODAY, members: S.members.filter(function (m) { return m.hid === h; }).map(function (m) { return { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, self: m.self }; }),
         items: S.items.filter(function (i) { return i.hid === h; }).map(pubItem), taken: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h && t.status !== "skipped"; }).map(function (t) { return t.item + ":" + t.slot; }),
         doseLog: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h; }).reduce(function (o, t) { o[t.item + ":" + t.slot] = { status: t.status || "taken", reason: t.reason || null, source: t.source || "app", at: t.at || "" }; return o; }, {}),
-        reminders: S.reminders[u.id] || { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, kit: S.kit, billing: billing(u) };
+        reminders: S.reminders[u.id] || { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, kit: S.kit, billing: billing(u), alerts: safety(h) };
     },
     member_save: function (b) {
       var u = need(), h = hid(u);
@@ -256,7 +328,34 @@
     calendar_link: function () { need(); return { url: "https://aushadhbox.in/calendar/preview-only.ics" }; },
     consent_log: function () { return { ok: true }; },
     track: function () { return { ok: true }; },
-    contact_send: function (b) { if (b.website) return { ok: true }; S.messages.unshift({ id: ++S.nextId, name: b.name, email: b.email, topic: b.topic || "other", message: b.message, handled: 0, created_at: TODAY }); return { ok: true }; },
+    contact_send: function (b) { if (b.website) return { ok: true }; var m = triage({ id: ++S.nextId, name: b.name, email: b.email, topic: b.topic || "other", message: b.message, handled: 0, created_at: TODAY + " " + nowHM() }); S.messages.unshift(m); return { ok: true, ticket: m.ticket }; },
+    safety_check: function () { return { alerts: safety(hid(need())) }; },
+    ai_opt_in: function (b) { var u = need(); u.aiOptIn = !!b.on; return { ok: true, aiOptIn: u.aiOptIn, available: false }; },
+    assistant_ask: function (b) {
+      var h = hid(need()), q = " " + String(b.q || "").toLowerCase() + " ", hit = null;
+      S.items.filter(function (i) { return i.hid === h; }).some(function (i) { var w = i.name.toLowerCase().split(/[\s(]+/)[0]; var inf = pubItem(i).info; if (w.length >= 4 && inf && q.indexOf(w) >= 0) { hit = i.name + " contains " + inf.ingredient + ". It is used for: " + inf.use + "." + (inf.storage ? " Storage: " + inf.storage + "." : ""); return true; } return false; });
+      if (!hit) (DATA.info || []).some(function (r) { return (r.keywords + "," + r.ingredient.toLowerCase()).split(",").some(function (w) { w = w.trim(); if (w.length >= 4 && q.indexOf(" " + w) >= 0) { hit = r.ingredient + " is used for: " + r.use + "."; return true; } return false; }); });
+      return hit ? { answer: hit + " Ask your doctor or pharmacist before changing how you take it.", source: "info" } : { answer: "", source: "none" };
+    },
+    admin_autopilot: function () { admin();
+      return { insights: S.insights, ai: { configured: false, on: true, provider: "", model: "", callsThisMonth: 0, okThisMonth: 0, limit: 3000 }, settings: S.settings, log: S.log, audit: S.audit, lastRun: TODAY + " 06:00", indexnow: dayAdd(-2) + " 06:05",
+        health: [{ key: "db", label: "Database", status: "ok", detail: "Connected." }, { key: "cron", label: "Scheduled jobs (cron.php)", status: "ok", detail: "Last run 3 minutes ago." }, { key: "cron_key", label: "Cron password", status: "ok", detail: "Long and random." },
+          { key: "https", label: "HTTPS address", status: "ok", detail: "Uses HTTPS." }, { key: "mail", label: "E-mail (SMTP)", status: "ok", detail: "Configured." }, { key: "push", label: "Phone notifications", status: "ok", detail: "61 devices subscribed." },
+          { key: "payments", label: "Payments", status: "warn", detail: "1 checkout(s) not completed in the last 2 days. The autopilot asks Razorpay about each one every hour." },
+          { key: "support", label: "Support replies", status: "warn", detail: "1 message(s) past their reply target." }, { key: "pillbox", label: "Smart pillboxes", status: "ok", detail: "All online." }],
+        growth: { scored: 137, counts: { likely_upgrade: 4, at_risk: 2, not_activated: 6, dormant: 11, champions: 9 }, segments: {
+          likely_upgrade: [{ name: "Suresh R", email: "su••••@gmail.com", why: "28 of 30 medicines", score: 85 }, { name: "Fatima", email: "fa••••@yahoo.in", why: "4 of 4 people", score: 75 }, { name: "Arun", email: "ar••••@gmail.com", why: "26 of 30 medicines", score: 70 }, { name: "Kavya", email: "ka••••@outlook.com", why: "4 of 4 people", score: 65 }],
+          at_risk: [{ name: "Joseph", email: "jo••••@gmail.com", why: "Premium ends " + dayAdd(4), score: 60 }, { name: "Divya", email: "di••••@gmail.com", why: "not seen for 19 days", score: 45 }],
+          not_activated: [{ name: "Rahul", email: "ra••••@gmail.com", why: "joined 3 days ago, no medicines", score: 10 }, { name: "Sneha", email: "sn••••@gmail.com", why: "joined 2 days ago, no medicines", score: 5 }],
+          dormant: [{ name: "Mohan", email: "mo••••@gmail.com", why: "not seen for 33 days", score: 40 }], champions: [{ name: "Lakshmi", email: "de••••@aushadhbox.in", why: "score 100", score: 100 }] } } }; },
+    admin_ask: function (b) { admin(); return demoAsk(String(b.q || "")); },
+    admin_settings: function (b) { admin(); Object.keys(b).forEach(function (k) { if (k in S.settings) S.settings[k] = !!b[k]; }); S.audit.unshift({ action: "autopilot_settings", detail: Object.keys(b).map(function (k) { return k + "=" + (b[k] ? "on" : "off"); }).join(", "), created_at: TODAY + " " + nowHM(), name: "Lakshmi" }); return { ok: true }; },
+    admin_run: function () { admin(); S.log.unshift({ kind: "heal", title: "Checked everything: nothing needed fixing", created_at: TODAY + " " + nowHM() }); return { ok: true, fixed: [], anomalies: 0, tips: 0 }; },
+    admin_insight_dismiss: function (b) { admin(); S.insights = S.insights.filter(function (i) { return i.id !== b.id; }); return { ok: true }; },
+    admin_digest: function () { admin(); return { ai: false, text: "Yesterday (" + dayAdd(-1) + ")\nSign-ups                       23   (7-day average 6.4)\nFamilies ticking doses         61   (7-day average 58.1)\nDoses taken                   742   (7-day average 701.3)\nRevenue (₹)                  ₹847   (7-day average ₹341)\nPremium purchases               3   (7-day average 1.1)\nFailed payments                 0   (7-day average 0.3)\nWebsite visitors              212   (7-day average 160.0)\nSupport messages                9   (7-day average 2.0)\n\nNow: 9 Premium families · 130 users · conversion 7.2% · 3 open messages\n\nWhat the autopilot noticed:\n• [high] Support messages jumped to 9\n• [good] Sign-ups jumped to 23\n\nNeeds attention:\n• Payments: 1 checkout not completed\n\n(Sample digest in the preview)" }; },
+    admin_indexnow: function () { admin(); return { ok: true, skipped: "preview: the live site sends its pages to Bing and other search engines once a week" }; },
+    admin_message_reply: function (b) { admin(); var m = S.messages.find(function (x) { return x.id === b.id; }); if (!m) fail(404, "not_found", "Message not found."); m.reply = b.reply; m.replied_at = TODAY + " " + nowHM(); m.handled = 1; S.audit.unshift({ action: "support_reply", detail: m.ticket + " (preview: not e-mailed)", created_at: m.replied_at, name: "Lakshmi" }); return { ok: true, emailed: true }; },
+    admin_message_retriage: function (b) { admin(); var m = S.messages.find(function (x) { return x.id === b.id; }); if (m) triage(m); return { ok: true }; },
     admin_stats: function () { var u = need(); if (u.role !== "admin") fail(403, "forbidden", "Only administrators can do this.");
       var d = function (n) { var x = new Date(today); x.setDate(x.getDate() - n); return iso(x); };
       return { users: 128 + S.users.length, new_users_7d: 19, items: 940 + S.items.length, catalog: [{ source: "janaushadhi-2025-12", n: DATA.catalog.length }], info: DATA.info.length, push_subscriptions: 61,
@@ -267,7 +366,7 @@
         top_referrers: [{ src: "google.com", n: 812 }, { src: "whatsapp", n: 420 }, { src: "(direct)", n: 390 }, { src: "instagram", n: 118 }],
         devices: [{ device: "mobile", n: 1460 }, { device: "desktop", n: 330 }, { device: "tablet", n: 50 }], cta_clicks_30d: [{ event: "cta_hero", n: 210 }, { event: "cta_medicine", n: 96 }, { event: "plan_premium", n: 31 }],
         consent: { accepted: 1105, rejected: 735 }, messages_open: S.messages.filter(function (m) { return !m.handled; }).length, note: "Sample numbers for the preview" }; },
-    admin_messages: function () { return { messages: S.messages }; },
+    admin_messages: function () { admin(); var now = TODAY + " " + nowHM(); S.messages.forEach(function (m) { m.overdue = !m.handled && m.due_at < now; }); return { messages: S.messages, mail: true }; },
     admin_message_done: function (b) { S.messages.forEach(function (m) { if (m.id === b.id) m.handled = 1; }); return { ok: true }; },
     admin_import: function () { fail(400, "demo", "Importing is switched off in this preview.") ; }
   };

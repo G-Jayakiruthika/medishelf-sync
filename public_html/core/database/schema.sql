@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
   household_id    INT UNSIGNED NULL,                 -- set when this user joined someone else's family cabinet
   weekly_email    TINYINT(1)   NOT NULL DEFAULT 1,
   onboarded       TINYINT(1)   NOT NULL DEFAULT 0,
+  last_seen_at    DATETIME     NULL,                 -- last time the app was opened (for activation and win-back nudges)
+  ai_opt_in       TINYINT(1)   NOT NULL DEFAULT 0,   -- the person agreed to send questions to the AI assistant
   UNIQUE KEY uq_users_email (email),
   KEY idx_users_household (household_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -247,6 +249,13 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   topic      VARCHAR(30)  NOT NULL,
   message    TEXT         NOT NULL,
   handled    TINYINT(1)   NOT NULL DEFAULT 0,
+  category   VARCHAR(12)  NULL,                    -- set by the support autopilot: billing, bug, privacy, medical, feature, account, other
+  priority   VARCHAR(6)   NULL,                    -- high, normal, low
+  sentiment  VARCHAR(8)   NULL,                    -- negative, neutral, positive
+  due_at     DATETIME     NULL,                    -- reply target
+  suggested  TEXT         NULL,                    -- drafted reply (template, or AI when switched on)
+  reply      TEXT         NULL,
+  replied_at DATETIME     NULL,
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -310,4 +319,59 @@ CREATE TABLE IF NOT EXISTS device_events (
   outcome     VARCHAR(10)  NULL,                    -- taken, again, outside, already, nodose
   KEY idx_devev (device_id, happened_at),
   CONSTRAINT fk_devev_dev FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------- Autopilot (admin automation) ----------
+-- Small settings and counters the autopilot keeps (switches, last run times, IndexNow key).
+CREATE TABLE IF NOT EXISTS system_state (
+  k          VARCHAR(40) PRIMARY KEY,
+  v          TEXT        NULL,
+  updated_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- What the autopilot noticed: unusual numbers, growth tips, health problems.
+CREATE TABLE IF NOT EXISTS insights (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  day        DATE         NOT NULL,
+  kind       VARCHAR(12)  NOT NULL,                -- anomaly, growth, health, support
+  metric     VARCHAR(30)  NOT NULL,
+  severity   VARCHAR(6)   NOT NULL,                -- high, medium, low, good
+  title      VARCHAR(160) NOT NULL,
+  body       TEXT         NULL,
+  dismissed  TINYINT(1)   NOT NULL DEFAULT 0,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_insight (day, kind, metric)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- What the autopilot did by itself (fixes, digests, reminders sent), shown in the admin page.
+CREATE TABLE IF NOT EXISTS autopilot_log (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  kind       VARCHAR(16)  NOT NULL,
+  title      VARCHAR(200) NOT NULL,
+  detail     TEXT         NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_apl_time (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Every AI call (no content, only size and timing), for cost control.
+CREATE TABLE IF NOT EXISTS ai_log (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  purpose    VARCHAR(20)  NOT NULL,
+  ok         TINYINT(1)   NOT NULL,
+  tokens_in  INT UNSIGNED NOT NULL DEFAULT 0,
+  tokens_out INT UNSIGNED NOT NULL DEFAULT 0,
+  ms         INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_ai_time (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Who did what in the admin page.
+CREATE TABLE IF NOT EXISTS audit_log (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NULL,
+  action     VARCHAR(40)  NOT NULL,
+  detail     VARCHAR(255) NULL,
+  ip         VARCHAR(45)  NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_audit_time (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

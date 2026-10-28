@@ -64,6 +64,10 @@ async function journey(browser, label, viewport) {
   await p.click('#bottomnav [data-go="scan"], #tabs [data-go="scan"] >> visible=true'); await p.waitForTimeout(300);
   await p.fill('#quickInput', 'Add Cetirizine 10 mg at night for 5 days'); await p.click('#quickForm button[type=submit]'); await p.waitForTimeout(1200);
   ok((await p.textContent('#statTotal')).trim() === '5', 'medicine added from one typed sentence');
+  await p.fill('#quickInput', 'Add Crocin 500 at night'); await p.click('#quickForm button[type=submit]'); await p.waitForTimeout(1500);
+  await p.click('#bottomnav [data-go="cabinet"], #tabs [data-go="cabinet"] >> visible=true'); await p.waitForTimeout(300);
+  ok(await p.isVisible('#safetyCard'), 'safety check warns: Dolo and Crocin are the same medicine');
+  await p.click('#bottomnav [data-go="scan"], #tabs [data-go="scan"] >> visible=true'); await p.waitForTimeout(200);
 
   // Whole time slot in one tap, then the shopping list
   await p.click('#bottomnav [data-go="doses"], #tabs [data-go="doses"] >> visible=true'); await p.waitForTimeout(400);

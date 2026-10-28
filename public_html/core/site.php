@@ -123,6 +123,10 @@ function route_site(string $path): void
             require APP_DIR . '/pages/guides.php'; guide_page($m[1]); return;
         case $page === 'sitemap.xml':    require APP_DIR . '/pages/sitemap.php'; return;
         case $page === 'robots.txt':     robots(); return;
+        case preg_match('#^([a-f0-9]{32})\.txt$#', $page, $m) === 1:   // IndexNow ownership key (core/health.php)
+            require_once APP_DIR . '/ai.php';
+            if (state_get('indexnow_key') === $m[1]) { header('Content-Type: text/plain'); echo $m[1]; return; }
+            not_found(); return;
         case preg_match('#^calendar/([a-f0-9]{32})\.ics$#', $page, $m) === 1: calendar_out($m[1]); return;
         case $page === 'app':            serve_app(); return;
         // Share target when the service worker isn't running yet: just open the scanner.

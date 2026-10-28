@@ -6,7 +6,7 @@
 <title>Admin · AushadhBox</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/icons/icon-192.png" type="image/png">
-<link rel="stylesheet" href="/styles.css?v=3">
+<link rel="stylesheet" href="/styles.css?v=6">
 <style>
   .admin-grid { display: grid; gap: 18px; grid-template-columns: 1fr; }
   @media (min-width: 960px) { .admin-grid { grid-template-columns: 1fr 1fr; } }
@@ -27,12 +27,69 @@
   table.data th, table.data td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
   .msg { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 6px; }
   .msg.done { opacity: .55; }
+  /* Autopilot */
+  .ap-hero { background: linear-gradient(135deg, var(--ai), #3A5487); color: #fff; border-radius: 22px; padding: 22px; display: grid; gap: 12px; }
+  .ap-hero h3 { margin: 0; font-family: var(--f-display); font-size: 1.35rem; color: #fff; }
+  .ap-hero p { margin: 0; opacity: .85; }
+  .ask { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ask input { flex: 1 1 260px; min-width: 0; border: 0; border-radius: 999px; padding: 12px 18px; font: inherit; background: #fff; color: #1B2430; }
+  .admin-grid > .panel { align-content: start; }
+  .ask button { border-radius: 999px; }
+  .chips-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips-row button { border: 1px solid rgba(255,255,255,.45); background: rgba(255,255,255,.12); color: #fff; border-radius: 999px; padding: 5px 12px; font: inherit; font-size: .85rem; cursor: pointer; }
+  .answer { background: rgba(255,255,255,.12); border-radius: 16px; padding: 14px 16px; display: grid; gap: 10px; }
+  .answer .bars div { background: #fff; }
+  .answer .bar-labels { color: rgba(255,255,255,.8); }
+  .tag-ai { font-size: .72rem; background: rgba(255,255,255,.2); border-radius: 999px; padding: 2px 8px; }
+  .insights { display: grid; gap: 10px; }
+  .insight { border: 1px solid var(--line); border-left: 5px solid var(--muted); border-radius: 12px; padding: 10px 14px; display: grid; gap: 4px; background: var(--surface); }
+  .insight.high { border-left-color: var(--bad); } .insight.medium { border-left-color: var(--warn); } .insight.good { border-left-color: var(--ok); }
+  .insight header { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+  .insight small { color: var(--muted); }
+  .health { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .health li { display: grid; grid-template-columns: 14px 1fr; gap: 8px; align-items: start; font-size: .92rem; }
+  .health .dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; background: var(--ok); }
+  .health .warn .dot { background: var(--warn); } .health .bad .dot { background: var(--bad); }
+  .health small { display: block; color: var(--muted); }
+  .seg-tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .seg-tabs button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: .85rem; cursor: pointer; }
+  .seg-tabs button[aria-pressed="true"] { background: var(--ai); color: var(--ai-ink); border-color: var(--ai); }
+  .switches { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .feed { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: .88rem; max-height: 320px; overflow: auto; }
+  .feed li { display: grid; grid-template-columns: auto 1fr; gap: 8px; } .feed time { color: var(--muted); font-family: var(--f-mono); font-size: .78rem; }
+  .chip { display: inline-block; font-size: .75rem; font-weight: 700; border-radius: 999px; padding: 2px 9px; background: var(--sunk); color: var(--ink); }
+  .chip.high, .chip.negative, .chip.overdue { background: var(--bad-soft); color: var(--bad); } .chip.positive { background: var(--ok-soft); color: var(--ok); }
+  .chip.privacy, .chip.billing { background: var(--warn-soft); color: var(--warn); }
+  .msg textarea { width: 100%; min-height: 120px; font: inherit; font-size: .9rem; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--paper); color: var(--ink); }
+  pre.digest { white-space: pre-wrap; font-size: .82rem; background: var(--sunk); padding: 12px; border-radius: 12px; max-height: 360px; overflow: auto; }
 </style>
 </head>
 <body>
 <main class="wrap" style="display:grid;gap:20px;padding-block:24px">
   <div class="section-head"><h2>Admin dashboard</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ghost btn-sm" href="/">Website</a><a class="btn btn-ghost btn-sm" href="/app#account">App</a></div></div>
   <p class="error" id="err" hidden></p>
+
+  <section class="ap-hero" aria-labelledby="apTitle">
+    <h3 id="apTitle">Autopilot</h3>
+    <p>Ask about your numbers in plain words. The autopilot also watches the site day and night: unusual numbers, problems it can fix, people to help, messages to answer.</p>
+    <form class="ask" id="askForm"><input id="askInput" maxlength="300" placeholder="e.g. revenue this week, where do visitors come from, how many sign-ups last 30 days" aria-label="Ask about your data"><button class="btn btn-primary" type="submit" style="background:#fff;color:var(--ai)">Ask</button></form>
+    <div class="chips-row" id="askChips"></div>
+    <div class="answer" id="askAnswer" hidden></div>
+  </section>
+
+  <div class="admin-grid">
+    <div class="panel stack"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h3>What the autopilot noticed</h3><button class="btn btn-ghost btn-sm" id="btnRun">Run now</button></div>
+      <div class="insights" id="insights"></div><p class="muted" style="font-size:.85rem" id="lastRun"></p></div>
+    <div class="panel stack"><h3>System health</h3><ul class="health" id="health"></ul><p class="muted" style="font-size:.85rem">Checked every hour. Safe problems are fixed by itself (see Activity).</p></div>
+    <div class="panel stack"><h3>People to help</h3><div class="seg-tabs" id="segTabs"></div><div class="table-scroll"><table class="data"><thead><tr><th>Family</th><th>Why</th><th>Score</th></tr></thead><tbody id="segRows"></tbody></table></div>
+      <p class="muted" style="font-size:.85rem">Score: how fully a family uses the app (medicines, times, ticks, family, reminders, pillbox). Helpful reminders go out by themselves, at most one a week each.</p></div>
+    <div class="panel stack"><h3>Autopilot settings</h3><ul class="switches" id="switches"></ul>
+      <p class="muted" id="aiUsage" style="font-size:.85rem"></p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" id="btnDigest">Preview daily digest</button><button class="btn btn-ghost btn-sm" id="btnIndexNow">Send pages to search engines</button></div>
+      <pre class="digest" id="digest" hidden></pre></div>
+    <div class="panel stack"><h3>Activity</h3><ul class="feed" id="apLog"></ul></div>
+    <div class="panel stack"><h3>Admin actions</h3><ul class="feed" id="audit"></ul></div>
+  </div>
 
   <section class="stack" style="padding:0"><h3>Business (last 30 days)</h3><div class="kpis" id="kpiBiz"></div></section>
   <section class="stack" style="padding:0"><h3>Website traffic (visitors who accepted analytics)</h3><div class="kpis" id="kpiWeb"></div></section>
@@ -66,6 +123,6 @@
     <p id="importMsg" class="muted" aria-live="polite"></p>
   </form>
 </main>
-<script src="/admin.js?v=3"></script>
+<script src="/admin.js?v=6"></script>
 </body>
 </html>

@@ -8,6 +8,10 @@ require __DIR__ . '/core/services.php';
 require __DIR__ . '/core/plans.php';
 require __DIR__ . '/core/automations.php';
 require __DIR__ . '/core/doses.php';
+require __DIR__ . '/core/ai.php';
+require __DIR__ . '/core/autopilot.php';
+require __DIR__ . '/core/support.php';
+require __DIR__ . '/core/health.php';
 require __DIR__ . '/core/catalog.php';
 require __DIR__ . '/core/migrate.php';
 header('Content-Type: text/plain; charset=utf-8');
@@ -66,6 +70,25 @@ if (mail_enabled() && (int) $now->format('H') >= 9) {
 
 /* Automations: refill, missed-dose, course finished, monthly clean-up (push, or e-mail when the person has no device). */
 $auto = run_automations($now);
+
+/* Autopilot (admin side): repairs every hour; anomaly scan, growth tips and IndexNow once a day; digest at 9 am; helpful nudges at 10 am. */
+state_set('cron_last_run', $now->format('Y-m-d H:i:s'));
+$hour = (int) $now->format('H');
+$ap = [];
+if (state_get('autoheal_on', '1') === '1' && (!state_get('heal_last') || strtotime((string) state_get('heal_last')) <= $now->getTimestamp() - 3600)) {
+    state_set('heal_last', $now->format('Y-m-d H:i:s'));
+    $ap[] = 'heal=' . count(self_heal());
+}
+if ($hour >= 6 && state_get('daily_last') !== $today) {
+    state_set('daily_last', $today);
+    $ap[] = 'anomalies=' . count(detect_anomalies(date('Y-m-d', strtotime("$today -1 day"))));
+    $ap[] = 'tips=' . count(growth_insights($today));
+    $ix = indexnow_submit(); $ap[] = 'indexnow=' . ($ix['submitted'] ?? $ix['skipped']);
+    state_set('autopilot_last_run', $now->format('Y-m-d H:i:s'));
+}
+if ($hour >= 9 && state_get('digest_last') !== $today) { state_set('digest_last', $today); $ap[] = 'digest=' . send_digest($now); }
+if ($hour >= 10 && $hour < 20 && state_get('nudge_last') !== $today) { state_set('nudge_last', $today); $ap[] = 'nudges=' . json_encode(run_growth_nudges($now)); }
+if ($ap) echo 'autopilot: ' . implode(' ', $ap) . "\n";
 if (!push_enabled()) exit("housekeeping done; mailed=$mailed; automations push={$auto['push']} mail={$auto['mail']}; push not configured\n");
 
 $nowMin = (int) $now->format('H') * 60 + (int) $now->format('i');

@@ -31,6 +31,17 @@ You rarely need to type anything. One scan button handles everything: it works o
 
 Tap a person's name at the top to see only their medicines. Tap ✕ on a drawer to remove a medicine.
 
+## 3a. Safety check
+Every time a medicine is added, AushadhBox checks each person's medicines and shows a **Safety check** box at the top of the cabinet if it finds:
+- the **same medicine in two brands** (for example Dolo 650 and Crocin are both paracetamol): taking both is a double dose;
+- **two medicines of the same kind** (for example two painkillers, or two blood-pressure medicines of the same type);
+- **well-known risky combinations** (for example a painkiller with a blood thinner);
+- medicines that must be **taken hours apart** but are set for the same time (for example an antibiotic and calcium);
+- a medicine that matches the person's **allergy** written in the Notebook.
+It never changes anything by itself. Show it to your doctor or pharmacist.
+
+**AI helper (optional).** In Account you can switch on the AI helper. Then the Ask button answers questions about your family's medicines in your language ("what is Telma for?", "when does Amma take Metformin?"). Without it, Ask still answers what each medicine is for from our medicine information.
+
 ## 4. Family
 **Account → Family members**: add everyone (Amma, Appa, children) with their relation. In **Notebook**, write each person's allergies.
 

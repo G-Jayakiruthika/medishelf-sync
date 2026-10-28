@@ -83,7 +83,21 @@ Out of scope: selling medicines, prescriptions, medical advice, teleconsultation
 - FR-P6 Security: per-box secret token stored only as a SHA-256 hash; a new pairing code revokes the old token; wrong codes and tokens are rate-limited; a box sees only its own family's dose times.
 - FR-P7 "Try without hardware" in the app and a command-line simulator behave like a real box. Build guide, wiring and firmware: `hardware/`.
 
-### 3.10 Administration
+### 3.10 Autopilot (admin automation)
+- FR-AP1 Ask-your-data: plain-language questions answered from a fixed catalogue of read-only metrics (no free SQL), with chart and comparison to the previous period; optional AI only chooses the metric and writes the sentence.
+- FR-AP2 Anomaly detection every morning on 12 daily metrics (median and MAD of the previous 28 days, robust z ≥ 3.5 and a minimum absolute change); stored as insights with a severity and a suggested action.
+- FR-AP3 Daily digest at 9 am to every admin (e-mail and push); growth tips daily.
+- FR-AP4 Support autopilot: ticket number, category (billing, privacy, bug, medical, account, feature, other) in English, Hindi and Tamil, priority, sentiment, reply target, acknowledgement e-mail, drafted reply using what the site knows about the sender; urgent medical messages are told to call 112.
+- FR-AP5 Health monitor hourly with self-healing: database migrations, cache, old logs, linking medicines to ingredients, Razorpay reconciliation of stuck checkouts; warnings for weak cron key, payment test mode on a live site, installer left on the server, e-mail/push missing, disk space.
+- FR-AP6 Family health score and segments; automatic helpful reminders (first medicine, expiring medicines, near the Free limit), at most one a week per family; switchable.
+- FR-AP7 IndexNow weekly submission of all sitemap pages; admin audit log; AI usage limit per month.
+
+### 3.11 Medicine safety (families)
+- FR-S1 On every change: same ingredient twice, two of the same class, curated risky pairs, take-apart pairs sharing a dose time, allergy matches; shown in 10 languages with "ask your doctor or pharmacist".
+- FR-S2 Brand names map to ingredients (200+ common Indian brands).
+- FR-S3 Optional AI helper per account (explicit consent), answers only from the family's cabinet and general facts, never changes doses, sends emergencies to 112.
+
+### 3.12 Administration
 - FR-D1 Dashboard: revenue (30 days, all time), Premium families, conversion, users, sign-ups and visitors charts, top pages, sources, button clicks, devices, recent payments, contact messages, service status.
 - FR-D2 Import medicine lists (CSV) without duplicates.
 
@@ -99,7 +113,7 @@ Out of scope: selling medicines, prescriptions, medical advice, teleconsultation
 | NFR-7 Languages | All customer-facing app text and the home/pricing pages in 10 languages; legal pages in English. |
 
 ## 5. Data model (summary)
-`users` (plan, plan_until, household_id) · `members` (account_id) · `devices` · `device_events` · `cabinet_items` · `dose_logs` (status, reason, source) · `reminder_settings` · `push_subscriptions` · `reminder_log` · `kit_checks` · `medicine_info` · `medicine_catalog` · `invites` · `payments` · `cookie_consents` · `analytics_events` · `contact_messages` · `consent_log` · `login_attempts` · `password_resets`. Full definitions: `public_html/core/database/schema.sql`. Diagram: DESIGN.md.
+`users` (plan, plan_until, household_id) · `members` (account_id) · `devices` · `device_events` · `system_state` · `insights` · `autopilot_log` · `ai_log` · `audit_log` · `cabinet_items` · `dose_logs` (status, reason, source) · `reminder_settings` · `push_subscriptions` · `reminder_log` · `kit_checks` · `medicine_info` · `medicine_catalog` · `invites` · `payments` · `cookie_consents` · `analytics_events` · `contact_messages` · `consent_log` · `login_attempts` · `password_resets`. Full definitions: `public_html/core/database/schema.sql`. Diagram: DESIGN.md.
 
 ## 6. Assumptions and constraints
 - The owner provides the domain, hosting, Razorpay account (KYC) and business details.

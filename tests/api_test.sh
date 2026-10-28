@@ -108,6 +108,16 @@ expect "new pairing code" "$(post a device_code "{\"id\":$DEV}")" 200
 expect "old box token stops working" "$(dget sync "$TOK")" 401
 expect "test without hardware" "$(post a device_test "{\"id\":$DEV,\"lid\":2}")" 200; body_has "no dose in that lid now" '"outcome":"\(outside\|nodose\)"'
 
+echo "Safety checks, assistant and autopilot security"
+post a item_save '{"name":"Dolo 650","times":["m"]}' >/dev/null; post a item_save '{"name":"Crocin 500","times":["e"]}' >/dev/null
+expect "safety check" "$(get a safety_check)" 200; body_has "same medicine in two brands is caught" '"code":"same"'
+expect "assistant answers from medicine information" "$(post a assistant_ask '{"q":"what is Dolo 650 for?"}')" 200; body_has "answer mentions the ingredient" 'Paracetamol'
+expect "AI helper switch" "$(post a ai_opt_in '{"on":true}')" 200; body_has "consent stored" '"aiOptIn":true'
+expect "contact form gives a ticket" "$(post x contact_send '{"name":"Tester","email":"tester@example.in","topic":"billing","message":"I was charged twice, please refund"}')" 200; body_has "ticket number" '"ticket":"AB-[0-9]\{6\}"'
+expect "normal user cannot open the autopilot" "$(get a admin_autopilot)" 403
+expect "normal user cannot ask the data assistant" "$(post a admin_ask '{"q":"revenue"}')" 403
+expect "normal user cannot change autopilot settings" "$(post a admin_settings '{"digest_on":false}')" 403
+
 echo "Your data (DPDP)"
 expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'
 expect "delete needs password" "$(post a account_delete '{"password":"wrong"}')" 403

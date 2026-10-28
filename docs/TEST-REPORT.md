@@ -12,9 +12,10 @@
 | Suite | Command | Checks | Result |
 |---|---|---|---|
 | SEO and site health | `php tests/seo_check.php <url>` | 271 | ✅ all passed |
-| API, security and automations | `bash tests/api_test.sh <url>` | 91 | ✅ all passed |
-| End-to-end browser journey | `node tests/e2e.js <url>` | 64 (32 phone + 32 desktop) | ✅ all passed |
+| API, security and automations | `bash tests/api_test.sh <url>` | 102 | ✅ all passed |
+| End-to-end browser journey | `node tests/e2e.js <url>` | 66 (33 phone + 33 desktop) | ✅ all passed |
 | Prescription and bill reader | `node tests/rx_parse_test.js` | 34 | ✅ all passed |
+| Autopilot, support sorting, safety, patterns | `php tests/autopilot_test.php` | 32 | ✅ all passed |
 
 Re-run all four against the live site after every change. `api_test.sh` and `e2e.js` create test accounts; run them on a test copy or delete the accounts afterwards.
 
@@ -38,6 +39,11 @@ API: a skip needs a valid reason; "ran out" sets the tablet count to 0; "doctor 
 Clock tests of the alert engine: "Did you take it?" goes only to the person whose medicine it is, at half the missed-dose delay; side-effect skips alert the family; a second lid opening alerts the family; the missed-dose alert skips doses that were skipped or opened in the pillbox; the Sunday report lists each person's percentage and most-missed time.
 Simulator (`hardware/simulator/pillbox_sim.py`) against the local server: on time → taken, 2 minutes later → already, 35 minutes later → again, before the window → outside, empty lid → no dose, offline queue → sent later.
 Firmware: compiled on the build machine against stand-ins for the ESP32 libraries (and the real ArduinoJson 7) with no errors or warnings. It has not been run on a physical ESP32 here; flash it and check the Serial Monitor as in `hardware/README.md`.
+
+### 1.7 Autopilot, support and safety
+Unit tests (database, rolled back afterwards): refund request → billing, high; deletion request → privacy; "crashes" is a bug, not the word "rash"; overdose → medical, urgent, and the draft says call 112; a Tamil payment message → billing; happy and angry moods; ticket numbers; data questions find the right metric and period, give a 7-day chart, and explain what can be asked for anything else; without an API key the AI layer returns nothing and every feature falls back to rules; a burst of 14 support messages after 28 quiet days is flagged as a high anomaly and stored; safety finds exactly the same-medicine, allergy, bleeding-pair and take-apart alerts in a test family (brands Dolo, Crocin, Augmentin, Brufen, Clopilet, Ciplox, Shelcal, Thyronorm) and nothing else; weekend misses and late doses are noticed; the assistant answers from the medicine database; health, growth and the digest are built.
+API: safety check catches Dolo + Crocin, the assistant answers about Dolo 650, AI consent is stored, the contact form returns a ticket number, normal users get 403 from every autopilot action.
+AI path: tested against a stand-in AI server (OpenAI-compatible): routing a question to the doses metric, the written answer, the support draft and usage counting all work. The real Claude API was not called here (no key).
 
 All suites also run automatically on GitHub on every push (`.github/workflows/test.yml`).
 

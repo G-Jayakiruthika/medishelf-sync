@@ -38,8 +38,11 @@
 - [ ] Admin password is long and unique; only you know it
 - [ ] Backups enabled; one database export downloaded
 
-## 4. Running the business: weekly routine (30 minutes)
-- Admin dashboard: answer contact messages (Mark as handled), check payments and sign-ups.
+## 4. Running the business: weekly routine (15 minutes, the autopilot does the rest)
+- Read the **daily digest** (9 am e-mail/push). It lists yesterday's numbers, anything unusual and anything that needs you.
+- Admin dashboard → **Contact messages**: every message is already sorted (category, priority, mood, reply target), the sender has a ticket number, and a reply is drafted. Read the draft, edit it and press **Send reply**.
+- Admin dashboard → **People to help**: families likely to upgrade or at risk. A personal message to the "Premium at risk" list helps renewals.
+- Ask the **Autopilot** box anything about your numbers ("revenue this week", "where do visitors come from").
 - Razorpay dashboard: settlements, refunds requested.
 - Publish one article (SEO-GROWTH.md §3).
 

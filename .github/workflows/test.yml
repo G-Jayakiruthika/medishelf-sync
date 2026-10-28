@@ -72,6 +72,9 @@ jobs:
       - name: API and security tests
         run: bash tests/api_test.sh http://127.0.0.1:8080
 
+      - name: Autopilot, support sorting and safety checks
+        run: php tests/autopilot_test.php
+
       - name: Browser tests (phone and desktop)
         run: |
           npm install --no-save --no-audit --no-fund playwright@1.48.2

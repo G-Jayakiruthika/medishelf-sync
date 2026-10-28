@@ -159,7 +159,7 @@
     const data = await api.get("bootstrap");
     state.user = data.user;
     state.members = data.members; state.items = data.items;
-    state.taken = new Set(data.taken); state.doseLog = data.doseLog || {}; state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing; state.today = data.today;
+    state.taken = new Set(data.taken); state.doseLog = data.doseLog || {}; state.alerts = data.alerts || []; state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing; state.today = data.today;
     if (!state.nbMember || !state.members.some(m => m.id === state.nbMember)) state.nbMember = (state.members.find(m => m.self) || state.members[0] || {}).id;
     if (data.user.language && data.user.language !== state.lang && I18N[data.user.language]) { state.lang = data.user.language; try { localStorage.setItem("ms-lang", state.lang); } catch (e) { /* */ } }
     $("#authView").hidden = true; $("#appView").hidden = false;
@@ -295,7 +295,7 @@
     try {
       const r = await api.post("item_save", body);
       state.items = state.items.filter(x => x.id !== r.item.id).concat([r.item]);
-      sound("saved"); toast("✔ " + r.item.name); resetForm(); renderAll(); go("cabinet");
+      sound("saved"); toast("✔ " + r.item.name); resetForm(); renderAll(); go("cabinet"); refreshSafety([r.item.id]);
     } catch (err) { showErr($("#formErr"), err.message); }
     btn.disabled = false;
   });
@@ -547,7 +547,8 @@
       return '<div class="adh-row"><div class="adh-top"><b>' + esc(p.name) + '</b><span class="adh-pct ' + cls + '">' + p.percent + '%</span></div>' +
         '<div class="adh-bar" role="img" aria-label="' + p.percent + '%"><span class="t" style="width:' + (100 * p.taken / p.expected) + '%"></span><span class="s" style="width:' + (100 * p.skipped / p.expected) + '%"></span></div>' +
         '<small>' + esc([t("adhTaken", { n: p.taken }), t("adhSkipped", { n: p.skipped }), t("adhMissed", { n: p.missed })].join(" · ")) +
-        (p.box ? " · " + esc(t("adhBox", { n: p.box })) : "") + (p.worstSlot ? "<br>" + esc(t("adhWorst", { slot: slotName(p.worstSlot) })) : "") + (reasons ? "<br>" + esc(reasons) : "") + "</small></div>";
+        (p.box ? " · " + esc(t("adhBox", { n: p.box })) : "") + (p.worstSlot ? "<br>" + esc(t("adhWorst", { slot: slotName(p.worstSlot) })) : "") + (reasons ? "<br>" + esc(reasons) : "") + "</small>" +
+        (p.patterns || []).map(x => '<small class="pattern">💡 ' + esc(x.code === "weekend" ? t("pWeekend", { pct: x.pct }) : x.code === "late" ? t("pLate", { slot: slotName(x.slot).toLowerCase(), min: x.min }) : t("pBox")) + "</small>").join("") + "</div>";
     }).join("") : '<p class="muted">' + esc(t("adhNone")) + "</p>";
   }
   function adherenceText() {
@@ -646,7 +647,7 @@
   const saveAllergy = debounce(async () => {
     const m = state.members.find(x => x.id === state.nbMember); if (!m) return;
     m.allergies = $("#nbAllergy").value;
-    try { await api.post("member_save", { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies }); } catch (err) { toast(err.message); }
+    try { await api.post("member_save", { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies }); refreshSafety([]); } catch (err) { toast(err.message); }
   }, 700);
   $("#nbAllergy").addEventListener("input", saveAllergy);
   $("#btnCopyNb").addEventListener("click", () => {
@@ -954,7 +955,7 @@
     try {
       const res = await api.post("items_bulk_save", { items });
       state.items = state.items.concat(res.items); $("#rxDialog").close(); sound("saved");
-      toast("✔ " + t("rxSave", { n: res.items.length }).replace(/^\S+\s/, "") ); renderAll(); go("cabinet"); track("rx_saved");
+      toast("✔ " + t("rxSave", { n: res.items.length }).replace(/^\S+\s/, "") ); renderAll(); go("cabinet"); track("rx_saved"); refreshSafety(res.items.map(x => x.id));
     } catch (err) { showErr($("#rxErr"), err.message); }
     $("#rxSave").disabled = false;
   });
@@ -986,7 +987,7 @@
     const self = state.members.find(m => m.self);
     const r = await api.post("item_save", { name: it.name, catalog_id: catalogId, times: it.times, stock: it.stock, per_dose: it.perDose, course_end: it.courseEnd || "", notes: it.notes,
       member_id: it.member ? it.member.id : (self ? self.id : null) });
-    state.items = state.items.filter(x => x.id !== r.item.id).concat([r.item]); renderAll(); sound("saved"); track("quick_add");
+    state.items = state.items.filter(x => x.id !== r.item.id).concat([r.item]); renderAll(); sound("saved"); track("quick_add"); refreshSafety([r.item.id]);
     return t("quickDone", { name: r.item.name });
   }
   $("#quickForm").addEventListener("submit", async (e) => {
@@ -1037,6 +1038,39 @@
     } catch (e) { /* nothing shared */ }
   }
 
+
+
+  /* ---------------- Safety check (server checks duplicates, risky pairs, timing gaps and allergies) ---------------- */
+  const PAIR_KEY = { bleed: "aPairBleed", kidney: "aPairKidney", clopi: "aPairClopi", breathing: "aPairBreathing", serotonin: "aPairSerotonin", drowsy: "aPairDrowsy" };
+  function alertText(a) {
+    const p = Object.assign({}, a.p, { who: a.p.who || t("familyAll"), slot: a.p.slot ? t((SLOTS.find(x => x.id === a.p.slot) || SLOTS[0]).key).toLowerCase() : "" });
+    const key = a.code === "same" ? "aSame" : a.code === "kind" ? "aKind" : a.code === "gap" ? "aGap" : a.code === "allergy" ? "aAllergy" : PAIR_KEY[a.p.why] || "aAsk";
+    return t(key, p);
+  }
+  function renderSafety() {
+    const list = state.alerts || [];
+    $("#safetyCard").hidden = !list.length;
+    $("#safetyCard").style.borderLeftColor = list.some(a => a.level === "high") ? "var(--bad)" : "var(--warn)";
+    $("#safetyList").innerHTML = list.map(a => '<li class="' + esc(a.level) + '"><span>' + (a.level === "high" ? "⚠ " : "") + esc(alertText(a)) + "</span><small>" + esc(memberName(a.memberId) + " · " + t("aAsk")) + "</small></li>").join("");
+  }
+  async function refreshSafety(newIds) {
+    try {
+      const r = await api.get("safety_check"); state.alerts = r.alerts; renderSafety();
+      const hit = r.alerts.find(a => a.level !== "low" && a.items.some(id => newIds.includes(id)));
+      if (hit) { toast("⚠ " + alertText(hit)); sound("expiry-alert"); }
+    } catch (e) { /* offline */ }
+  }
+
+  /* ---------------- AI helper switch ---------------- */
+  function renderAi() {
+    if (!state.user) return;
+    const avail = !!(state.features && state.features.ai);
+    $("#aiOptIn").checked = !!state.user.aiOptIn; $("#aiOptIn").disabled = !avail && !state.user.aiOptIn; $("#aiOffNote").hidden = avail;
+  }
+  $("#aiOptIn").addEventListener("change", async (e) => {
+    try { const r = await api.post("ai_opt_in", { on: e.target.checked }); state.user.aiOptIn = r.aiOptIn; toast("✔ " + t("saved")); }
+    catch (err) { e.target.checked = !e.target.checked; toast(err.message); }
+  });
 
   /* ---------------- Smart pillbox ---------------- */
   let boxes = { devices: [], events: [] };
@@ -1137,7 +1171,7 @@
   /* ---------------- Voice assistant ---------------- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let rec = null, listening = false, voiceAudio = null;
-  function bubble(text, who) { const b = document.createElement("div"); b.className = "bubble " + who; b.textContent = text; $("#bubbles").appendChild(b); $("#bubbles").scrollTop = 1e6; }
+  function bubble(text, who) { const b = document.createElement("div"); b.className = "bubble " + who; b.textContent = text; $("#bubbles").appendChild(b); $("#bubbles").scrollTop = 1e6; return b; }
   function browserVoice(text) {
     if (!("speechSynthesis" in window)) return false;
     const code = langInfo().speech, voices = speechSynthesis.getVoices();
@@ -1173,7 +1207,13 @@
     } else if (intent === "doses") { const left = remainingDoses(); reply = left.length ? t("vaDoses", { n: left.length, list: left.join(", ") }) : t("vaDosesDone"); }
     else if (intent === "scan") { reply = t("vaScan"); setTimeout(() => { resetForm(); go("scan"); }, 600); }
     else if (intent === "help") reply = t("vaHelp");
-    else reply = t("vaUnknown");
+    else {
+      // Not one of the built-in questions: ask the server (medicine information, or the AI helper when switched on).
+      const wait = bubble("…", "bot");
+      api.post("assistant_ask", { q }).then(r => { const a = r.answer || t("vaUnknown"); if (wait) wait.textContent = a; else bubble(a, "bot"); speak(a); })
+        .catch(() => { if (wait) wait.textContent = t("vaUnknown"); speak(t("vaUnknown")); });
+      return;
+    }
     bubble(reply, "bot"); speak(reply);
   }
   function openAssistant(listen) { $("#assistant").hidden = false; $("#fab").setAttribute("aria-expanded", "true"); if (!$("#bubbles").children.length) bubble(t("vaHelp"), "bot"); if (listen) startListening(); }
@@ -1196,7 +1236,7 @@
   $$("[data-sound]").forEach(b => b.addEventListener("click", () => sound(b.dataset.sound)));
 
   /* ---------------- Boot ---------------- */
-  function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); renderAdherence(); renderBoxes(); }
+  function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); renderAdherence(); renderBoxes(); renderSafety(); renderAi(); }
   const langOptions = LANGS.map(l => '<option value="' + l.code + '">' + l.native + (l.code === "en" ? "" : " · " + l.name) + "</option>").join("");
   $$("#langSelect, #authLang").forEach(s => { s.innerHTML = langOptions; s.addEventListener("change", (e) => setLang(e.target.value)); });
   applyI18n();
