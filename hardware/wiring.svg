@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" font-family="Segoe UI, Roboto, Arial, sans-serif" font-size="14">
+  <title>AushadhBox smart pillbox wiring</title>
+  <style>path { fill: none; }</style>
+  <rect width="900" height="560" fill="#ffffff"/>
+  <text x="24" y="34" font-size="20" font-weight="700" fill="#1F3358">AushadhBox smart pillbox: wiring</text>
+  <text x="24" y="56" fill="#555">ESP32 DevKit V1. Every part's second leg goes to GND (the black rail).</text>
+
+  <!-- ESP32 board -->
+  <rect x="330" y="90" width="220" height="400" rx="14" fill="#1F3358"/>
+  <rect x="380" y="110" width="120" height="60" rx="6" fill="#3A5487"/>
+  <text x="440" y="146" text-anchor="middle" fill="#fff" font-weight="700">ESP32</text>
+  <text x="440" y="470" text-anchor="middle" fill="#A9BDEA" font-size="12">USB 5 V in</text>
+  <g fill="#fff" font-size="13">
+    <text x="342" y="210">GPIO 32</text><text x="342" y="250">GPIO 33</text><text x="342" y="290">GPIO 25</text><text x="342" y="330">GPIO 26</text>
+    <text x="342" y="380">GPIO 27</text><text x="342" y="430">GND</text>
+    <text x="538" y="210" text-anchor="end">GPIO 16</text><text x="538" y="250" text-anchor="end">GPIO 17</text><text x="538" y="290" text-anchor="end">GPIO 18</text><text x="538" y="330" text-anchor="end">GPIO 19</text>
+    <text x="538" y="380" text-anchor="end">GPIO 23</text><text x="538" y="430" text-anchor="end">GND</text>
+  </g>
+
+  <!-- GND rails -->
+  <line x1="40" y1="520" x2="860" y2="520" stroke="#111" stroke-width="4"/>
+  <text x="450" y="545" text-anchor="middle" font-size="12" fill="#111">GND rail: reed switches, button, LEDs (short leg) and buzzer (−) all join here</text>
+  <line x1="330" y1="425" x2="300" y2="425" stroke="#111" stroke-width="3"/><line x1="300" y1="425" x2="300" y2="520" stroke="#111" stroke-width="3"/>
+  <line x1="550" y1="425" x2="580" y2="425" stroke="#111" stroke-width="3"/><line x1="580" y1="425" x2="580" y2="520" stroke="#111" stroke-width="3"/>
+
+  <!-- Reed switches (left) -->
+  <g stroke="#B8790E" stroke-width="2.5" fill="none">
+    <path d="M330 205 H230"/><path d="M330 245 H210"/><path d="M330 285 H190"/><path d="M330 325 H170"/>
+  </g>
+  <g font-size="13" fill="#333">
+    <g transform="translate(230 205)"><rect x="-70" y="-12" width="70" height="24" rx="12" fill="#F5E6C8" stroke="#B8790E"/><text x="-35" y="5" text-anchor="middle">Reed 1</text></g>
+    <g transform="translate(210 245)"><rect x="-70" y="-12" width="70" height="24" rx="12" fill="#F5E6C8" stroke="#B8790E"/><text x="-35" y="5" text-anchor="middle">Reed 2</text></g>
+    <g transform="translate(190 285)"><rect x="-70" y="-12" width="70" height="24" rx="12" fill="#F5E6C8" stroke="#B8790E"/><text x="-35" y="5" text-anchor="middle">Reed 3</text></g>
+    <g transform="translate(170 325)"><rect x="-70" y="-12" width="70" height="24" rx="12" fill="#F5E6C8" stroke="#B8790E"/><text x="-35" y="5" text-anchor="middle">Reed 4</text></g>
+  </g>
+  <g stroke="#111" stroke-width="2"><path d="M160 205 H60 V520"/><path d="M140 245 H70 V520"/><path d="M120 285 H80 V520"/><path d="M100 325 H90 V520"/></g>
+  <text x="104" y="180" font-size="12" fill="#555">lid 1 morning … lid 4 bedtime</text>
+  <text x="104" y="194" font-size="12" fill="#555">(magnet glued on each lid)</text>
+
+  <!-- Button -->
+  <path d="M330 375 H250" stroke="#3E7D49" stroke-width="2.5"/>
+  <rect x="180" y="363" width="70" height="24" rx="6" fill="#DCEBDD" stroke="#3E7D49"/><text x="215" y="380" text-anchor="middle" font-size="13">Button</text>
+  <path d="M180 375 H150 V520" stroke="#111" stroke-width="2"/>
+  <text x="150" y="405" font-size="12" fill="#555">press = quiet</text><text x="150" y="419" font-size="12" fill="#555">hold 10 s = reset</text>
+
+  <!-- LEDs (right) -->
+  <g font-size="13">
+    <g transform="translate(550 205)"><path d="M0 0 H40" stroke="#3A5487" stroke-width="2.5"/><rect x="40" y="-9" width="44" height="18" rx="3" fill="#fff" stroke="#555"/><text x="62" y="4" text-anchor="middle" font-size="11">220Ω</text><path d="M84 0 H120" stroke="#3A5487" stroke-width="2.5"/><circle cx="132" cy="0" r="12" fill="#F5E6C8" stroke="#B8790E"/><text x="132" y="-17" text-anchor="middle" font-size="11">LED 1</text><path d="M144 0 H200 V315" stroke="#111" stroke-width="2"/></g>
+    <g transform="translate(550 245)"><path d="M0 0 H40" stroke="#3A5487" stroke-width="2.5"/><rect x="40" y="-9" width="44" height="18" rx="3" fill="#fff" stroke="#555"/><text x="62" y="4" text-anchor="middle" font-size="11">220Ω</text><path d="M84 0 H120" stroke="#3A5487" stroke-width="2.5"/><circle cx="132" cy="0" r="12" fill="#DCEBDD" stroke="#3E7D49"/><text x="132" y="-17" text-anchor="middle" font-size="11">LED 2</text><path d="M144 0 H210 V275" stroke="#111" stroke-width="2"/></g>
+    <g transform="translate(550 285)"><path d="M0 0 H40" stroke="#3A5487" stroke-width="2.5"/><rect x="40" y="-9" width="44" height="18" rx="3" fill="#fff" stroke="#555"/><text x="62" y="4" text-anchor="middle" font-size="11">220Ω</text><path d="M84 0 H120" stroke="#3A5487" stroke-width="2.5"/><circle cx="132" cy="0" r="12" fill="#DDE4F2" stroke="#3A5487"/><text x="132" y="-17" text-anchor="middle" font-size="11">LED 3</text><path d="M144 0 H220 V235" stroke="#111" stroke-width="2"/></g>
+    <g transform="translate(550 325)"><path d="M0 0 H40" stroke="#3A5487" stroke-width="2.5"/><rect x="40" y="-9" width="44" height="18" rx="3" fill="#fff" stroke="#555"/><text x="62" y="4" text-anchor="middle" font-size="11">220Ω</text><path d="M84 0 H120" stroke="#3A5487" stroke-width="2.5"/><circle cx="132" cy="0" r="12" fill="#E3E7EE" stroke="#1F3358"/><text x="132" y="-17" text-anchor="middle" font-size="11">LED 4</text><path d="M144 0 H230 V195" stroke="#111" stroke-width="2"/></g>
+  </g>
+  <text x="690" y="170" font-size="12" fill="#555">LED long leg (+) to the resistor</text>
+
+  <!-- Buzzer -->
+  <path d="M550 375 H700" stroke="#B3382A" stroke-width="2.5"/>
+  <rect x="700" y="360" width="110" height="30" rx="15" fill="#F5DAD5" stroke="#B3382A"/><text x="755" y="380" text-anchor="middle" font-size="13">Active buzzer +</text>
+  <path d="M810 375 H840 V520" stroke="#111" stroke-width="2"/>
+  </svg>

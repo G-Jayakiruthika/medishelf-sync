@@ -25,7 +25,7 @@ if (!$done && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             if (!q('SELECT 1 FROM users WHERE email = ?', [$email])->fetch()) {
                 q("INSERT INTO users (name, email, password_hash, role, consent_version, consent_at) VALUES (?,?,?,'admin',?,NOW())", [$name, $email, password_hash($pass, PASSWORD_DEFAULT), config('consent_version')]);
                 $uid = (int) db()->lastInsertId();
-                q('INSERT INTO members (user_id, name, relation, is_self) VALUES (?,?,?,1)', [$uid, $name, 'Self']);
+                q('INSERT INTO members (user_id, name, relation, is_self, account_id) VALUES (?,?,?,1,?)', [$uid, $name, 'Self', $uid]);
                 q('INSERT INTO reminder_settings (user_id) VALUES (?)', [$uid]);
                 $msg[] = "Admin account created for $email.";
             }

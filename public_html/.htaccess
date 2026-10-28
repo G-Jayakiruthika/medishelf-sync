@@ -16,10 +16,13 @@ DirectoryIndex index.php
   RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
   RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
 
-  # 3. Private folder
+  # 3. Pass the smart pillbox's "Authorization: Bearer" header through to PHP (some hosts drop it)
+  RewriteRule ^device\.php$ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+  # 4. Private folder
   RewriteRule ^core(/|$) - [F,L]
 
-  # 4. Clean addresses: everything that is not a real file goes to index.php
+  # 5. Clean addresses: everything that is not a real file goes to index.php
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ index.php [L,QSA]

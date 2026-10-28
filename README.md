@@ -21,6 +21,8 @@ Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hosting
 | **App** (`/app`) | Scan medicine strips, bottles and QR codes; expiry status; family members; dose ticks and phone reminders; medicine notebook; voice assistant in 10 languages; welcome tour. |
 | **Money** | Free plan (4 people, 30 medicines) and **Family Premium** (₹49/month or ₹399/year, configurable): family sharing for up to 6 accounts, unlimited medicines, printable doctor report, weekly expiry e-mail. Razorpay checkout + webhook. No auto-renewal; reminder e-mail before it ends. |
 | **Smart adding** | One scan button tells a strip, a prescription and a pharmacy bill apart. Prescriptions in Indian shorthand (1-0-1, BD, TDS, HS, SOS, "x 5 days", after food; Hindi and Tamil words) and pharmacy bills (batch, expiry, quantity) become a ready-to-save list. Usual schedules for 74 ingredients and tablet counts from the pack size are filled in. Add by typing or speaking one sentence. Share a photo from WhatsApp into the app. |
+| **Taken, skipped or missed** | Skip a dose with a reason (side effects → family told; ran out → shopping list; doctor stopped → reminders end). "Did you take it?" goes to the person first, the family only if there is no answer. Weekly report per person in the app, as a Sunday notification and in the doctor report. |
+| **Smart pillbox (IoT)** | ESP32 pill organiser with a reed switch per lid: opening the right lid at dose time ticks the dose, a second opening warns the family, lights and beeps at dose time, works offline. Firmware, wiring, parts list (about ₹900), build guide and a simulator in `hardware/`. |
 | **Automations** | "✓ Taken" on the reminder notification; "All taken" per time of day; reminder times that move to the family's real routine; shopping list with generics shared on WhatsApp; tablet count goes down by itself with each ticked dose; refill alerts before medicine runs out; missed-dose alerts to the whole family; reminders stop when a course ends; monthly clean-up list; a dose calendar for Google Calendar and iPhone. Each can be switched on or off. |
 | **Cookie consent** | Accept / Reject / Choose banner in 10 languages. Analytics run **only after Accept**. Choices are logged as proof. Withdrawing deletes past statistics. |
 | **Admin** (`/admin.html`) | Revenue, Premium families, conversion, sign-ups, visitors, top pages, traffic sources, button clicks, devices, payments, contact messages, medicine-list import. |
@@ -33,6 +35,7 @@ public_html/            ← upload the contents of this folder to your host
   app.html app.js styles.css i18n*.js      the web app (served at /app)
   site.css site.js consent.js consent-i18n.js   website styles, cookie banner
   api.php               JSON API for the app
+  device.php            API for the smart pillbox (token, no cookies)
   webhook.php           Razorpay webhook
   cron.php install.php  scheduled jobs, one-time installer
   admin.html admin.js   admin dashboard
@@ -43,8 +46,9 @@ public_html/            ← upload the contents of this folder to your host
     pages/ views/       website pages and templates
     content/guides.php  articles (add more here)
     database/           schema, ingredient guides, Jan Aushadhi list
+hardware/               smart pillbox: README (build guide), wiring.svg, firmware/ (ESP32 Arduino), simulator/ (Python)
 docs/                   DEPLOY, HANDOVER, SRS, DESIGN, design-system.html, TEST-REPORT, USER-MANUAL, SEO-GROWTH
-tests/                  seo_check.php, api_test.sh
+tests/                  seo_check.php, api_test.sh, e2e.js, rx_parse_test.js
 tools/                  import_list.php, make_vapid_keys.php, build_assets.php, media generators
 ```
 

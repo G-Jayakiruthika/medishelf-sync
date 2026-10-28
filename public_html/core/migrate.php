@@ -16,6 +16,14 @@ const MIGRATION_COLUMNS = [
         'course_days' => 'TINYINT UNSIGNED NULL AFTER usual_times',
         'food' => 'VARCHAR(20) NULL AFTER course_days',
     ],
+    'members' => [
+        'account_id' => 'INT UNSIGNED NULL AFTER is_self',
+    ],
+    'dose_logs' => [
+        'status' => "VARCHAR(8) NOT NULL DEFAULT 'taken' AFTER taken_at",
+        'reason' => 'VARCHAR(10) NULL AFTER status',
+        'source' => "VARCHAR(6) NOT NULL DEFAULT 'app' AFTER reason",
+    ],
     'automation_settings' => [
         'timing_on' => 'TINYINT(1) NOT NULL DEFAULT 1 AFTER cleanup_on',
     ],
@@ -54,7 +62,10 @@ function migrate(): array
             if ($r && $check === 'nullable' && $r['IS_NULLABLE'] === 'NO') { db()->exec("ALTER TABLE `$table` MODIFY `$col` $def"); $done[] = "made $table.$col optional"; }
         }
     }
-    // 4. Ingredient data that came with this version (usual schedules).
+    // 4. Link each owner's own "self" member to their login (used by the "did you take it?" check).
+    $n = q('UPDATE members m JOIN users u ON u.id = m.user_id SET m.account_id = u.id WHERE m.is_self = 1 AND m.account_id IS NULL')->rowCount();
+    if ($n) $done[] = "linked $n self members to their logins";
+    // 5. Ingredient data that came with this version (usual schedules).
     if (function_exists('load_info_json') && (int) q("SELECT COUNT(*) FROM medicine_info WHERE usual_times <> '' OR course_days IS NOT NULL")->fetchColumn() === 0) {
         $done[] = 'loaded ' . load_info_json(APP_DIR . '/database/medicine_info.json') . ' ingredient schedules';
     }

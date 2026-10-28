@@ -72,6 +72,42 @@ expect "one tap ticks the whole morning" "$(post a dose_slot_taken '{"slot":"m"}
 get a bootstrap >/dev/null; body_has "stock went down" '"name":"Rx one".*"stock":9'
 expect "unknown slot refused" "$(post a dose_slot_taken '{"slot":"z"}')" 400
 
+echo "Skip with a reason and weekly report"
+expect "medicine for skip test" "$(post a item_save '{"name":"Skip out test","times":["e"],"stock":12}')" 200; K1=$(sed -E 's/.*"item":\{"id":([0-9]+).*/\1/' "$T/out")
+expect "medicine for doctor-stop test" "$(post a item_save '{"name":"Skip doctor test","times":["e"]}')" 200; K2=$(sed -E 's/.*"item":\{"id":([0-9]+).*/\1/' "$T/out")
+expect "skip needs a valid reason" "$(post a dose_skip "{\"slot\":\"e\",\"item_id\":$K1,\"reason\":\"lazy\"}")" 400
+expect "skip: ran out" "$(post a dose_skip "{\"slot\":\"e\",\"item_id\":$K1,\"reason\":\"out\"}")" 200; body_has "ran out sets the tablet count to 0 (shopping list)" '"stock":0'
+expect "skip: doctor stopped it" "$(post a dose_skip "{\"slot\":\"e\",\"item_id\":$K2,\"reason\":\"doctor\"}")" 200; body_has "reminders end today" "\"courseEnd\":\"$(TZ=Asia/Kolkata date +%F)\""
+expect "B cannot skip A's medicine" "$(post b dose_skip "{\"slot\":\"e\",\"item_id\":$K1,\"reason\":\"fine\"}")" 404
+post a dose_slot_taken '{"slot":"e"}' >/dev/null
+get a bootstrap >/dev/null; body_has "a skip stays a skip after All taken" "\"$K1:e\":{\"status\":\"skipped\",\"reason\":\"out\""
+expect "weekly report" "$(get a 'adherence&days=7')" 200; body_has "report has people" '"people"'
+
+echo "Smart pillbox"
+NOW=$(TZ=Asia/Kolkata date +%H%M); if [ "$NOW" -lt 0015 ]; then MT="00:00"; else MT=$(TZ=Asia/Kolkata date -d '-10 min' +%H:%M); fi
+post a reminders_save "{\"enabled\":false,\"m\":\"$MT\",\"a\":\"13:30\",\"e\":\"19:30\",\"b\":\"22:00\"}" >/dev/null
+expect "medicine in the box" "$(post a item_save '{"name":"Box medicine","times":["m"],"stock":5}')" 200
+expect "add a pillbox" "$(post a device_add '{"name":"Test box","compartments":4}')" 200; body_has "pairing code shown" '"pairCode":"[0-9]\{6\}"'
+DEV=$(sed -E 's/.*"device":\{"id":([0-9]+).*/\1/' "$T/out"); PC=$(sed -E 's/.*"pairCode":"([0-9]+)".*/\1/' "$T/out")
+D="${B%/api.php}/device.php"
+dpost() { curl -s -o "$T/out" -w "%{http_code}" -H "Content-Type: application/json" ${2:+-H "Authorization: Bearer $2"} -X POST "$D?action=$1" -d "$3"; }
+dget() { curl -s -o "$T/out" -w "%{http_code}" ${2:+-H "Authorization: Bearer $2"} "$D?action=$1"; }
+expect "wrong pairing code refused" "$(dpost claim '' '{"code":"000000"}')" 404
+expect "box pairs with the code" "$(dpost claim '' "{\"code\":\"$PC\",\"hw\":\"TEST\",\"fw\":\"1.0.0\"}")" 200; TOK=$(sed -E 's/.*"token":"([^"]+)".*/\1/' "$T/out")
+expect "a code works only once" "$(dpost claim '' "{\"code\":\"$PC\"}")" 404
+expect "no token, no data" "$(dget sync '')" 401
+expect "box gets today's schedule" "$(dget sync "$TOK")" 200; body_has "schedule has the morning lid" '"slot":"m","lid":1'
+T0=$(( $(date +%s) - 600 )); T1=$(date +%s)
+expect "box reports a lid opening" "$(dpost events "$TOK" "{\"battery\":77,\"events\":[{\"type\":\"open\",\"lid\":1,\"t\":$T0},{\"type\":\"close\",\"lid\":1,\"t\":$((T0+5))}]}")" 200; body_has "opening at dose time ticks the dose" '"results":\["taken"'
+body_has "the box is told the dose is done" '"slot":"m","lid":1,"time":"[0-9:]*","count":[0-9]*,"done":true'
+expect "box reports a second opening" "$(dpost events "$TOK" "{\"events\":[{\"type\":\"open\",\"lid\":1,\"t\":$T1}]}")" 200; body_has "second opening is flagged" '"results":\["again"'
+get a bootstrap >/dev/null; body_has "dose shows as by pillbox" '"source":"box"'; body_has "tablet count went down" '"name":"Box medicine".*"stock":4'
+expect "pillbox list" "$(get a device_list)" 200; body_has "battery reported" '"battery":77'
+expect "B cannot test A's box" "$(post b device_test "{\"id\":$DEV,\"lid\":1}")" 404
+expect "new pairing code" "$(post a device_code "{\"id\":$DEV}")" 200
+expect "old box token stops working" "$(dget sync "$TOK")" 401
+expect "test without hardware" "$(post a device_test "{\"id\":$DEV,\"lid\":2}")" 200; body_has "no dose in that lid now" '"outcome":"\(outside\|nodose\)"'
+
 echo "Your data (DPDP)"
 expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'
 expect "delete needs password" "$(post a account_delete '{"password":"wrong"}')" 403

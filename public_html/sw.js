@@ -1,6 +1,6 @@
 /* AushadhBox service worker: offline app shell + push reminders. */
-const CACHE = "aushadhbox-v5";
-const SHELL = ["/app", "/styles.css?v=5", "/app.js?v=5", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/i18n-auto.js?v=4", "/i18n-smart.js?v=5", "/rx-parse.js?v=5", "/consent.js?v=3", "/consent-i18n.js?v=3",
+const CACHE = "aushadhbox-v6";
+const SHELL = ["/app", "/styles.css?v=6", "/app.js?v=6", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/i18n-auto.js?v=4", "/i18n-smart.js?v=5", "/i18n-care.js?v=6", "/rx-parse.js?v=5", "/consent.js?v=3", "/consent-i18n.js?v=3",
   "/lib/qrcode.js", "/lib/jsQR.js", "/icons/icon-192.png", "/icons/icon-512.png",
   "/assets/audio/dose-reminder.mp3", "/assets/audio/expiry-alert.mp3", "/assets/audio/saved.mp3"];
 
@@ -38,19 +38,21 @@ self.addEventListener("push", (e) => {
   e.waitUntil(self.registration.showNotification(data.title, {
     body: data.body, tag: data.tag || "aushadhbox", renotify: true, icon: "/icons/icon-192.png", badge: "/icons/badge-72.png",
     data: { url: data.url || "/app", slot: data.slot || null }, vibrate: [120, 60, 120],
-    actions: data.slot ? [{ action: "taken", title: "✓ Taken" }, { action: "open", title: "Open" }] : []
+    // "Did you take it?" checks offer Skip (the app then asks why); ordinary reminders offer Open.
+    actions: data.slot ? [{ action: "taken", title: "✓ Taken" }, data.ask ? { action: "skip", title: "Skip" } : { action: "open", title: "Open" }] : []
   }));
 });
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   if (e.action === "taken" && e.notification.data && e.notification.data.slot) {
     e.waitUntil(fetch("/api.php?action=session", { credentials: "include" }).then(r => r.json()).then(s =>
-      fetch("/api.php?action=dose_slot_taken", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": s.csrf }, body: JSON.stringify({ slot: e.notification.data.slot }) })
+      fetch("/api.php?action=dose_slot_taken", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-CSRF-Token": s.csrf }, body: JSON.stringify({ slot: e.notification.data.slot, source: "notif" }) })
     ).then(r => r.json()).then(d => self.registration.showNotification("Marked as taken", { body: (d.ticked || 0) + " doses ticked. Well done!", tag: "taken", icon: "/icons/icon-192.png", badge: "/icons/badge-72.png" }))
       .catch(() => self.clients.openWindow("/app#doses")));
     return;
   }
-  const target = new URL(e.notification.data.url || "./", self.registration.scope).href;
+  const url = e.action === "skip" && e.notification.data.slot ? "/app#skip-" + e.notification.data.slot : (e.notification.data.url || "./");
+  const target = new URL(url, self.registration.scope).href;
   e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
     for (const c of list) if (c.url.startsWith(self.registration.scope)) { c.navigate(target); return c.focus(); }
     return self.clients.openWindow(target);

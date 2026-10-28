@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=5">
+<link rel="stylesheet" href="/styles.css?v=6">
 </head>
 <body>
 
@@ -196,6 +196,11 @@
     </div>
     <p class="muted" id="pushState" hidden></p>
     <div class="slots" id="slots"></div>
+    <div class="panel stack adh-card" id="adhCard">
+      <div class="adh-head"><h3 data-i18n="adhTitle">Last 7 days</h3><button class="btn btn-ghost btn-sm" type="button" id="adhCopy" data-i18n="nbCopy">Copy for doctor</button></div>
+      <p class="muted" data-i18n="adhDesc">Taken, skipped and not confirmed, for each person.</p>
+      <div id="adhList" class="adh-list"></div>
+    </div>
   </section>
 
   <!-- NOTEBOOK -->
@@ -304,6 +309,18 @@
           <button class="link" type="button" id="calRenew" data-i18n="calRenew" style="justify-self:start;font-size:.85rem">Make a new private link</button>
         </div>
       </div>
+      <div class="panel stack" id="boxCard">
+        <h3 data-i18n="boxTitle">Smart pillbox</h3>
+        <p class="muted" data-i18n="boxDesc">A pill organiser with a sensor in each lid. Opening the right lid at dose time ticks the dose by itself.</p>
+        <div id="boxList" class="box-list"></div>
+        <form class="box-add" id="boxAdd">
+          <div class="field"><label for="bxName" data-i18n="boxName">Name</label><input id="bxName" maxlength="40" required placeholder="Amma's pillbox"></div>
+          <div class="field"><label for="bxFor" data-i18n="fFor">For</label><select id="bxFor"></select></div>
+          <div class="field"><label for="bxLids" data-i18n="boxLids">Lids</label><select id="bxLids"><option value="4" data-i18n="boxLids4">4 lids: morning, afternoon, evening, bedtime</option><option value="1" data-i18n="boxLids1">1 lid for everything</option></select></div>
+          <button class="btn btn-primary btn-sm" type="submit" data-i18n="boxAdd">Add a pillbox</button>
+        </form>
+        <p class="muted" style="font-size:.85rem"><a href="https://github.com/G-Jayakiruthika/medishelf-sync/tree/main/hardware" target="_blank" rel="noopener" data-i18n="boxBuild">How to build one (about ₹900 of parts)</a></p>
+      </div>
       <form class="panel stack" id="profileForm">
         <h3 data-i18n="profile">Profile</h3>
         <div class="field"><label for="pfName" data-i18n="yourName">Your name</label><input id="pfName" maxlength="80" required></div>
@@ -395,6 +412,20 @@
   <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" id="shopWa" href="#" target="_blank" rel="noopener" data-i18n="shopShare">Share on WhatsApp</a><button class="btn btn-ghost btn-sm" type="button" id="shopCopy" data-i18n="shopCopy">Copy list</button></div>
 </dialog>
 
+<dialog class="sheet" id="skipDialog" aria-labelledby="skipHead">
+  <form method="dialog" class="sheet-x"><button class="icon-btn" aria-label="Close">✕</button></form>
+  <h2 id="skipHead" data-i18n="skipTitle">Why skip this dose?</h2>
+  <p class="muted" id="skipWhat"></p>
+  <div class="skip-reasons" id="skipReasons">
+    <button type="button" class="btn btn-ghost" data-reason="fine" data-i18n="skipFine">Feeling fine, didn't need it</button>
+    <button type="button" class="btn btn-ghost" data-reason="side" data-i18n="skipSide">Side effects</button>
+    <button type="button" class="btn btn-ghost" data-reason="out" data-i18n="skipOut">Ran out of tablets</button>
+    <button type="button" class="btn btn-ghost" data-reason="doctor" data-i18n="skipDoctor">Doctor stopped it</button>
+    <button type="button" class="btn btn-ghost" data-reason="other" data-i18n="skipOther">Other reason</button>
+  </div>
+  <p class="muted" style="font-size:.85rem" data-i18n="skipNote">Side effects: the family is told. Ran out: added to the shopping list. Doctor stopped it: reminders stop.</p>
+</dialog>
+
 <!-- Welcome tour -->
 <dialog class="sheet tour" id="tourDialog" aria-labelledby="tourTitle">
   <div class="tour-art" id="tourArt" aria-hidden="true"></div>
@@ -411,8 +442,9 @@
 <script src="/i18n-premium.js?v=3"></script>
 <script src="/i18n-auto.js?v=4"></script>
 <script src="/i18n-smart.js?v=5"></script>
+<script src="/i18n-care.js?v=6"></script>
 <script src="/rx-parse.js?v=5"></script>
-<script src="/app.js?v=5"></script>
+<script src="/app.js?v=6"></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer></script>
 </body>

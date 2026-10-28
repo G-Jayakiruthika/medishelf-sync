@@ -7,6 +7,8 @@ require __DIR__ . '/core/catalog.php';
 require __DIR__ . '/core/services.php';
 require __DIR__ . '/core/plans.php';
 require __DIR__ . '/core/automations.php';
+require __DIR__ . '/core/doses.php';
+require __DIR__ . '/core/pillbox.php';
 
 security_headers();
 start_session();
@@ -46,7 +48,7 @@ try {
         q('INSERT INTO users (name, email, phone, password_hash, language, consent_version, consent_at) VALUES (?,?,?,?,?,?,NOW())',
           [$name, $email, $phone, password_hash($pass, PASSWORD_DEFAULT), $lang, config('consent_version')]);
         $uid = (int) db()->lastInsertId();
-        q('INSERT INTO members (user_id, name, relation, is_self) VALUES (?,?,?,1)', [$uid, $name, 'Self']);
+        q('INSERT INTO members (user_id, name, relation, is_self, account_id) VALUES (?,?,?,1,?)', [$uid, $name, 'Self', $uid]);
         q('INSERT INTO reminder_settings (user_id) VALUES (?)', [$uid]);
         q("INSERT INTO consent_log (user_ref, version, action) VALUES (?,?,'given')", [hash('sha256', $email), config('consent_version')]);
         db()->commit();
@@ -137,8 +139,10 @@ try {
             'payments' => q("SELECT period, amount_paise/100 AS amount_rupees, status, rp_order_id, rp_payment_id, created_at, paid_at FROM payments WHERE user_id = ?", [$user['id']])->fetchAll(),
             'members' => q('SELECT name, relation, allergies FROM members WHERE user_id = ?', [$uid])->fetchAll(),
             'medicines' => q('SELECT c.name, m.name AS member, c.batch_no, c.mfg_month, c.exp_month, c.dose_times, c.quantity, c.notes, c.created_at FROM cabinet_items c LEFT JOIN members m ON m.id = c.member_id WHERE c.user_id = ?', [$uid])->fetchAll(),
-            'doses_taken' => q('SELECT c.name, d.slot, d.taken_on, d.taken_at FROM dose_logs d JOIN cabinet_items c ON c.id = d.item_id WHERE d.user_id = ? ORDER BY d.taken_on DESC', [$uid])->fetchAll(),
+            'doses_taken' => q('SELECT c.name, d.slot, d.taken_on, d.taken_at, d.status, d.reason, d.source FROM dose_logs d JOIN cabinet_items c ON c.id = d.item_id WHERE d.user_id = ? ORDER BY d.taken_on DESC', [$uid])->fetchAll(),
             'reminders' => q('SELECT enabled, m_time, a_time, e_time, b_time FROM reminder_settings WHERE user_id = ?', [$user['id']])->fetch(),
+            'pillboxes' => q('SELECT name, compartments, firmware, battery, last_seen, created_at FROM devices WHERE user_id = ?', [$uid])->fetchAll(),
+            'pillbox_openings' => q('SELECT d.name AS box, e.kind, e.compartment, e.happened_at, e.slot, e.outcome FROM device_events e JOIN devices d ON d.id = e.device_id WHERE d.user_id = ? ORDER BY e.happened_at DESC', [$uid])->fetchAll(),
         ];
         header('Content-Disposition: attachment; filename="aushadhbox-my-data.json"');
         json_out($data);
@@ -159,14 +163,15 @@ try {
         $members = q('SELECT id, name, relation, allergies, is_self FROM members WHERE user_id = ? ORDER BY is_self DESC, id', [$uid])->fetchAll();
         $items = q('SELECT id, member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end FROM cabinet_items WHERE user_id = ? ORDER BY exp_month', [$uid])->fetchAll();
         $today = date('Y-m-d');
-        $doses = q('SELECT item_id, slot FROM dose_logs WHERE user_id = ? AND taken_on = ?', [$uid, $today])->fetchAll();
+        $doses = q('SELECT item_id, slot, status, reason, source, taken_at FROM dose_logs WHERE user_id = ? AND taken_on = ?', [$uid, $today])->fetchAll();
         $rem = q('SELECT enabled, m_time, a_time, e_time, b_time FROM reminder_settings WHERE user_id = ?', [$user['id']])->fetch() ?: ['enabled' => 0, 'm_time' => '08:00', 'a_time' => '13:30', 'e_time' => '19:30', 'b_time' => '22:00'];
         $kit = array_column(q('SELECT item_key FROM kit_checks WHERE user_id = ?', [$uid])->fetchAll(), 'item_key');
         json_out([
             'user' => public_user($user), 'today' => $today,
             'members' => array_map(fn($m) => ['id' => (int) $m['id'], 'name' => $m['name'], 'relation' => $m['relation'], 'allergies' => $m['allergies'], 'self' => (bool) $m['is_self']], $members),
             'items' => array_map('public_item', $items),
-            'taken' => array_map(fn($d) => $d['item_id'] . ':' . $d['slot'], $doses),
+            'taken' => array_values(array_map(fn($d) => $d['item_id'] . ':' . $d['slot'], array_filter($doses, fn($d) => $d['status'] === 'taken'))),
+            'doseLog' => (object) array_column(array_map(fn($d) => ['k' => $d['item_id'] . ':' . $d['slot'], 'v' => ['status' => $d['status'], 'reason' => $d['reason'], 'source' => $d['source'], 'at' => substr($d['taken_at'], 11, 5)]], $doses), 'v', 'k'),
             'reminders' => ['enabled' => (bool) $rem['enabled'], 'm' => $rem['m_time'], 'a' => $rem['a_time'], 'e' => $rem['e_time'], 'b' => $rem['b_time']],
             'kit' => $kit,
             'billing' => billing_public($user),
@@ -228,29 +233,83 @@ try {
         own('cabinet_items', $id, $hid);
         $today = date('Y-m-d');
         // Automatic stock count: a new tick uses up per_dose; un-ticking puts it back. Only real changes count.
-        if (!empty($in['taken'])) {
-            $changed = q('INSERT IGNORE INTO dose_logs (user_id, item_id, slot, taken_on) VALUES (?,?,?,?)', [$hid, $id, $slot, $today])->rowCount();
-            if ($changed) q('UPDATE cabinet_items SET stock_count = GREATEST(CAST(stock_count AS SIGNED) - CAST(per_dose AS SIGNED), 0) WHERE id = ? AND stock_count IS NOT NULL', [$id]);
-        } else {
-            $changed = q('DELETE FROM dose_logs WHERE user_id = ? AND item_id = ? AND slot = ? AND taken_on = ?', [$hid, $id, $slot, $today])->rowCount();
-            if ($changed) q('UPDATE cabinet_items SET stock_count = LEAST(stock_count + per_dose, 9999) WHERE id = ? AND stock_count IS NOT NULL', [$id]);
-        }
+        if (!empty($in['taken'])) dose_mark($hid, $id, $slot, $today, 'taken', null, 'app');
+        else dose_unmark($hid, $id, $slot, $today);
         $st = q('SELECT stock_count FROM cabinet_items WHERE id = ?', [$id])->fetchColumn();
         json_out(['ok' => true, 'stock' => $st === null ? null : (int) $st]);
 
     case 'dose_slot_taken':   // "Taken" on a reminder notification: tick every dose due in that time slot today
-        $slot = (string) (input()['slot'] ?? '');
+        $in = input();
+        $slot = (string) ($in['slot'] ?? '');
         if (!in_array($slot, SLOTS, true)) fail('bad_slot', 'Unknown time of day.');
         $today = date('Y-m-d');
-        $due = q("SELECT id FROM cabinet_items WHERE user_id = ? AND FIND_IN_SET(?, dose_times) AND (course_end IS NULL OR course_end >= ?)", [$hid, $slot, $today])->fetchAll();
+        $src = ($in['source'] ?? '') === 'notif' ? 'notif' : 'app';
         $n = 0;
-        foreach ($due as $i) {
-            if (q('INSERT IGNORE INTO dose_logs (user_id, item_id, slot, taken_on) VALUES (?,?,?,?)', [$hid, $i['id'], $slot, $today])->rowCount()) {
-                q('UPDATE cabinet_items SET stock_count = GREATEST(CAST(stock_count AS SIGNED) - CAST(per_dose AS SIGNED), 0) WHERE id = ? AND stock_count IS NOT NULL', [$i['id']]);
-                $n++;
-            }
+        foreach (due_items($hid, $slot, $today) as $i) {
+            if (q("SELECT 1 FROM dose_logs WHERE item_id = ? AND slot = ? AND taken_on = ? AND status = 'skipped'", [$i['id'], $slot, $today])->fetch()) continue;   // a deliberate skip stays a skip
+            if (dose_mark($hid, (int) $i['id'], $slot, $today, 'taken', null, $src)) $n++;
         }
         json_out(['ok' => true, 'ticked' => $n]);
+
+    case 'dose_skip':   // "Skip" with a reason, for one medicine or for everything due in a time slot
+        $in = input();
+        $slot = (string) ($in['slot'] ?? '');
+        $reason = (string) ($in['reason'] ?? '');
+        if (!in_array($slot, SLOTS, true)) fail('bad_slot', 'Unknown time of day.');
+        if (!in_array($reason, SKIP_REASONS, true)) fail('bad_reason', 'Choose why the dose was skipped.');
+        $today = date('Y-m-d');
+        $id = (int) ($in['item_id'] ?? 0);
+        if ($id) { own('cabinet_items', $id, $hid); $ids = [$id]; }
+        else $ids = array_map(fn($i) => (int) $i['id'], array_filter(due_items($hid, $slot, $today), fn($i) => !q("SELECT 1 FROM dose_logs WHERE item_id = ? AND slot = ? AND taken_on = ? AND status = 'taken'", [$i['id'], $slot, $today])->fetch()));
+        foreach ($ids as $x) { dose_mark($hid, $x, $slot, $today, 'skipped', $reason, ($in['source'] ?? '') === 'notif' ? 'notif' : 'app'); skip_effects($x, $reason, $today); }
+        $items = $ids ? q('SELECT * FROM cabinet_items WHERE id IN (' . implode(',', $ids) . ')')->fetchAll() : [];
+        json_out(['ok' => true, 'skipped' => count($ids), 'items' => array_map('public_item', $items)]);
+
+    case 'adherence':   // taken / skipped / missed per person, last N full days (default 7)
+        $days = max(1, min(90, (int) ($_GET['days'] ?? 7)));
+        json_out(adherence($hid, date('Y-m-d', strtotime('-' . $days . ' day')), date('Y-m-d', strtotime('-1 day'))));
+
+    /* ---------------- Smart pillbox ---------------- */
+    case 'device_list':
+        json_out(['devices' => array_map('device_public', q('SELECT * FROM devices WHERE user_id = ? ORDER BY id', [$hid])->fetchAll()),
+                  'events' => q("SELECT e.device_id deviceId, e.kind, e.compartment lid, e.happened_at at, e.slot, e.outcome FROM device_events e JOIN devices d ON d.id = e.device_id
+                                 WHERE d.user_id = ? AND e.kind = 'open' ORDER BY e.happened_at DESC, e.id DESC LIMIT 12", [$hid])->fetchAll()]);
+
+    case 'device_add':
+    case 'device_update':
+        $in = input();
+        $name = str_in($in, 'name', 40, true);
+        $mid = (int) ($in['member_id'] ?? 0) ?: null;
+        if ($mid) own('members', $mid, $hid);
+        $comp = (int) ($in['compartments'] ?? 4) === 1 ? 1 : 4;
+        if ($action === 'device_update') {
+            $id = (int) ($in['id'] ?? 0); own('devices', $id, $hid);
+            q('UPDATE devices SET name = ?, member_id = ?, compartments = ? WHERE id = ?', [$name, $mid, $comp, $id]);
+        } else {
+            if ((int) q('SELECT COUNT(*) FROM devices WHERE user_id = ?', [$hid])->fetchColumn() >= 6) fail('limit_devices', 'You can connect up to 6 pillboxes.');
+            q('INSERT INTO devices (user_id, member_id, name, compartments) VALUES (?,?,?,?)', [$hid, $mid, $name, $comp]);
+            $id = (int) db()->lastInsertId();
+            device_new_code($id);
+        }
+        json_out(['ok' => true, 'device' => device_public(q('SELECT * FROM devices WHERE id = ?', [$id])->fetch())]);
+
+    case 'device_code':   // a fresh pairing code (also unpairs the box, e.g. after a factory reset)
+        $id = (int) (input()['id'] ?? 0); own('devices', $id, $hid);
+        q('UPDATE devices SET token_hash = NULL WHERE id = ?', [$id]);
+        device_new_code($id);
+        json_out(['ok' => true, 'device' => device_public(q('SELECT * FROM devices WHERE id = ?', [$id])->fetch())]);
+
+    case 'device_delete':
+        $id = (int) (input()['id'] ?? 0); own('devices', $id, $hid);
+        q('DELETE FROM devices WHERE id = ?', [$id]);
+        json_out(['ok' => true]);
+
+    case 'device_test':   // "Try without hardware": behaves exactly as if the box reported this lid opening now
+        $in = input();
+        $id = (int) ($in['id'] ?? 0); own('devices', $id, $hid);
+        $d = q('SELECT * FROM devices WHERE id = ?', [$id])->fetch();
+        $outcome = box_event($d, 'open', max(1, min(4, (int) ($in['lid'] ?? 1))), new DateTime());
+        json_out(['ok' => true, 'outcome' => $outcome]);
 
     case 'dose_history':   // last 14 days, for the adherence view
         $rows = q('SELECT taken_on, COUNT(*) n FROM dose_logs WHERE user_id = ? AND taken_on >= CURDATE() - INTERVAL 13 DAY GROUP BY taken_on', [$hid])->fetchAll();
@@ -399,8 +458,9 @@ try {
         q('UPDATE invites SET used_by = ? WHERE code = ?', [$user['id'], $code]);
         if ((int) q('SELECT COUNT(*) FROM members WHERE user_id = ?', [$owner['id']])->fetchColumn() < PREMIUM_LIMITS['members']
             && !q('SELECT 1 FROM members WHERE user_id = ? AND name = ?', [$owner['id'], $user['name']])->fetch()) {
-            q('INSERT INTO members (user_id, name, relation) VALUES (?,?,?)', [$owner['id'], $user['name'], 'Family']);
+            q('INSERT INTO members (user_id, name, relation, account_id) VALUES (?,?,?,?)', [$owner['id'], $user['name'], 'Family', $user['id']]);
         }
+        q('UPDATE members SET account_id = ? WHERE user_id = ? AND name = ? AND account_id IS NULL', [$user['id'], $owner['id'], $user['name']]);
         db()->commit();
         log_attempt('join', true);
         json_out(['ok' => true, 'owner' => $owner['name']]);
@@ -408,6 +468,7 @@ try {
     case 'household_leave':
         if (is_owner($user)) fail('is_owner', 'You own this cabinet. Remove other people instead.');
         q('UPDATE users SET household_id = NULL WHERE id = ?', [$user['id']]);
+        q('UPDATE members SET account_id = NULL WHERE account_id = ? AND user_id <> ?', [$user['id'], $user['id']]);
         json_out(['ok' => true]);
 
     case 'household_remove':
@@ -415,6 +476,7 @@ try {
         $target = (int) (input()['user_id'] ?? 0);
         $n = q('UPDATE users SET household_id = NULL WHERE id = ? AND household_id = ?', [$target, $user['id']])->rowCount();
         if (!$n) fail('not_found', 'That person is not in your family cabinet.', 404);
+        q('UPDATE members SET account_id = NULL WHERE account_id = ? AND user_id = ?', [$target, $user['id']]);
         json_out(['ok' => true]);
 
     case 'onboarded':
@@ -616,11 +678,21 @@ function sign_in(int $uid): void
 
 function own(string $table, int $id, int $uid): array
 {
-    $allowed = ['members', 'cabinet_items'];
+    $allowed = ['members', 'cabinet_items', 'devices'];
     if (!in_array($table, $allowed, true)) fail('bad_table', 'Not allowed.', 500);
     $row = q("SELECT * FROM $table WHERE id = ? AND user_id = ?", [$id, $uid])->fetch();
     if (!$row) fail('not_found', 'That record was not found.', 404);
     return $row;
+}
+
+function device_new_code(int $id): void
+{
+    for ($i = 0; $i < 5; $i++) {
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        try { q('UPDATE devices SET pair_code = ?, pair_expires = NOW() + INTERVAL 30 MINUTE WHERE id = ?', [$code, $id]); return; }
+        catch (PDOException $e) { /* the same code is in use right now; try another */ }
+    }
+    fail('server_busy', 'Please try again.', 503);
 }
 
 function log_attempt(string $kind, bool $ok, ?string $email = null): void

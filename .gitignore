@@ -5,3 +5,4 @@ public_html/core/cache/
 .DS_Store
 Thumbs.db
 *.zip
+hardware/simulator/.pillbox-sim.json

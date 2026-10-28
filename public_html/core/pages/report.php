@@ -21,7 +21,9 @@ $status = function (?string $exp): array {
     $days = (int) floor((strtotime($end) - strtotime(date('Y-m-d'))) / 86400);
     return $days < 0 ? ['Expired', 'var(--bad)'] : ($days <= 30 ? ['Expires soon', 'var(--warn)'] : ['OK', 'var(--ok)']);
 };
-$taken = q('SELECT c.name, COUNT(*) n FROM dose_logs d JOIN cabinet_items c ON c.id = d.item_id WHERE d.user_id = ? AND d.taken_on >= CURDATE() - INTERVAL 29 DAY GROUP BY c.id, c.name ORDER BY n DESC LIMIT 20', [$hid])->fetchAll();
+require_once APP_DIR . '/doses.php';
+$adh = adherence($hid, date('Y-m-d', strtotime('-30 day')), date('Y-m-d', strtotime('-1 day')));
+$reasonText = ['fine' => 'felt fine', 'side' => 'side effects', 'out' => 'ran out', 'doctor' => 'doctor stopped', 'other' => 'other'];
 ob_start();
 ?>
 <div class="report">
@@ -55,9 +57,16 @@ ob_start();
     </table>
     <?php endif; ?>
   </section>
-  <?php if ($taken): ?>
-  <section style="padding:0"><h2 style="font-size:1.2rem">Doses ticked as taken, last 30 days</h2>
-    <table><tbody><?php foreach ($taken as $t): ?><tr><td><?= e($t['name']) ?></td><td style="width:20%"><?= (int) $t['n'] ?></td></tr><?php endforeach; ?></tbody></table></section>
+  <?php if ($adh['people']): ?>
+  <section style="padding:0"><h2 style="font-size:1.2rem">Doses, last 30 days</h2>
+    <p style="margin:0 0 8px;color:#555;font-size:.9rem">Taken = ticked, or a smart pillbox lid opened at dose time. Not confirmed = no tick, no skip and no pillbox opening.</p>
+    <table><thead><tr><th>Person / medicine</th><th>Taken</th><th>Skipped</th><th>Not confirmed</th></tr></thead><tbody>
+    <?php foreach ($adh['people'] as $p): ?>
+      <tr><td><b><?= e($p['name']) ?></b> — <?= (int) $p['percent'] ?>%<?= $p['worstSlot'] ? ' · most missed: ' . e(SLOT_LABELS[$p['worstSlot']]) : '' ?><?= $p['reasons'] ? ' · skipped because: ' . e(implode(', ', array_map(fn($r, $n) => ($reasonText[$r] ?? $r) . ' ×' . $n, array_keys($p['reasons']), $p['reasons']))) : '' ?></td>
+        <td><?= (int) $p['taken'] ?> / <?= (int) $p['expected'] ?></td><td><?= (int) $p['skipped'] ?></td><td><?= (int) $p['missed'] ?></td></tr>
+      <?php foreach ($p['medicines'] as $m): ?><tr><td style="padding-left:22px"><?= e($m['name']) ?></td><td><?= (int) $m['taken'] ?> / <?= (int) $m['expected'] ?></td><td></td><td></td></tr><?php endforeach; ?>
+    <?php endforeach; ?>
+    </tbody></table></section>
   <?php endif; ?>
   <p class="muted" style="font-size:.85rem">This list was entered by the family and may be incomplete. It is not a prescription. Please confirm doses with the patient.</p>
 </div>

@@ -7,6 +7,7 @@ require __DIR__ . '/core/bootstrap.php';
 require __DIR__ . '/core/services.php';
 require __DIR__ . '/core/plans.php';
 require __DIR__ . '/core/automations.php';
+require __DIR__ . '/core/doses.php';
 require __DIR__ . '/core/catalog.php';
 require __DIR__ . '/core/migrate.php';
 header('Content-Type: text/plain; charset=utf-8');

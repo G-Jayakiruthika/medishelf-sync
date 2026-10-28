@@ -89,6 +89,35 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
         }
     }
 
+    // n — "Did you take it?" sent first to the person whose medicine it is (if they have their own login),
+    //     halfway to the family alert. Their notification has Taken / Skip buttons.
+    if ($s['missed_on']) {
+        $ask = max(15, intdiv((int) $s['missed_after'], 2));
+        foreach (SLOTS as $slot) {
+            $late = $nowMin - hm_minutes($owner_times[$slot] ?? '08:00') - $ask;
+            if ($late < 0 || $late > 20 || $logged('n', 0, $slot, $today)) continue;
+            $mine = q("SELECT c.id, c.name FROM cabinet_items c JOIN members mb ON mb.id = c.member_id
+                       LEFT JOIN dose_logs d ON d.item_id = c.id AND d.slot = ? AND d.taken_on = ?
+                       WHERE c.user_id = ? AND mb.account_id = ? AND FIND_IN_SET(?, c.dose_times) AND d.id IS NULL AND (c.course_end IS NULL OR c.course_end >= ?)",
+                      [$slot, $today, $hid, $uid, $slot, $today])->fetchAll();
+            if (!$mine) continue;
+            $log('n', 0, $slot);
+            $out[] = ['title' => 'Did you take your ' . SLOT_LABELS[$slot] . ' medicines?',
+                      'body' => implode(', ', array_column($mine, 'name')) . '. Tap Taken, or Skip and tell us why. Your family is told if there is no answer.',
+                      'tag' => 'ask-' . $slot, 'url' => '/app#doses', 'kind' => 'ask', 'slot' => $slot, 'ask' => true];
+        }
+    }
+
+    // s — a dose skipped because of side effects: the family hears at once, so someone can call the doctor
+    foreach (q("SELECT c.id, c.name, c.member_id, d.slot FROM dose_logs d JOIN cabinet_items c ON c.id = d.item_id
+                WHERE d.user_id = ? AND d.taken_on = ? AND d.status = 'skipped' AND d.reason = 'side'", [$hid, $today])->fetchAll() as $i) {
+        if ($logged('s', (int) $i['id'], $i['slot'], $today)) continue;
+        $log('s', (int) $i['id'], $i['slot']);
+        $out[] = ['title' => 'Skipped because of side effects: ' . $i['name'],
+                  'body' => $who($i['member_id']) . 'The ' . SLOT_LABELS[$i['slot']] . ' dose was skipped because of side effects. Please talk to the doctor before stopping a medicine.',
+                  'tag' => 'side-' . $i['id'], 'url' => '/app#doses', 'kind' => 'side'];
+    }
+
     // m — missed dose (uses the cabinet owner's dose times, so the whole family is on one clock)
     if ($s['missed_on']) {
         foreach (SLOTS as $slot) {
@@ -103,7 +132,7 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
             foreach ($due as $i) $log('m', (int) $i['id'], $slot);
             $labels = ['m' => 'morning', 'a' => 'afternoon', 'e' => 'evening', 'b' => 'bedtime'];
             $out[] = ['title' => 'Not ticked yet: ' . $labels[$slot] . ' dose',
-                      'body' => implode(', ', array_map(fn($i) => $who($i['member_id']) . $i['name'], $due)) . '. Please check they were taken.',
+                      'body' => implode(', ', array_map(fn($i) => $who($i['member_id']) . $i['name'], $due)) . '. No tick, no skip and no pillbox opening. Please check they were taken.',
                       'tag' => 'missed-' . $slot, 'url' => '/app#doses', 'kind' => 'missed', 'slot' => $slot];
         }
     }
@@ -128,6 +157,41 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
                                 'body' => implode(', ', array_slice(array_column($expired, 'name'), 0, 6)) . (count($expired) > 6 ? ' and more' : '') . '. Take them to a pharmacy take-back point.',
                                 'tag' => 'cleanup', 'url' => '/app#cabinet', 'kind' => 'cleanup'];
     }
+    // w — weekly report, Sunday morning: how many doses each person took last week
+    if ($isMorning && $now->format('w') === '0' && !$logged('w', 0, '', $today)) {
+        $log('w', 0, '');
+        $rep = adherence($hid, (clone $now)->modify('-7 day')->format('Y-m-d'), (clone $now)->modify('-1 day')->format('Y-m-d'));
+        if ($rep['people']) {
+            $lines = array_map(fn($p) => $p['name'] . ' ' . $p['taken'] . '/' . $p['expected'] . ' (' . $p['percent'] . '%)'
+                                . ($p['worstSlot'] ? ', misses ' . SLOT_LABELS[$p['worstSlot']] : ''), $rep['people']);
+            $out[] = ['title' => 'Last week\'s doses', 'body' => implode('; ', $lines) . '.', 'tag' => 'weekly', 'url' => '/app#doses', 'kind' => 'weekly'];
+        }
+    }
+
+    // Pillbox: opened twice (d), not heard from for a day or battery low (o), fill it for the week (r)
+    foreach (q('SELECT * FROM devices WHERE user_id = ? AND token_hash IS NOT NULL', [$hid])->fetchAll() as $dev) {
+        foreach (q("SELECT slot, MAX(happened_at) at FROM device_events WHERE device_id = ? AND outcome = 'again' AND DATE(happened_at) = ? GROUP BY slot", [$dev['id'], $today])->fetchAll() as $e) {
+            if ($logged('d', (int) $dev['id'], $e['slot'], $today)) continue;
+            $log('d', (int) $dev['id'], $e['slot']);
+            $out[] = ['title' => $dev['name'] . ': ' . SLOT_LABELS[$e['slot']] . ' lid opened again',
+                      'body' => 'It was opened again at ' . substr($e['at'], 11, 5) . ' after this dose was already taken. Please check a second dose was not taken by mistake.',
+                      'tag' => 'again-' . $dev['id'], 'url' => '/app#account', 'kind' => 'pillbox'];
+        }
+        if ($isMorning && $dev['last_seen'] && strtotime($dev['last_seen']) < $now->getTimestamp() - 86400 && !$logged('o', (int) $dev['id'], '', $today)) {
+            $log('o', (int) $dev['id'], '');
+            $out[] = ['title' => $dev['name'] . ' is offline', 'body' => 'The pillbox has not connected since ' . date('j M, H:i', strtotime($dev['last_seen'])) . '. Check its power and Wi-Fi. Doses are not detected while it is offline.',
+                      'tag' => 'offline-' . $dev['id'], 'url' => '/app#account', 'kind' => 'pillbox'];
+        } elseif ($isMorning && $dev['battery'] !== null && (int) $dev['battery'] <= 15 && !$logged('o', (int) $dev['id'], 'b', $today)) {
+            $log('o', (int) $dev['id'], 'b');
+            $out[] = ['title' => 'Charge ' . $dev['name'], 'body' => 'Battery is at ' . (int) $dev['battery'] . '%.', 'tag' => 'battery-' . $dev['id'], 'url' => '/app#account', 'kind' => 'pillbox'];
+        }
+        if ($now->format('w') === '0' && (int) $now->format('H') === 18 && (int) $now->format('i') < 20 && !$logged('r', (int) $dev['id'], '', $today)) {
+            $log('r', (int) $dev['id'], '');
+            $out[] = ['title' => 'Fill ' . $dev['name'] . ' for the week', 'body' => 'Put next week\'s tablets in each lid. Openings while you fill it are not counted as doses.',
+                      'tag' => 'fill-' . $dev['id'], 'url' => '/app#doses', 'kind' => 'pillbox'];
+        }
+    }
+
     // t — reminder times learn the family's routine (checked once a day, in the evening window)
     if ((int) ($s['timing_on'] ?? 1) && (int) $now->format('H') === 21 && (int) $now->format('i') < 20 && !$logged('t', 0, '', $today)) {
         $log('t', 0, '');
@@ -136,7 +200,7 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
         $weekAgo = (clone $now)->modify('-7 day')->format('Y-m-d');
         foreach ($own ? SLOTS : [] as $slot) {
             $mins = array_map(fn($r) => (int) $r['h'] * 60 + (int) $r['m'], q('SELECT HOUR(MIN(taken_at)) h, MINUTE(MIN(taken_at)) m FROM dose_logs
-                     WHERE user_id = ? AND slot = ? AND taken_on >= ? AND taken_on < ? GROUP BY taken_on', [$hid, $slot, $weekAgo, $today])->fetchAll());
+                     WHERE user_id = ? AND slot = ? AND taken_on >= ? AND taken_on < ? AND status = \'taken\' GROUP BY taken_on', [$hid, $slot, $weekAgo, $today])->fetchAll());
             if (count($mins) < 4) continue;
             sort($mins);
             $median = $mins[intdiv(count($mins), 2)];

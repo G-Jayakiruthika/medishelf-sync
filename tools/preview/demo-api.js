@@ -2,7 +2,7 @@
    Data lives only in this browser (localStorage). Loaded before every other script on preview pages. */
 (function () {
   "use strict";
-  var KEY = "ab-demo-v1", DATA = null, dataPromise = null;
+  var KEY = "ab-demo-v2", DATA = null, dataPromise = null;
   var today = new Date(), iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   var TODAY = iso(today);
   var ym = function (add) { var d = new Date(today.getFullYear(), today.getMonth() + add, 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
@@ -27,7 +27,22 @@
       it(8, "Azithromycin 500 mg", 5, ym(18), ["m"], "AZX2309", 3, dayAdd(2), "azithromycin"),
       it(9, "ORS sachet", 4, ym(-2), [], "ORS1002", null, null, null)
     ];
-    return { users: users, members: members, items: items, taken: [], kit: ["supply", "numbers"], session: null, nextId: 100, invites: {},
+    // A week of history, so the weekly report and the pillbox have something to show.
+    var taken = [], rnd = 7;
+    var next = function () { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
+    for (var d = 7; d >= 1; d--) items.forEach(function (i) {
+      i.times.forEach(function (sl) {
+        var r = next(), day = dayAdd(-d), hh = { m: "08", a: "13", e: "19", b: "22" }[sl];
+        if (i.member_id === 2) { if (r < 0.86) taken.push({ hid: 1, item: i.id, slot: sl, day: day, status: "taken", source: "box", at: hh + ":0" + Math.floor(r * 9) }); return; }
+        if (i.member_id === 3 && sl === "e" && r < 0.45) return;                                   // Appa often forgets the evening dose
+        if (i.member_id === 3 && sl === "b" && d === 3) { taken.push({ hid: 1, item: i.id, slot: sl, day: day, status: "skipped", reason: "side", source: "app" }); return; }
+        if (r < 0.9) taken.push({ hid: 1, item: i.id, slot: sl, day: day, status: "taken", source: r < 0.3 ? "notif" : "app", at: hh + ":1" + Math.floor(r * 9) });
+      });
+    });
+    var devices = [{ id: 1, hid: 1, name: "Amma's pillbox", memberId: 2, compartments: 4, paired: true, pairCode: null, battery: 82, firmware: "1.0.0", lastSeen: TODAY + " 07:58" }];
+    var devEvents = [{ deviceId: 1, kind: "open", lid: 1, at: dayAdd(-1) + " 08:04", slot: "m", outcome: "taken" }, { deviceId: 1, kind: "open", lid: 3, at: dayAdd(-1) + " 19:41", slot: "e", outcome: "taken" },
+      { deviceId: 1, kind: "open", lid: 3, at: dayAdd(-1) + " 21:15", slot: "e", outcome: "again" }, { deviceId: 1, kind: "open", lid: 1, at: dayAdd(-2) + " 18:02", slot: null, outcome: "outside" }].reverse();
+    return { users: users, members: members, items: items, taken: taken, devices: devices, devEvents: devEvents, kit: ["supply", "numbers"], session: null, nextId: 100, invites: {},
       auto: { refill: true, refillDays: 5, missed: true, missedAfter: 60, course: true, cleanup: true, timing: true, calendar: true },
       reminders: { 1: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, 2: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" } },
       payments: [{ created_at: TODAY + " 10:12", period: "year", amount: 399, status: "paid", order_id: "demo_order_1", name: "Lakshmi" }],
@@ -68,6 +83,10 @@
     var info = i.info_id ? infoById(i.info_id) : (i.ing ? infoBySlug(i.ing) : null);
     return { id: i.id, member_id: i.member_id, name: i.name, catalog_id: i.catalog_id, info: info, batch: i.batch, mfg: i.mfg, exp: i.exp, quantity: i.quantity, times: i.times, notes: i.notes, stock: i.stock, perDose: i.perDose || 1, courseEnd: i.courseEnd };
   }
+  function nowHM() { var n = new Date(); return String(n.getHours()).padStart(2, "0") + ":" + String(n.getMinutes()).padStart(2, "0"); }
+  function dueNow(h, slot) { return S.items.filter(function (i) { return i.hid === h && (i.times || []).indexOf(slot) >= 0 && (!i.courseEnd || i.courseEnd >= TODAY); }); }
+  function pubDevice(d) { return { id: d.id, name: d.name, memberId: d.memberId, compartments: d.compartments, paired: d.paired, pairCode: d.paired ? null : d.pairCode, battery: d.battery, firmware: d.firmware, lastSeen: d.lastSeen, online: d.paired && !!d.lastSeen && d.lastSeen.slice(0, 10) === TODAY }; }
+  function myDevice(id) { var h = hid(need()), d = S.devices.find(function (x) { return x.id === id && x.hid === h; }); if (!d) fail(404, "not_found", "That record was not found."); return d; }
   function fail(status, code, message) { var e = new Error(message); e.status = status; e.code = code; throw e; }
   function need() { var u = me(); if (!u) fail(401, "not_signed_in", "Please sign in."); return u; }
 
@@ -88,7 +107,8 @@
     bootstrap: function () {
       var u = need(), h = hid(u);
       return { user: pubUser(u), today: TODAY, members: S.members.filter(function (m) { return m.hid === h; }).map(function (m) { return { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, self: m.self }; }),
-        items: S.items.filter(function (i) { return i.hid === h; }).map(pubItem), taken: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h; }).map(function (t) { return t.item + ":" + t.slot; }),
+        items: S.items.filter(function (i) { return i.hid === h; }).map(pubItem), taken: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h && t.status !== "skipped"; }).map(function (t) { return t.item + ":" + t.slot; }),
+        doseLog: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h; }).reduce(function (o, t) { o[t.item + ":" + t.slot] = { status: t.status || "taken", reason: t.reason || null, source: t.source || "app", at: t.at || "" }; return o; }, {}),
         reminders: S.reminders[u.id] || { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, kit: S.kit, billing: billing(u) };
     },
     member_save: function (b) {
@@ -123,17 +143,76 @@
     dose_slot_taken: function (b) {
       var h = hid(need()), n = 0;
       S.items.filter(function (i) { return i.hid === h && (i.times || []).indexOf(b.slot) >= 0 && (!i.courseEnd || i.courseEnd >= TODAY); }).forEach(function (i) {
-        if (S.taken.some(function (t) { return t.item === i.id && t.slot === b.slot && t.day === TODAY; })) return;
-        S.taken.push({ hid: h, item: i.id, slot: b.slot, day: TODAY }); if (i.stock !== null) i.stock = Math.max(0, i.stock - (i.perDose || 1)); n++;
+        if (S.taken.some(function (t) { return t.item === i.id && t.slot === b.slot && t.day === TODAY; })) return;   // already taken, or deliberately skipped
+        S.taken.push({ hid: h, item: i.id, slot: b.slot, day: TODAY, status: "taken", source: b.source === "notif" ? "notif" : "app", at: nowHM() }); if (i.stock !== null) i.stock = Math.max(0, i.stock - (i.perDose || 1)); n++;
       });
       return { ok: true, ticked: n };
+    },
+    dose_skip: function (b) {
+      var h = hid(need()); if (["fine", "side", "out", "doctor", "other"].indexOf(b.reason) < 0) fail(400, "bad_reason", "Choose why the dose was skipped.");
+      var list = b.item_id ? S.items.filter(function (i) { return i.id === b.item_id && i.hid === h; }) : dueNow(h, b.slot).filter(function (i) { return !S.taken.some(function (t) { return t.item === i.id && t.slot === b.slot && t.day === TODAY && t.status !== "skipped"; }); });
+      if (b.item_id && !list.length) fail(404, "not_found", "That record was not found.");
+      list.forEach(function (i) {
+        var ex = S.taken.find(function (t) { return t.item === i.id && t.slot === b.slot && t.day === TODAY; });
+        if (ex) { if (ex.status !== "skipped" && i.stock !== null) i.stock += (i.perDose || 1); ex.status = "skipped"; ex.reason = b.reason; }
+        else S.taken.push({ hid: h, item: i.id, slot: b.slot, day: TODAY, status: "skipped", reason: b.reason, source: "app" });
+        if (b.reason === "out") i.stock = 0;
+        if (b.reason === "doctor" && (!i.courseEnd || i.courseEnd > TODAY)) i.courseEnd = TODAY;
+      });
+      return { ok: true, skipped: list.length, items: list.map(pubItem) };
+    },
+    adherence: function (b, q) {
+      var h = hid(need()), days = Number(q.get("days")) || 7, people = {};
+      for (var d = days; d >= 1; d--) { var day = dayAdd(-d);
+        S.items.filter(function (i) { return i.hid === h && i.times.length && (!i.courseEnd || i.courseEnd >= day); }).forEach(function (i) {
+          var pid = i.member_id || 0, mem = S.members.find(function (m) { return m.id === pid; });
+          var p = people[pid] = people[pid] || { name: mem ? mem.name : "Whole family", expected: 0, taken: 0, skipped: 0, missed: 0, box: 0, bySlot: { m: { expected: 0, taken: 0 }, a: { expected: 0, taken: 0 }, e: { expected: 0, taken: 0 }, b: { expected: 0, taken: 0 } }, reasons: {}, meds: {}, memberId: pid || null };
+          p.meds[i.name] = p.meds[i.name] || { expected: 0, taken: 0 };
+          i.times.forEach(function (sl) {
+            p.expected++; p.bySlot[sl].expected++; p.meds[i.name].expected++;
+            var l = S.taken.find(function (t) { return t.item === i.id && t.slot === sl && t.day === day; });
+            if (l && l.status !== "skipped") { p.taken++; p.bySlot[sl].taken++; p.meds[i.name].taken++; if (l.source === "box") p.box++; }
+            else if (l) { p.skipped++; p.reasons[l.reason || "other"] = (p.reasons[l.reason || "other"] || 0) + 1; } else p.missed++;
+          });
+        });
+      }
+      var out = Object.keys(people).map(function (k) { var p = people[k]; p.percent = Math.round(100 * p.taken / p.expected);
+        var worst = null; Object.keys(p.bySlot).forEach(function (sl) { var v = p.bySlot[sl]; if (v.expected >= 2 && (worst === null || v.taken / v.expected < p.bySlot[worst].taken / p.bySlot[worst].expected)) worst = sl; });
+        p.worstSlot = worst && p.bySlot[worst].taken < p.bySlot[worst].expected ? worst : null;
+        p.medicines = Object.keys(p.meds).map(function (n) { return { name: n, expected: p.meds[n].expected, taken: p.meds[n].taken }; }); delete p.meds; return p; });
+      out.sort(function (a, c) { return a.percent - c.percent; });
+      return { from: dayAdd(-days), to: dayAdd(-1), people: out };
+    },
+    device_list: function () { var h = hid(need()); var ds = S.devices.filter(function (d) { return d.hid === h; });
+      return { devices: ds.map(pubDevice), events: S.devEvents.filter(function (e) { return ds.some(function (d) { return d.id === e.deviceId; }); }).sort(function (x, y) { return x.at < y.at ? 1 : x.at > y.at ? -1 : 0; }).slice(0, 12) }; },
+    device_add: function (b) { var h = hid(need()); if (!String(b.name || "").trim()) fail(400, "bad_name", "Enter a name.");
+      var d = { id: ++S.nextId, hid: h, name: String(b.name).trim().slice(0, 40), memberId: b.member_id || null, compartments: Number(b.compartments) === 1 ? 1 : 4, paired: false, pairCode: String(Math.floor(100000 + Math.random() * 899999)), battery: null, firmware: null, lastSeen: null };
+      S.devices.push(d); return { ok: true, device: pubDevice(d) }; },
+    device_code: function (b) { var d = myDevice(b.id); d.paired = false; d.pairCode = String(Math.floor(100000 + Math.random() * 899999)); return { ok: true, device: pubDevice(d) }; },
+    device_delete: function (b) { myDevice(b.id); S.devices = S.devices.filter(function (d) { return d.id !== b.id; }); return { ok: true }; },
+    device_test: function (b) {
+      var d = myDevice(b.id), h = d.hid, rem = S.reminders[h] || { m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, now = new Date(), min = now.getHours() * 60 + now.getMinutes();
+      var mins = function (hm) { var x = hm.split(":"); return Number(x[0]) * 60 + Number(x[1]); }, inWin = function (sl) { return min >= mins(rem[sl]) - 60 && min <= mins(rem[sl]) + 180; };
+      var slot = null, lid = Number(b.lid) || 1;
+      if (d.compartments >= 4) { slot = ["m", "a", "e", "b"][lid - 1]; if (!inWin(slot)) slot = null; }
+      else ["m", "a", "e", "b"].forEach(function (sl) { if (inWin(sl) && (slot === null || Math.abs(min - mins(rem[sl])) < Math.abs(min - mins(rem[slot])))) slot = sl; });
+      var outcome = "outside";
+      if (slot) {
+        var due = dueNow(h, slot).filter(function (i) { return !d.memberId || i.member_id === d.memberId; });
+        if (!due.length) outcome = "nodose";
+        else { var n = 0; due.forEach(function (i) { if (!S.taken.some(function (t) { return t.item === i.id && t.slot === slot && t.day === TODAY; })) { S.taken.push({ hid: h, item: i.id, slot: slot, day: TODAY, status: "taken", source: "box", at: nowHM() }); if (i.stock !== null) i.stock = Math.max(0, i.stock - (i.perDose || 1)); n++; } });
+          outcome = n ? "taken" : (S.devEvents.some(function (e) { return e.deviceId === d.id && e.slot === slot && e.at.slice(0, 10) === TODAY && e.outcome === "taken"; }) ? "again" : "already"); }
+      }
+      S.devEvents.unshift({ deviceId: d.id, kind: "open", lid: lid, at: TODAY + " " + nowHM(), slot: slot, outcome: outcome }); d.lastSeen = TODAY + " " + nowHM();
+      return { ok: true, outcome: outcome };
     },
     item_delete: function (b) { var h = hid(need()); S.items = S.items.filter(function (i) { return !(i.id === b.id && i.hid === h); }); return { ok: true }; },
     dose_toggle: function (b) {
       var h = hid(need()), i = S.items.find(function (x) { return x.id === b.item_id && x.hid === h; }); if (!i) fail(404, "not_found", "That record was not found.");
       var has = S.taken.some(function (t) { return t.item === i.id && t.slot === b.slot && t.day === TODAY; });
-      if (b.taken && !has) { S.taken.push({ hid: h, item: i.id, slot: b.slot, day: TODAY }); if (i.stock !== null) i.stock = Math.max(0, i.stock - (i.perDose || 1)); }
-      if (!b.taken && has) { S.taken = S.taken.filter(function (t) { return !(t.item === i.id && t.slot === b.slot && t.day === TODAY); }); if (i.stock !== null) i.stock += (i.perDose || 1); }
+      if (b.taken && has) { var ex = S.taken.find(function (t) { return t.item === i.id && t.slot === b.slot && t.day === TODAY; }); if (ex.status === "skipped") { ex.status = "taken"; ex.reason = null; if (i.stock !== null) i.stock = Math.max(0, i.stock - (i.perDose || 1)); } }
+      if (b.taken && !has) { S.taken.push({ hid: h, item: i.id, slot: b.slot, day: TODAY, status: "taken", source: "app", at: nowHM() }); if (i.stock !== null) i.stock = Math.max(0, i.stock - (i.perDose || 1)); }
+      if (!b.taken && has) { var was = S.taken.find(function (t) { return t.item === i.id && t.slot === b.slot && t.day === TODAY; }); S.taken = S.taken.filter(function (t) { return !(t.item === i.id && t.slot === b.slot && t.day === TODAY); }); if (i.stock !== null && was.status !== "skipped") i.stock += (i.perDose || 1); }
       return { ok: true, stock: i.stock };
     },
     dose_history: function () { return { days: [] }; },

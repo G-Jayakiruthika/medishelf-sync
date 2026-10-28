@@ -113,6 +113,23 @@ def main():
     for f in ("demo-api.js", "start-app.html"):
         shutil.copy(os.path.join(os.path.dirname(__file__), f), os.path.join(SITE, f))
 
+    # 4b. Pillbox build guide (the app links to it; the GitHub repo may be private)
+    import markdown
+    hw = os.path.join(os.path.dirname(PUB), "hardware")
+    body = markdown.markdown(open(os.path.join(hw, "README.md")).read(), extensions=["tables", "fenced_code"])
+    shutil.copy(os.path.join(hw, "wiring.svg"), os.path.join(SITE, "wiring.svg"))
+    open(os.path.join(SITE, "hardware.html"), "w").write("""<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Smart pillbox build guide</title><style>
+:root{--ink:#1B2430;--muted:#5A6577;--line:#D8DED9;--bg:#F7F9F7;--ai:#1F3358}
+@media (prefers-color-scheme:dark){:root{--ink:#E8ECF2;--muted:#9AA6B8;--line:#2C3644;--bg:#11161D;--ai:#A9BDEA}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,sans-serif}main{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+h1,h2{color:var(--ai);line-height:1.25}img{max-width:100%;height:auto;background:#fff;border-radius:12px}table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}pre{background:rgba(127,127,127,.12);padding:12px;border-radius:10px;overflow-x:auto}code{font-size:.88em}
+a{color:var(--ai)}</style></head><body><main><p><a href="app.html#account">← Back to the app</a></p>""" + body + "</main></body></html>")
+    ap = os.path.join(SITE, "app.html")
+    html = open(ap).read().replace("https://github.com/G-Jayakiruthika/medishelf-sync/tree/main/hardware", "hardware.html")
+    open(ap, "w").write(html)
+
     # 5. Note shown for pages that exist on the live site but are not in this preview
     open(os.path.join(SITE, "preview-note.html"), "w").write(rewrite_html(pages["404.html"].replace("This drawer is empty", "In the full site").replace(
         "The page you were looking for has moved or never existed.", "This preview includes a sample of the 2,111 medicine pages. The live site has all of them."), have))

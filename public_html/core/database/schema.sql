@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS members (
   relation   VARCHAR(30)  NULL,
   allergies  VARCHAR(500) NULL,
   is_self    TINYINT(1)   NOT NULL DEFAULT 0,
+  account_id INT UNSIGNED NULL,          -- this person's own AushadhBox login, if they have one (gets the "did you take it?" check first)
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_members_user (user_id),
   CONSTRAINT fk_members_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -98,7 +99,7 @@ CREATE TABLE IF NOT EXISTS cabinet_items (
   CONSTRAINT fk_items_info   FOREIGN KEY (info_id)   REFERENCES medicine_info(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- One row each time a dose is ticked as taken.
+-- One row per dose that was taken or deliberately skipped. No row = not confirmed (missed).
 CREATE TABLE IF NOT EXISTS dose_logs (
   id        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id   INT UNSIGNED NOT NULL,
@@ -106,6 +107,9 @@ CREATE TABLE IF NOT EXISTS dose_logs (
   slot      CHAR(1)      NOT NULL,       -- m a e b
   taken_on  DATE         NOT NULL,
   taken_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  status    VARCHAR(8)   NOT NULL DEFAULT 'taken',   -- taken | skipped
+  reason    VARCHAR(10)  NULL,                       -- skipped: fine, side, out, doctor, other
+  source    VARCHAR(6)   NOT NULL DEFAULT 'app',     -- app | notif | box (predicted from the smart pillbox) | test
   UNIQUE KEY uq_dose (item_id, slot, taken_on),
   KEY idx_dose_user_day (user_id, taken_on),
   CONSTRAINT fk_dose_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -264,10 +268,46 @@ CREATE TABLE IF NOT EXISTS automation_settings (
 -- Which automatic alerts were sent, so each goes out once.
 CREATE TABLE IF NOT EXISTS automation_log (
   user_id  INT UNSIGNED NOT NULL,
-  kind     CHAR(1) NOT NULL,          -- f refill, m missed dose, c course finished, x clean-up
+  kind     CHAR(1) NOT NULL,          -- f refill, m missed dose, n "did you take it?" check, c course finished, x clean-up, t timing,
+                                      -- s skipped for side effects, w weekly report, d pillbox opened twice, o pillbox offline, r refill the pillbox
   item_id  INT UNSIGNED NOT NULL DEFAULT 0,
   slot     CHAR(1) NOT NULL DEFAULT '',
   sent_on  DATE NOT NULL,
   PRIMARY KEY (user_id, kind, item_id, slot, sent_on),
   CONSTRAINT fk_alog_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Smart pillboxes (ESP32 with a lid sensor per compartment). See hardware/README.md.
+CREATE TABLE IF NOT EXISTS devices (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id       INT UNSIGNED NOT NULL,              -- the family cabinet it belongs to
+  member_id     INT UNSIGNED NULL,                  -- whose medicines are in it (NULL = everyone's)
+  name          VARCHAR(40)  NOT NULL,
+  compartments  TINYINT UNSIGNED NOT NULL DEFAULT 4, -- 4 = morning/afternoon/evening/bedtime lids, 1 = one lid for everything
+  pair_code     CHAR(6)      NULL,
+  pair_expires  DATETIME     NULL,
+  token_hash    CHAR(64)     NULL,                  -- SHA-256 of the box's secret; the secret itself is only on the box
+  hw_id         VARCHAR(32)  NULL,
+  firmware      VARCHAR(16)  NULL,
+  battery       TINYINT UNSIGNED NULL,
+  last_seen     DATETIME     NULL,
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_dev_token (token_hash),
+  UNIQUE KEY uq_dev_pair (pair_code),
+  KEY idx_dev_user (user_id),
+  CONSTRAINT fk_dev_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_dev_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Every lid opening the box reports, and what the server concluded from it.
+CREATE TABLE IF NOT EXISTS device_events (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  device_id   INT UNSIGNED NOT NULL,
+  kind        VARCHAR(8)   NOT NULL,                -- open, close, button, boot
+  compartment TINYINT UNSIGNED NULL,
+  happened_at DATETIME     NOT NULL,
+  slot        CHAR(1)      NULL,                    -- the dose time it was matched to
+  outcome     VARCHAR(10)  NULL,                    -- taken, again, outside, already, nodose
+  KEY idx_devev (device_id, happened_at),
+  CONSTRAINT fk_devev_dev FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

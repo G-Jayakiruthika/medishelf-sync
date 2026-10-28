@@ -70,6 +70,11 @@ async function journey(browser, label, viewport) {
   const allBtn = await p.$('[data-all="m"]');
   ok(!!allBtn, '"All taken" button for the morning');
   if (allBtn) { await allBtn.click(); await p.waitForTimeout(800); ok((await p.$$('[data-slot="m"] .packet.done')).length >= 2, 'all morning doses ticked at once'); }
+  const skipBtn = await p.$('[data-skip]');
+  ok(!!skipBtn, 'Skip button next to a dose');
+  if (skipBtn) { await skipBtn.click(); await p.waitForSelector('#skipDialog[open]'); await p.click('[data-reason="out"]'); await p.waitForTimeout(800);
+    ok((await p.$$('.packet.skipped')).length >= 1, 'skipped dose shows its reason'); }
+  ok(await p.isVisible('#adhCard'), 'last 7 days report shows');
   await p.click('#bottomnav [data-go="cabinet"], #tabs [data-go="cabinet"] >> visible=true'); await p.waitForTimeout(300);
   await p.click('#btnShop'); await p.waitForSelector('#shopDialog[open]');
   ok((await p.$$('#shopList li')).length >= 1, 'shopping list opens');
@@ -79,6 +84,12 @@ async function journey(browser, label, viewport) {
   ok((await p.textContent('#planBadge')).trim().length > 0, 'plan card shows');
   await p.click('#btnInvite'); await p.waitForTimeout(400);
   ok(await p.isVisible('#upgradeDialog[open]'), 'invite on Free plan opens upgrade dialog');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  await p.fill('#bxName', 'Test pillbox'); await p.click('#boxAdd button[type=submit]'); await p.waitForTimeout(800);
+  ok(/^\d{6}$/.test(((await p.textContent('.box-item .code')) || '').trim()), 'pillbox gets a 6-digit pairing code');
+  await p.click('[data-boxtest]'); await p.waitForTimeout(1200);
+  ok((await p.$$('.box-events li')).length >= 1, 'lid opening without hardware appears in the list');
+  await p.click('#btnInvite'); await p.waitForTimeout(400);
   await p.click('#btnPay'); await p.waitForTimeout(1500);
   ok((await p.textContent('#planBadge')).includes('Premium'), 'demo payment makes the account Premium');
   await p.click('#btnInvite'); await p.waitForTimeout(500);

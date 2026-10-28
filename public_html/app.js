@@ -159,7 +159,7 @@
     const data = await api.get("bootstrap");
     state.user = data.user;
     state.members = data.members; state.items = data.items;
-    state.taken = new Set(data.taken); state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing; state.today = data.today;
+    state.taken = new Set(data.taken); state.doseLog = data.doseLog || {}; state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing; state.today = data.today;
     if (!state.nbMember || !state.members.some(m => m.id === state.nbMember)) state.nbMember = (state.members.find(m => m.self) || state.members[0] || {}).id;
     if (data.user.language && data.user.language !== state.lang && I18N[data.user.language]) { state.lang = data.user.language; try { localStorage.setItem("ms-lang", state.lang); } catch (e) { /* */ } }
     $("#authView").hidden = true; $("#appView").hidden = false;
@@ -173,6 +173,7 @@
     if (pendingJoin) { try { sessionStorage.removeItem("ms-join"); } catch (e) { /* */ } go("account"); $("#joinCode").value = pendingJoin; }
     else if (h === "upgrade") openUpgrade();
     else if (h === "shared") openSharedPhoto();
+    else if (/^skip-[maeb]$/.test(h)) { go("doses"); openSkip(h.slice(5), null); }
     else if (!state.user.onboarded) openTour();
   }
   $("#btnConsent").addEventListener("click", async () => { await api.post("consent_renew"); state.user.consentCurrent = true; $("#consentBanner").hidden = true; });
@@ -191,7 +192,8 @@
     $$(".view").forEach(s => { s.hidden = s.dataset.view !== id; });
     markNav();
     if (id !== "scan") stopCamera();
-    if (id === "account" && state.user) { refreshBilling(); loadAutomations(); }
+    if (id === "account" && state.user) { refreshBilling(); loadAutomations(); loadBoxes(); }
+    if (id === "doses" && state.user) loadAdherence();
     try { history.replaceState(null, "", "#" + id); } catch (e) { /* sandboxed */ }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -202,6 +204,7 @@
     if (!state.user) { if (h === "signup" || h === "signin") authMode(h === "signup" ? "signup" : "login"); return; }
     if (VIEWS.some(v => v.id === h)) { if (h !== current) go(h); }
     else if (h === "upgrade") { go("account"); openUpgrade(); }
+    else if (/^skip-[maeb]$/.test(h)) { go("doses"); openSkip(h.slice(5), null); }
   });
 
   /* ---------------- Cabinet ---------------- */
@@ -484,27 +487,89 @@
 
   /* ---------------- Doses + reminders ---------------- */
   const takenKey = (id, s) => id + ":" + s;
+  const isSkipped = (k) => state.doseLog && state.doseLog[k] && state.doseLog[k].status === "skipped";
+  const REASON_KEY = { fine: "skipFine", side: "skipSide", out: "skipOut", doctor: "skipDoctor", other: "skipOther" };
   function renderDoses() {
     $("#slots").innerHTML = SLOTS.map(s => {
       const meds = state.items.filter(m => (m.times || []).includes(s.id) && courseActive(m));
       const items = meds.length ? meds.map(m => {
-        const done = state.taken.has(takenKey(m.id, s.id)), st = statusOf(m.exp);
-        return '<li><label class="packet' + (done ? " done" : "") + '"><input type="checkbox" data-take="' + m.id + ":" + s.id + '"' + (done ? " checked" : "") + "><span>" + esc(m.name) + "</span><small>" + esc(memberName(m.member_id)) + (stockInfo(m) ? ' · <span class="stock ' + stockInfo(m).cls + '">' + esc(stockInfo(m).text) + "</span>" : "") + (st === "bad" ? ' · <b style="color:var(--bad)">' + esc(t("statExpired")) + "</b>" : "") + "</small></label></li>";
+        const k = takenKey(m.id, s.id), done = state.taken.has(k), skipped = !done && isSkipped(k), log = state.doseLog[k], st = statusOf(m.exp);
+        const extra = (done && log && log.source === "box" ? ' · <span class="by-box">' + esc(t("byBox", { t: log.at || "" })) + "</span>" : "") +
+          (skipped ? ' · <span class="skip-tag">' + esc(t("skipped", { r: t(REASON_KEY[log.reason] || "skipOther") })) + "</span>" : "");
+        return '<li class="dose-row"><label class="packet' + (done ? " done" : "") + (skipped ? " skipped" : "") + '"><input type="checkbox" data-take="' + k + '"' + (done ? " checked" : "") + "><span>" + esc(m.name) + "</span><small>" + esc(memberName(m.member_id)) +
+          (stockInfo(m) ? ' · <span class="stock ' + stockInfo(m).cls + '">' + esc(stockInfo(m).text) + "</span>" : "") + (st === "bad" ? ' · <b style="color:var(--bad)">' + esc(t("statExpired")) + "</b>" : "") + extra + "</small></label>" +
+          (done || skipped ? "" : '<button type="button" class="link skip-btn" data-skip="' + k + '">' + esc(t("skip")) + "</button>") + "</li>";
       }).join("") : '<li class="muted" style="padding:8px 4px">—</li>';
-      const pending = meds.filter(m => !state.taken.has(takenKey(m.id, s.id))).length;
+      const pending = meds.filter(m => !state.taken.has(takenKey(m.id, s.id)) && !isSkipped(takenKey(m.id, s.id))).length;
       return '<div class="slot" data-slot="' + s.id + '"><header><span>' + esc(t(s.key)) + '</span>' + (pending > 1 ? '<button type="button" class="btn btn-ghost slot-all" data-all="' + s.id + '">' + esc(t("takenAll")) + "</button>" : "") + '<input type="time" aria-label="' + esc(t(s.key)) + '" data-time="' + s.id + '" value="' + state.reminders[s.id] + '"></header><ul>' + items + "</ul></div>";
     }).join("");
     $("#remindLabel").textContent = state.reminders.enabled ? t("remindOn") : t("remindOff");
     $("#btnRemind").setAttribute("aria-pressed", String(state.reminders.enabled));
   }
+
+  /* Skip with a reason (one medicine, or everything still due in a time slot) */
+  let skipTarget = null;
+  function openSkip(slot, itemId) {
+    skipTarget = { slot, itemId };
+    const slotName = t((SLOTS.find(x => x.id === slot) || SLOTS[0]).key);
+    const names = itemId ? [(state.items.find(m => m.id === itemId) || {}).name] : state.items.filter(m => (m.times || []).includes(slot) && courseActive(m) && !state.taken.has(takenKey(m.id, slot))).map(m => m.name);
+    $("#skipWhat").textContent = slotName + ": " + names.filter(Boolean).join(", ");
+    const d = $("#skipDialog"); if (!d.open) { try { d.showModal(); } catch (e) { d.setAttribute("open", ""); } }
+  }
+  $("#skipReasons").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-reason]"); if (!b || !skipTarget) return;
+    const reason = b.dataset.reason, { slot, itemId } = skipTarget;
+    $$("#skipReasons button").forEach(x => { x.disabled = true; });
+    try {
+      const r = await api.post("dose_skip", { slot, reason, item_id: itemId || undefined });
+      r.items.forEach(it => {
+        const k = takenKey(it.id, slot); state.taken.delete(k); state.doseLog[k] = { status: "skipped", reason, source: "app" };
+        const i = state.items.findIndex(x => x.id === it.id); if (i >= 0) state.items[i] = it;
+      });
+      $("#skipDialog").close();
+      toast(t("skipDone") + " " + (reason === "out" ? t("skipOutDone") : reason === "doctor" ? t("skipDoctorDone") : reason === "side" ? t("skipSideDone") : ""));
+      renderAll();
+    } catch (err) { toast(err.message); }
+    $$("#skipReasons button").forEach(x => { x.disabled = false; });
+  });
+
+  /* Last 7 days: taken / skipped / not confirmed per person */
+  let adhData = null;
+  async function loadAdherence() {
+    try { adhData = await api.get("adherence", { days: 7 }); renderAdherence(); } catch (e) { /* the card stays empty */ }
+  }
+  function renderAdherence() {
+    if (!adhData) return;
+    const slotName = (id) => t((SLOTS.find(x => x.id === id) || SLOTS[0]).key);
+    $("#adhList").innerHTML = adhData.people.length ? adhData.people.map(p => {
+      const cls = p.percent >= 90 ? "ok" : p.percent >= 70 ? "warn" : "bad";
+      const reasons = Object.keys(p.reasons || {}).map(r => t(REASON_KEY[r] || "skipOther") + " ×" + p.reasons[r]).join(", ");
+      return '<div class="adh-row"><div class="adh-top"><b>' + esc(p.name) + '</b><span class="adh-pct ' + cls + '">' + p.percent + '%</span></div>' +
+        '<div class="adh-bar" role="img" aria-label="' + p.percent + '%"><span class="t" style="width:' + (100 * p.taken / p.expected) + '%"></span><span class="s" style="width:' + (100 * p.skipped / p.expected) + '%"></span></div>' +
+        '<small>' + esc([t("adhTaken", { n: p.taken }), t("adhSkipped", { n: p.skipped }), t("adhMissed", { n: p.missed })].join(" · ")) +
+        (p.box ? " · " + esc(t("adhBox", { n: p.box })) : "") + (p.worstSlot ? "<br>" + esc(t("adhWorst", { slot: slotName(p.worstSlot) })) : "") + (reasons ? "<br>" + esc(reasons) : "") + "</small></div>";
+    }).join("") : '<p class="muted">' + esc(t("adhNone")) + "</p>";
+  }
+  function adherenceText() {
+    if (!adhData) return "";
+    return "Doses " + adhData.from + " to " + adhData.to + " (AushadhBox)\n" + adhData.people.map(p =>
+      "- " + p.name + ": " + p.taken + "/" + p.expected + " taken (" + p.percent + "%), " + p.skipped + " skipped, " + p.missed + " not confirmed" +
+      (p.worstSlot ? "; most missed: " + p.worstSlot.replace("m", "morning").replace("a", "afternoon").replace("e", "evening").replace("b", "bedtime") : "") +
+      (Object.keys(p.reasons || {}).length ? "; skip reasons: " + Object.keys(p.reasons).map(r => r + " x" + p.reasons[r]).join(", ") : "") +
+      "\n" + p.medicines.map(m => "    " + m.name + " " + m.taken + "/" + m.expected).join("\n")).join("\n");
+  }
+  $("#adhCopy").addEventListener("click", () => { const tx = adherenceText(); const done = () => toast("✔ " + t("calCopied")); if (navigator.clipboard) navigator.clipboard.writeText(tx).then(done).catch(() => fallbackCopy(tx, done)); else fallbackCopy(tx, done); });
+
   const saveReminders = debounce(() => api.post("reminders_save", Object.assign({}, state.reminders)).catch(err => toast(err.message)), 500);
   $("#slots").addEventListener("click", async (e) => {
+    const sk = e.target.closest("[data-skip]");
+    if (sk) { const [id, slot] = sk.dataset.skip.split(":"); openSkip(slot, Number(id)); return; }
     const b = e.target.closest("[data-all]"); if (!b) return;
     const slot = b.dataset.all; b.disabled = true;
     try {
       await api.post("dose_slot_taken", { slot });
-      state.items.filter(m => (m.times || []).includes(slot) && courseActive(m) && !state.taken.has(takenKey(m.id, slot))).forEach(m => {
-        state.taken.add(takenKey(m.id, slot)); if (m.stock !== null && m.stock !== undefined) m.stock = Math.max(0, m.stock - (m.perDose || 1));
+      state.items.filter(m => (m.times || []).includes(slot) && courseActive(m) && !state.taken.has(takenKey(m.id, slot)) && !isSkipped(takenKey(m.id, slot))).forEach(m => {
+        state.taken.add(takenKey(m.id, slot)); state.doseLog[takenKey(m.id, slot)] = { status: "taken", source: "app" }; if (m.stock !== null && m.stock !== undefined) m.stock = Math.max(0, m.stock - (m.perDose || 1));
       });
       sound("saved"); renderDoses(); renderCabinet();
     } catch (err) { toast(err.message); b.disabled = false; }
@@ -513,7 +578,9 @@
     const tk = e.target.dataset.take, tm = e.target.dataset.time;
     if (tk) {
       const [id, slot] = tk.split(":"), on = e.target.checked;
-      on ? state.taken.add(tk) : state.taken.delete(tk); renderDoses();
+      on ? state.taken.add(tk) : state.taken.delete(tk);
+      if (on) state.doseLog[tk] = { status: "taken", source: "app" }; else delete state.doseLog[tk];
+      renderDoses();
       try {
         const r = await api.post("dose_toggle", { item_id: Number(id), slot, taken: on });
         const it = state.items.find(x => x.id === Number(id));
@@ -525,7 +592,7 @@
   });
   function remainingDoses() {
     const out = [];
-    SLOTS.forEach(s => state.items.filter(m => (m.times || []).includes(s.id) && courseActive(m) && !state.taken.has(takenKey(m.id, s.id))).forEach(m => out.push(m.name + " (" + t(s.key) + ")")));
+    SLOTS.forEach(s => state.items.filter(m => (m.times || []).includes(s.id) && courseActive(m) && !state.taken.has(takenKey(m.id, s.id)) && !isSkipped(takenKey(m.id, s.id))).forEach(m => out.push(m.name + " (" + t(s.key) + ")")));
     return out;
   }
   $("#btnRemind").addEventListener("click", async () => {
@@ -556,7 +623,7 @@
     SLOTS.forEach(s => {
       if (state.reminders[s.id] !== hm || fired[day + s.id]) return;
       fired[day + s.id] = true;
-      const due = state.items.filter(m => (m.times || []).includes(s.id) && !state.taken.has(takenKey(m.id, s.id))).map(m => m.name);
+      const due = state.items.filter(m => (m.times || []).includes(s.id) && courseActive(m) && !state.taken.has(takenKey(m.id, s.id)) && !isSkipped(takenKey(m.id, s.id))).map(m => m.name);
       if (!due.length) return;
       const msg = t(s.key) + ": " + due.join(", ");
       sound("dose-reminder"); toast("⏰ " + msg); speak(msg);
@@ -970,6 +1037,65 @@
     } catch (e) { /* nothing shared */ }
   }
 
+
+  /* ---------------- Smart pillbox ---------------- */
+  let boxes = { devices: [], events: [] };
+  async function refreshData() {
+    try {
+      const data = await api.get("bootstrap");
+      state.items = data.items; state.taken = new Set(data.taken); state.doseLog = data.doseLog || {};
+      renderAll();
+    } catch (e) { /* offline */ }
+  }
+  // Pillbox openings and ticks from other phones show up without reloading.
+  setInterval(() => { if (state.user && document.visibilityState === "visible" && (current === "doses" || current === "cabinet")) refreshData(); }, 60000);
+  async function loadBoxes() {
+    try { boxes = await api.get("device_list"); renderBoxes(); } catch (e) { /* shown elsewhere */ }
+  }
+  function fmtSeen(dt) { try { return new Date(dt.replace(" ", "T")).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); } catch (e) { return dt; } }
+  function renderBoxes() {
+    $("#bxFor").innerHTML = '<option value="">' + esc(t("familyAll")) + "</option>" + state.members.map(m => '<option value="' + m.id + '">' + esc(m.name) + "</option>").join("");
+    const slotName = (id) => t((SLOTS.find(x => x.id === id) || SLOTS[0]).key);
+    const OUT = { taken: "outTaken", again: "outAgain", outside: "outOutside", already: "outAlready", nodose: "outNodose" };
+    $("#boxList").innerHTML = boxes.devices.map(d => {
+      const status = !d.paired ? "" : d.online ? '<span class="pill ok">' + esc(t("boxOnline")) + "</span>" : '<span class="pill warn">' + esc(t("boxOffline")) + "</span>";
+      const lids = d.compartments >= 4 ? SLOTS.map((s, i) => '<button type="button" class="btn btn-ghost btn-sm" data-boxtest="' + d.id + ":" + (i + 1) + '">' + esc(t(s.key)) + "</button>").join("")
+        : '<button type="button" class="btn btn-ghost btn-sm" data-boxtest="' + d.id + ':1">' + esc(t("boxTest").split(":").pop().trim()) + "</button>";
+      return '<div class="box-item"><div class="box-top"><b>' + esc(d.name) + "</b>" + status + "</div>" +
+        "<small>" + esc(memberName(d.memberId)) + " · " + esc(d.compartments >= 4 ? t("boxLids4") : t("boxLids1")) + "</small>" +
+        (d.paired ? "<small>" + esc(d.lastSeen ? t("boxSeen", { t: fmtSeen(d.lastSeen) }) : t("boxNever")) + (d.battery !== null ? " · " + esc(t("boxBattery", { n: d.battery })) : "") + (d.firmware ? " · v" + esc(d.firmware) : "") + "</small>"
+          : '<div class="pair"><span class="muted">' + esc(t("boxPairCode")) + '</span><span class="code mono">' + esc(d.pairCode || "——") + '</span><small class="muted">' + esc(t("boxPairHint")) + "</small></div>") +
+        '<div class="box-test"><small class="muted">' + esc(t("boxTest")) + '</small><div class="box-lids">' + lids + "</div></div>" +
+        '<div class="box-actions"><button type="button" class="link" data-boxcode="' + d.id + '">' + esc(t("boxNewCode")) + '</button><button type="button" class="link" data-boxdel="' + d.id + '">' + esc(t("boxRemove")) + "</button></div></div>";
+    }).join("") + (boxes.devices.length ? '<div class="box-events"><h4>' + esc(t("boxRecent")) + "</h4>" + (boxes.events.length ? "<ul>" + boxes.events.map(e => {
+      const dev = boxes.devices.find(d => d.id === Number(e.deviceId));
+      return '<li class="ev ' + esc(e.outcome || "") + '"><span class="mono">' + esc(fmtSeen(e.at)) + "</span> " + esc((dev ? dev.name : "") + (e.slot ? " · " + slotName(e.slot) : "")) + " — " + esc(t(OUT[e.outcome] || "outOutside")) + "</li>";
+    }).join("") + "</ul>" : '<p class="muted">' + esc(t("boxNoEvents")) + "</p>") + "</div>" : "");
+  }
+  $("#boxAdd").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("device_add", { name: $("#bxName").value.trim(), member_id: $("#bxFor").value ? Number($("#bxFor").value) : null, compartments: Number($("#bxLids").value) });
+      $("#bxName").value = ""; await loadBoxes(); sound("saved");
+    } catch (err) { toast(err.message); }
+  });
+  $("#boxList").addEventListener("click", async (e) => {
+    const test = e.target.closest("[data-boxtest]"), code = e.target.closest("[data-boxcode]"), del = e.target.closest("[data-boxdel]");
+    try {
+      if (test) {
+        const [id, lid] = test.dataset.boxtest.split(":").map(Number);
+        const r = await api.post("device_test", { id, lid });
+        toast({ taken: "✔ " + t("outTaken"), again: "⚠ " + t("outAgain"), outside: t("outOutside"), already: t("outAlready"), nodose: t("outNodose") }[r.outcome] || r.outcome);
+        await Promise.all([loadBoxes(), refreshData()]);
+      } else if (code) {
+        await api.post("device_code", { id: Number(code.dataset.boxcode) }); await loadBoxes();
+      } else if (del) {
+        if (del.dataset.confirm !== "1") { del.dataset.confirm = "1"; del.textContent = t("confirmRemove"); return; }
+        await api.post("device_delete", { id: Number(del.dataset.boxdel) }); await loadBoxes();
+      }
+    } catch (err) { toast(err.message); }
+  });
+
   /* ---------------- Automations panel ---------------- */
   async function loadAutomations() {
     try {
@@ -1070,7 +1196,7 @@
   $$("[data-sound]").forEach(b => b.addEventListener("click", () => sound(b.dataset.sound)));
 
   /* ---------------- Boot ---------------- */
-  function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); }
+  function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); renderAdherence(); renderBoxes(); }
   const langOptions = LANGS.map(l => '<option value="' + l.code + '">' + l.native + (l.code === "en" ? "" : " · " + l.name) + "</option>").join("");
   $$("#langSelect, #authLang").forEach(s => { s.innerHTML = langOptions; s.addEventListener("change", (e) => setLang(e.target.value)); });
   applyI18n();

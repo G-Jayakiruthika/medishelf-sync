@@ -68,7 +68,22 @@ Out of scope: selling medicines, prescriptions, medical advice, teleconsultation
 - FR-X1 Printable report per person or everyone: allergies, medicines, dose times, batch, expiry status, last 30 days of doses.
 - FR-X2 Weekly expiry e-mail on Mondays (opt-out in Account).
 
-### 3.8 Administration
+### 3.8 Adherence: taken, skipped, not confirmed
+- FR-A1 Every dose is *taken*, *skipped with a reason* (felt fine, side effects, ran out, doctor stopped it, other) or *not confirmed*.
+- FR-A2 Skip reasons act by themselves: side effects → the family is told; ran out → tablet count 0 (shopping list, refill alert); doctor stopped it → reminders end today.
+- FR-A3 Halfway to the family alert, the person whose medicine it is (if they have their own login) gets "Did you take your … medicines?" with Taken / Skip buttons. The family is alerted only if there is still no answer.
+- FR-A4 Weekly report per person (app, Sunday notification, doctor report): taken / skipped / not confirmed, percentage, most-missed time, skip reasons, doses confirmed by a pillbox.
+
+### 3.9 Smart pillbox (IoT)
+- FR-P1 Add up to 6 pillboxes per family (4 lids, or 1 lid), each for one person or everyone; pair with a 6-digit code valid for 30 minutes.
+- FR-P2 The box (ESP32 + reed switch per lid) reports lid openings with their time; it keeps up to 64 while offline.
+- FR-P3 An opening from 60 minutes before to 3 hours after the dose time ticks the doses in that slot ("by pillbox") and lowers the tablet count; a second opening more than 5 minutes later warns the family; other openings are only recorded.
+- FR-P4 The box lights the due lid and beeps at the dose time, +10 and +20 minutes, until it is opened or the button is pressed.
+- FR-P5 Alerts: box offline for a day, battery at 15 % or less, "fill the box" on Sunday evening.
+- FR-P6 Security: per-box secret token stored only as a SHA-256 hash; a new pairing code revokes the old token; wrong codes and tokens are rate-limited; a box sees only its own family's dose times.
+- FR-P7 "Try without hardware" in the app and a command-line simulator behave like a real box. Build guide, wiring and firmware: `hardware/`.
+
+### 3.10 Administration
 - FR-D1 Dashboard: revenue (30 days, all time), Premium families, conversion, users, sign-ups and visitors charts, top pages, sources, button clicks, devices, recent payments, contact messages, service status.
 - FR-D2 Import medicine lists (CSV) without duplicates.
 
@@ -84,7 +99,7 @@ Out of scope: selling medicines, prescriptions, medical advice, teleconsultation
 | NFR-7 Languages | All customer-facing app text and the home/pricing pages in 10 languages; legal pages in English. |
 
 ## 5. Data model (summary)
-`users` (plan, plan_until, household_id) · `members` · `cabinet_items` · `dose_logs` · `reminder_settings` · `push_subscriptions` · `reminder_log` · `kit_checks` · `medicine_info` · `medicine_catalog` · `invites` · `payments` · `cookie_consents` · `analytics_events` · `contact_messages` · `consent_log` · `login_attempts` · `password_resets`. Full definitions: `public_html/core/database/schema.sql`. Diagram: DESIGN.md.
+`users` (plan, plan_until, household_id) · `members` (account_id) · `devices` · `device_events` · `cabinet_items` · `dose_logs` (status, reason, source) · `reminder_settings` · `push_subscriptions` · `reminder_log` · `kit_checks` · `medicine_info` · `medicine_catalog` · `invites` · `payments` · `cookie_consents` · `analytics_events` · `contact_messages` · `consent_log` · `login_attempts` · `password_resets`. Full definitions: `public_html/core/database/schema.sql`. Diagram: DESIGN.md.
 
 ## 6. Assumptions and constraints
 - The owner provides the domain, hosting, Razorpay account (KYC) and business details.

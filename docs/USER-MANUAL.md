@@ -37,6 +37,12 @@ Tap a person's name at the top to see only their medicines. Tap ✕ on a drawer 
 ## 5. Doses and reminders
 Times are usually filled in for you (see above). The **Doses** tab lists today's doses; tick each one after taking it, or tap **All taken** to tick a whole morning or night at once. The reminder on your phone has a **✓ Taken** button, so you can tick without opening the app. Tap **Turn on reminders** and allow notifications to get a phone alert at each time, even when the app is closed. On iPhone, add the app to the home screen first.
 
+**Skip a dose.** If a dose is not being taken on purpose, tap **Skip** next to it and choose why. *Side effects* tells the family at once so someone can call the doctor. *Ran out* sets the tablet count to 0, so the medicine goes on the shopping list. *Doctor stopped it* ends the reminders for that medicine. A skipped dose never counts as "missed".
+
+**"Did you take it?"** If a dose isn't ticked, the person whose medicine it is gets a gentle check first (if they use AushadhBox on their own phone), with **✓ Taken** and **Skip** buttons. Only if there is still no answer does the family get the missed-dose alert.
+
+**Last 7 days.** Under the doses, each person's week shows doses taken, skipped and not confirmed, the time of day they miss most, and why doses were skipped. **Copy for doctor** copies it as text. A summary also arrives every Sunday morning, and the printable doctor report shows the last 30 days.
+
 ## 6. Automations
 Open **Account → Automations** to switch each one on or off.
 - **Tablet count:** when adding a medicine, enter *Tablets left* and *Per dose*. Each time you tick a dose, the count goes down by itself (un-ticking puts it back). The drawer shows how many days it will last.
@@ -47,6 +53,14 @@ Open **Account → Automations** to switch each one on or off.
 - **Reminder times learn your routine:** if you keep taking your morning medicines at about 9:40 although the reminder says 8:00, after a few days the reminder moves to 9:45 by itself and tells you so. It only follows a steady habit.
 - **Shopping list:** the 🛒 button on the cabinet lists everything running low, finished or expired while still in use, with the cheaper Jan Aushadhi generic. Send it to the family or the pharmacy on WhatsApp in one tap. A short course with enough tablets to finish is not listed.
 - **Phone calendar:** *Add to Google Calendar* or *Add to iPhone Calendar* puts every dose time in your calendar with an alarm, and it updates itself. If you ever share the link by mistake, tap *Make a new private link*.
+
+## 6a. Smart pillbox (optional hardware)
+A pill organiser with a magnet on each lid and a sensor under it (build guide: `hardware/README.md`, about ₹900 of parts).
+1. **Account → Smart pillbox:** enter a name, choose whose medicines are in it and how many lids it has, then tap **Add a pillbox**. A 6-digit code appears.
+2. Switch on the box, join its Wi-Fi **AushadhBox-Setup** from your phone, pick your home Wi-Fi and type the code.
+3. At each dose time the right lid lights up and beeps. Opening it ticks the dose in the app as **by pillbox**. If it is opened again later, the family is asked to check a second dose wasn't taken. Openings while you fill the box on Sunday aren't counted.
+4. Without the hardware, use **Try without hardware: open a lid** to see exactly what would happen.
+If the box goes offline for a day or its battery runs low, you are told. If a guess is wrong, untick the dose.
 
 ## 7. Notebook for the doctor
 **Notebook** shows each person's medicines, times and expiry. Tap **Copy for doctor** and paste it into WhatsApp, or show the screen. Premium families can print a full report: **Account → Printable report for doctor → Print or save as PDF**.
