@@ -20,6 +20,7 @@ Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hosting
 | **SEO pages** | 2,111 Jan Aushadhi medicine pages (737 with full guides are indexed), 74 ingredient guides, 5 articles. Sitemap with 846 URLs, hreflang, canonical tags, Open Graph images, structured data (Organization, WebSite, SoftwareApplication, Product, FAQ, Drug, Article, Breadcrumb). |
 | **App** (`/app`) | Scan medicine strips, bottles and QR codes; expiry status; family members; dose ticks and phone reminders; medicine notebook; voice assistant in 10 languages; welcome tour. |
 | **Money** | Free plan (4 people, 30 medicines) and **Family Premium** (₹49/month or ₹399/year, configurable): family sharing for up to 6 accounts, unlimited medicines, printable doctor report, weekly expiry e-mail. Razorpay checkout + webhook. No auto-renewal; reminder e-mail before it ends. |
+| **Automations** | Tablet count goes down by itself with each ticked dose; refill alerts before medicine runs out; missed-dose alerts to the whole family; reminders stop when a course ends; monthly clean-up list; a dose calendar for Google Calendar and iPhone. Each can be switched on or off. |
 | **Cookie consent** | Accept / Reject / Choose banner in 10 languages. Analytics run **only after Accept**. Choices are logged as proof. Withdrawing deletes past statistics. |
 | **Admin** (`/admin.html`) | Revenue, Premium families, conversion, sign-ups, visitors, top pages, traffic sources, button clicks, devices, payments, contact messages, medicine-list import. |
 | **Privacy & security** | DPDP Act 2023 / Rules 2025: consent at sign-up, download my data, delete account, grievance officer, retention clean-up. bcrypt, CSRF, rate limits, ownership checks, CSP, HTTPS, private `core/` folder. |
@@ -45,6 +46,10 @@ docs/                   DEPLOY, HANDOVER, SRS, DESIGN, design-system.html, TEST-
 tests/                  seo_check.php, api_test.sh
 tools/                  import_list.php, make_vapid_keys.php, build_assets.php, media generators
 ```
+
+## Preview and GitHub automation
+- `tools/preview/build_preview.py` builds a static demo of the site and app (the app runs on `tools/preview/demo-api.js`, an in-browser stand-in for the server) for showing the project without hosting.
+- `.github/workflows/test.yml` runs every test on each push; `deploy.yml` uploads to Hostinger after tests pass (switched on with repository secrets, see docs/DEPLOY.md); `health.yml` checks the live site every morning.
 
 ## Run it on your laptop
 1. Install PHP 8.1+ and MySQL/MariaDB (XAMPP on Windows is fine). Create a database `aushadhbox` (utf8mb4).

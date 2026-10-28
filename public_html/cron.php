@@ -6,10 +6,14 @@ declare(strict_types=1);
 require __DIR__ . '/core/bootstrap.php';
 require __DIR__ . '/core/services.php';
 require __DIR__ . '/core/plans.php';
+require __DIR__ . '/core/automations.php';
+require __DIR__ . '/core/migrate.php';
 header('Content-Type: text/plain; charset=utf-8');
 
 $key = (string) ($_GET['key'] ?? ($argv[1] ?? ''));
 if (!hash_equals((string) config('cron_key'), $key)) { http_response_code(403); exit("forbidden\n"); }
+// After an update: create any new tables or columns (only does work when the code changed).
+foreach (migrate_if_due() as $m) echo "migrate: $m\n";
 // Housekeeping (runs even without push): keep security logs one year, then delete; clear old tokens and reminder marks.
 q('DELETE FROM login_attempts WHERE created_at < NOW() - INTERVAL 1 YEAR');
 q('DELETE FROM password_resets WHERE expires_at < NOW() - INTERVAL 7 DAY');
@@ -17,10 +21,14 @@ q('DELETE FROM reminder_log WHERE sent_on < CURDATE() - INTERVAL 30 DAY');
 q('DELETE FROM analytics_events WHERE created_at < NOW() - INTERVAL 1 YEAR');
 q('DELETE FROM cookie_consents WHERE created_at < NOW() - INTERVAL 13 MONTH');
 q('DELETE FROM invites WHERE expires_at < NOW() - INTERVAL 30 DAY');
+q('DELETE FROM automation_log WHERE sent_on < CURDATE() - INTERVAL 60 DAY');
 q("DELETE FROM payments WHERE status = 'created' AND created_at < NOW() - INTERVAL 30 DAY");
 q("UPDATE users SET plan = 'free' WHERE plan = 'premium' AND plan_until < CURDATE()");
 
-$now = new DateTime('now', new DateTimeZone('Asia/Kolkata'));
+// Tests can pretend it is another time from the command line: php cron.php KEY --now=2026-11-01T08:05
+$fake = null;
+if (PHP_SAPI === 'cli') foreach ($argv as $a) if (str_starts_with($a, '--now=')) $fake = substr($a, 6);
+$now = new DateTime($fake ?? 'now', new DateTimeZone('Asia/Kolkata'));
 $today = $now->format('Y-m-d');
 $mailed = 0;
 
@@ -54,7 +62,9 @@ if (mail_enabled() && (int) $now->format('H') >= 9) {
     }
 }
 
-if (!push_enabled()) exit("housekeeping done; mailed=$mailed; push not configured\n");
+/* Automations: refill, missed-dose, course finished, monthly clean-up (push, or e-mail when the person has no device). */
+$auto = run_automations($now);
+if (!push_enabled()) exit("housekeeping done; mailed=$mailed; automations push={$auto['push']} mail={$auto['mail']}; push not configured\n");
 
 $nowMin = (int) $now->format('H') * 60 + (int) $now->format('i');
 $labels = ['m' => 'Morning', 'a' => 'Afternoon', 'e' => 'Evening', 'b' => 'Bedtime'];
@@ -75,7 +85,7 @@ foreach ($users as $u) {
         if ($diff < 0 || $diff > 20) continue;
         if (q('SELECT 1 FROM reminder_log WHERE user_id = ? AND slot = ? AND sent_on = ?', [$u['user_id'], $s, $today])->fetch()) continue;
         $due = q("SELECT c.name FROM cabinet_items c LEFT JOIN dose_logs d ON d.item_id = c.id AND d.slot = ? AND d.taken_on = ?
-                  WHERE c.user_id = ? AND FIND_IN_SET(?, c.dose_times) AND d.id IS NULL", [$s, $today, $u['hid'], $s])->fetchAll();
+                  WHERE c.user_id = ? AND FIND_IN_SET(?, c.dose_times) AND d.id IS NULL AND (c.course_end IS NULL OR c.course_end >= ?)", [$s, $today, $u['hid'], $s, $today])->fetchAll();
         q('INSERT IGNORE INTO reminder_log (user_id, slot, sent_on) VALUES (?,?,?)', [$u['user_id'], $s, $today]);
         if ($due) $messages[] = ['title' => $labels[$s] . ' medicines', 'body' => implode(', ', array_column($due, 'name')), 'tag' => 'dose-' . $s, 'url' => '/app#doses'];
     }
@@ -100,4 +110,4 @@ foreach ($users as $u) {
         }
     }
 }
-echo "ok mailed=$mailed sent=$sent removed=$removed at " . $now->format('c') . "\n";
+echo "ok mailed=$mailed sent=$sent removed=$removed automations push={$auto['push']} mail={$auto['mail']} at " . $now->format('c') . "\n";

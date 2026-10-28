@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS cabinet_items (
   quantity    VARCHAR(40)  NULL,
   dose_times  VARCHAR(10)  NOT NULL DEFAULT '',   -- any of m,a,e,b
   notes       VARCHAR(300) NULL,
+  stock_count SMALLINT UNSIGNED NULL,     -- tablets/doses left; NULL = not counting
+  per_dose    TINYINT UNSIGNED NOT NULL DEFAULT 1,   -- how many are used per dose
+  course_end  DATE         NULL,          -- last day of a short course (antibiotics); reminders stop after it
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_items_user_exp (user_id, exp_month),
@@ -238,4 +241,29 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   message    TEXT         NOT NULL,
   handled    TINYINT(1)   NOT NULL DEFAULT 0,
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Automations each person can switch on or off (refill alerts, missed-dose alerts, clean-up, calendar feed).
+CREATE TABLE IF NOT EXISTS automation_settings (
+  user_id      INT UNSIGNED PRIMARY KEY,
+  refill_on    TINYINT(1) NOT NULL DEFAULT 1,
+  refill_days  TINYINT UNSIGNED NOT NULL DEFAULT 5,      -- alert when stock lasts this many days or fewer
+  missed_on    TINYINT(1) NOT NULL DEFAULT 1,
+  missed_after SMALLINT UNSIGNED NOT NULL DEFAULT 60,    -- minutes after the dose time
+  course_on    TINYINT(1) NOT NULL DEFAULT 1,
+  cleanup_on   TINYINT(1) NOT NULL DEFAULT 1,
+  ics_token    CHAR(32) NULL,                            -- secret address of the calendar feed
+  UNIQUE KEY uq_auto_ics (ics_token),
+  CONSTRAINT fk_auto_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Which automatic alerts were sent, so each goes out once.
+CREATE TABLE IF NOT EXISTS automation_log (
+  user_id  INT UNSIGNED NOT NULL,
+  kind     CHAR(1) NOT NULL,          -- f refill, m missed dose, c course finished, x clean-up
+  item_id  INT UNSIGNED NOT NULL DEFAULT 0,
+  slot     CHAR(1) NOT NULL DEFAULT '',
+  sent_on  DATE NOT NULL,
+  PRIMARY KEY (user_id, kind, item_id, slot, sent_on),
+  CONSTRAINT fk_alog_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

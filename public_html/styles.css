@@ -307,3 +307,21 @@ dialog.sheet h2 { font-family: var(--f-display); font-size: 1.45rem; line-height
 .tour-dots i.on { background: var(--ai); width: 22px; border-radius: 6px; }
 .tour > div:last-child { width: 100%; }
 a.btn { text-decoration: none; } a.btn-ghost { color: var(--ink); }
+
+/* ---------- Automations (v4) ---------- */
+.auto-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.auto-list li { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+.auto-list select { font: inherit; font-size: .88rem; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--paper); color: var(--ink); }
+.switch { display: flex; gap: 12px; align-items: center; cursor: pointer; flex: 1 1 220px; font-weight: 600; font-size: .94rem; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.switch .track { flex: none; width: 44px; height: 26px; border-radius: 999px; background: var(--line); position: relative; transition: background .2s ease; }
+.switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: transform .2s ease; }
+.switch input:checked + .track { background: var(--ok); }
+.switch input:checked + .track::after { transform: translateX(18px); }
+.switch input:focus-visible + .track { outline: 3px solid var(--ai); outline-offset: 2px; }
+.cal-box { display: grid; gap: 8px; background: var(--ai-soft); border-radius: 14px; padding: 14px; }
+.cal-box h4 { margin: 0; font-family: var(--f-display); font-size: 1.05rem; }
+.stock { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .85rem; color: var(--ok); }
+.stock.low { color: var(--warn); } .stock.out { color: var(--bad); }
+.stock::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: currentColor; }
+@media (prefers-reduced-motion: reduce) { .switch .track, .switch .track::after { transition: none; } }

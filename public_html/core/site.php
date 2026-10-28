@@ -123,6 +123,7 @@ function route_site(string $path): void
             require APP_DIR . '/pages/guides.php'; guide_page($m[1]); return;
         case $page === 'sitemap.xml':    require APP_DIR . '/pages/sitemap.php'; return;
         case $page === 'robots.txt':     robots(); return;
+        case preg_match('#^calendar/([a-f0-9]{32})\.ics$#', $page, $m) === 1: calendar_out($m[1]); return;
         case $page === 'app':            serve_app(); return;
         case $page === 'report':         require APP_DIR . '/pages/report.php'; return;
         default: not_found();
@@ -132,7 +133,20 @@ function route_site(string $path): void
 function robots(): void
 {
     header('Content-Type: text/plain; charset=utf-8');
-    echo "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api.php\nDisallow: /admin.html\nDisallow: /core/\nDisallow: /install.php\nDisallow: /cron.php\nDisallow: /webhook.php\nDisallow: /report\n\nSitemap: " . base_url() . "/sitemap.xml\n";
+    echo "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api.php\nDisallow: /admin.html\nDisallow: /core/\nDisallow: /install.php\nDisallow: /cron.php\nDisallow: /webhook.php\nDisallow: /report\nDisallow: /calendar/\n\nSitemap: " . base_url() . "/sitemap.xml\n";
+}
+
+/* Private calendar feed of a family's dose times (subscribed from Google Calendar or the iPhone Calendar app). */
+function calendar_out(string $token): void
+{
+    require_once APP_DIR . '/automations.php';
+    $ics = calendar_feed($token);
+    if ($ics === null) { http_response_code(404); header('Content-Type: text/plain'); echo "Calendar not found. Create a new link in AushadhBox: Account → Automations.\n"; return; }
+    header('Content-Type: text/calendar; charset=utf-8');
+    header('Content-Disposition: inline; filename="aushadhbox-doses.ics"');
+    header('X-Robots-Tag: noindex');
+    header('Cache-Control: private, max-age=900');
+    echo $ics;
 }
 
 function serve_app(): void

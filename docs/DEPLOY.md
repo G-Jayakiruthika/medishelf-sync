@@ -77,7 +77,7 @@ hPanel → **Advanced → Cron Jobs** → *Custom*, every **5 minutes**:
 ```
 /usr/bin/php /home/u123456789/domains/your-domain.in/public_html/cron.php YOUR_CRON_KEY
 ```
-(hPanel shows your exact home path.) This sends dose reminders and Premium weekly e-mails, sends the "Premium ends in 3 days" e-mail, ends expired Premium plans, and deletes old logs as the DPDP Rules require.
+(hPanel shows your exact home path.) This also runs the automations (refill, missed-dose, course-finished and clean-up alerts) and, after you upload a new version, adds any new database tables or columns by itself. It sends dose reminders and Premium weekly e-mails, sends the "Premium ends in 3 days" e-mail, ends expired Premium plans, and deletes old logs as the DPDP Rules require.
 
 ## 9. E-mail (password reset, receipts, weekly e-mails)
 
@@ -123,6 +123,15 @@ hPanel → **Files → Backups** (weekly backups are included on Premium plans).
 ## 14. Updating the medicine list
 
 PMBJP publishes updated lists. Either upload a CSV (`drug_code,generic_name,unit_size`) in **Admin → Import a medicine list**, or convert the official PDF on your computer: `php tools/import_list.php new-list.pdf janaushadhi-2026-06 --out=rows.csv` (needs `pdftotext`), then upload `rows.csv`.
+
+## 15. Automatic deployment from GitHub (optional)
+The repository has three GitHub workflows (in `.github/workflows/`):
+- **Test** runs every check on each push. A red ✗ on GitHub means something broke.
+- **Deploy** uploads changed files to Hostinger after the tests pass. To switch it on: GitHub repo → Settings → Secrets and variables → Actions:
+  - Secrets: `FTP_SERVER`, `FTP_USERNAME`, `FTP_PASSWORD` (hPanel → Files → FTP Accounts)
+  - Variables: `DEPLOY_ENABLED` = `true`, `SITE_URL` = `https://aushadhbox.in`, and `FTP_SERVER_DIR` if your site folder is not `public_html/`
+  Your `core/config.php` on the server is never overwritten.
+- **Live site health** checks the live site every morning at 8:00 and e-mails you if something is wrong (site down, broken page, certificate expiring, installer open).
 
 ## Troubleshooting
 

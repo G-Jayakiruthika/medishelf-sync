@@ -48,6 +48,19 @@ expect "B (member) cannot pay" "$(post b billing_order '{"period":"month"}')" 40
 expect "B leaves" "$(post b household_leave '{}')" 200
 get b bootstrap >/dev/null; if grep -q 'A private medicine' "$T/out"; then FAIL=$((FAIL+1)); echo "  ✗ B still sees A's data"; else PASS=$((PASS+1)); echo "  ✓ B no longer sees A's data"; fi
 
+echo "Automations"
+expect "medicine with stock count" "$(post a item_save '{"name":"Stock test","exp":"2027-05","times":"m,e","stock":10,"per_dose":2}')" 200
+SID=$(sed -E 's/.*"item":\{"id":([0-9]+).*/\1/' "$T/out")
+post a dose_toggle "{\"item_id\":$SID,\"slot\":\"m\",\"taken\":true}" >/dev/null; body_has "ticking a dose uses 2 tablets" '"stock":8'
+post a dose_toggle "{\"item_id\":$SID,\"slot\":\"m\",\"taken\":true}" >/dev/null; body_has "ticking twice does not count twice" '"stock":8'
+post a dose_toggle "{\"item_id\":$SID,\"slot\":\"m\",\"taken\":false}" >/dev/null; body_has "un-ticking puts them back" '"stock":10'
+expect "course end date saved" "$(post a item_save '{"name":"Course test","exp":"2027-05","times":"m","course_end":"2026-01-31"}')" 200; body_has "course end returned" '"courseEnd":"2026-01-31"'
+expect "automation settings" "$(post a automation_save '{"refill_on":1,"refill_days":7,"missed_on":0,"missed_after":30,"course_on":1,"cleanup_on":1}')" 200; body_has "settings stored" '"refillDays":7'
+expect "calendar link" "$(post a calendar_link '{}')" 200
+CAL=$(sed -E 's/.*"url":"([^"]+)".*/\1/' "$T/out" | sed 's#\\/#/#g')
+if curl -s "$CAL" | grep -q "BEGIN:VCALENDAR"; then PASS=$((PASS+1)); echo "  ✓ calendar feed is valid iCalendar"; else FAIL=$((FAIL+1)); echo "  ✗ calendar feed"; fi
+c=$(curl -s -o /dev/null -w "%{http_code}" "${CAL%/*}/00000000000000000000000000000000.ics"); expect "wrong calendar link is refused" "$c" 404
+
 echo "Your data (DPDP)"
 expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'
 expect "delete needs password" "$(post a account_delete '{"password":"wrong"}')" 403

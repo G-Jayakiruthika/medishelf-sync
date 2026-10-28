@@ -25,7 +25,7 @@
   const state = {
     user: null, features: {}, members: [], items: [], taken: new Set(), kit: new Set(),
     reminders: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" },
-    lang: guessLang(), filter: "all", nbMember: null, editingId: null, billing: null, accounts: []
+    lang: guessLang(), filter: "all", nbMember: null, editingId: null, billing: null, accounts: [], auto: null, calUrl: "", today: ""
   };
   function guessLang() {
     try { const s = localStorage.getItem("ms-lang"); if (s && I18N[s]) return s; } catch (e) { /* storage blocked */ }
@@ -92,6 +92,16 @@
 
   /* ---------------- Helpers ---------------- */
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  /* Automation helpers: course still running? how long does the counted stock last? */
+  const courseActive = (m) => !m.courseEnd || !state.today || m.courseEnd >= state.today;
+  function stockInfo(m) {
+    if (m.stock === null || m.stock === undefined) return null;
+    const perDay = (m.times || []).length * Math.max(1, m.perDose || 1);
+    const days = perDay ? Math.floor(m.stock / perDay) : null;
+    const limit = state.auto ? state.auto.refillDays : 5;
+    return { text: days === null ? t("stockLeftOnly", { n: m.stock }) : t("stockLeft", { n: m.stock, d: days }), cls: m.stock <= 0 ? "out" : (days !== null && days <= limit ? "low" : "") };
+  }
+  function fmtShort(d) { try { return new Date(d + "T00:00:00").toLocaleDateString(locale(), { day: "numeric", month: "short" }); } catch (e) { return d; } }
   function toast(msg) { const el = $("#toast"); el.textContent = msg; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { el.hidden = true; }, 2800); }
   function sound(name) { try { new Audio("/assets/audio/" + name + ".mp3").play().catch(() => {}); } catch (e) { /* no audio */ } }
   function showErr(el, msg) { el.textContent = msg; el.hidden = !msg; }
@@ -145,7 +155,7 @@
     const data = await api.get("bootstrap");
     state.user = data.user;
     state.members = data.members; state.items = data.items;
-    state.taken = new Set(data.taken); state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing;
+    state.taken = new Set(data.taken); state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing; state.today = data.today;
     if (!state.nbMember || !state.members.some(m => m.id === state.nbMember)) state.nbMember = (state.members.find(m => m.self) || state.members[0] || {}).id;
     if (data.user.language && data.user.language !== state.lang && I18N[data.user.language]) { state.lang = data.user.language; try { localStorage.setItem("ms-lang", state.lang); } catch (e) { /* */ } }
     $("#authView").hidden = true; $("#appView").hidden = false;
@@ -176,7 +186,7 @@
     $$(".view").forEach(s => { s.hidden = s.dataset.view !== id; });
     markNav();
     if (id !== "scan") stopCamera();
-    if (id === "account" && state.user) refreshBilling();
+    if (id === "account" && state.user) { refreshBilling(); loadAutomations(); }
     try { history.replaceState(null, "", "#" + id); } catch (e) { /* sandboxed */ }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -219,6 +229,8 @@
         '<div class="row"><span>' + esc(t("expLabel")) + '</span><span class="mono">' + esc(fmtYM(m.exp)) + "</span></div>" +
         '<div class="row"><span>' + esc(t("fBatch")) + '</span><span class="mono">' + esc(m.batch || "—") + "</span></div>" +
         '<div class="row"><span>' + esc(t("fFor")) + "</span><span>" + esc(memberName(m.member_id)) + "</span></div>" +
+        (stockInfo(m) ? '<div class="row"><span>' + esc(t("fStock")) + '</span><span class="stock ' + stockInfo(m).cls + '">' + esc(stockInfo(m).text) + "</span></div>" : "") +
+        (m.courseEnd ? '<div class="row"><span></span><span class="muted">' + esc(courseActive(m) ? t("courseEnds", { d: fmtShort(m.courseEnd) }) : t("courseDone")) + "</span></div>" : "") +
         '<div class="row"><span></span><strong style="color:var(--' + st + ')">' + esc(daysText(m.exp)) + "</strong></div>" +
         '<span class="handle" aria-hidden="true"></span></article>';
     }).join("");
@@ -253,6 +265,7 @@
     state.editingId = id; $("#formTitle").textContent = t("edit") + ": " + m.name; $("#btnCancelEdit").hidden = false;
     $("#fName").value = m.name; $("#fBatch").value = m.batch || ""; $("#fMfg").value = m.mfg || ""; $("#fExp").value = m.exp;
     $("#fQty").value = m.quantity || ""; $("#fNotes").value = m.notes || ""; $("#fFor").value = m.member_id ? String(m.member_id) : "";
+    $("#fStock").value = m.stock === null || m.stock === undefined ? "" : String(m.stock); $("#fPerDose").value = String(m.perDose || 1); $("#fCourseEnd").value = m.courseEnd || "";
     $("#medForm").dataset.catalogId = m.catalog_id || "";
     $$("#fTimes input").forEach(i => { i.checked = (m.times || []).includes(i.value); });
     if (m.info) showInfo(m.info, m.exp);
@@ -267,7 +280,8 @@
       id: state.editingId || undefined, name: $("#fName").value.trim(), exp: $("#fExp").value, mfg: $("#fMfg").value, batch: $("#fBatch").value.trim(),
       member_id: $("#fFor").value ? Number($("#fFor").value) : null, catalog_id: Number($("#medForm").dataset.catalogId) || null,
       generic: $("#medForm").dataset.generic || "", quantity: $("#fQty").value.trim(), notes: $("#fNotes").value.trim(),
-      times: $$("#fTimes input:checked").map(i => i.value)
+      times: $$("#fTimes input:checked").map(i => i.value),
+      stock: $("#fStock").value === "" ? null : Number($("#fStock").value), per_dose: Number($("#fPerDose").value) || 1, course_end: $("#fCourseEnd").value || ""
     };
     const btn = $("#btnSave"); btn.disabled = true;
     try {
@@ -458,10 +472,10 @@
   const takenKey = (id, s) => id + ":" + s;
   function renderDoses() {
     $("#slots").innerHTML = SLOTS.map(s => {
-      const meds = state.items.filter(m => (m.times || []).includes(s.id));
+      const meds = state.items.filter(m => (m.times || []).includes(s.id) && courseActive(m));
       const items = meds.length ? meds.map(m => {
         const done = state.taken.has(takenKey(m.id, s.id)), st = statusOf(m.exp);
-        return '<li><label class="packet' + (done ? " done" : "") + '"><input type="checkbox" data-take="' + m.id + ":" + s.id + '"' + (done ? " checked" : "") + "><span>" + esc(m.name) + "</span><small>" + esc(memberName(m.member_id)) + (st === "bad" ? ' · <b style="color:var(--bad)">' + esc(t("statExpired")) + "</b>" : "") + "</small></label></li>";
+        return '<li><label class="packet' + (done ? " done" : "") + '"><input type="checkbox" data-take="' + m.id + ":" + s.id + '"' + (done ? " checked" : "") + "><span>" + esc(m.name) + "</span><small>" + esc(memberName(m.member_id)) + (stockInfo(m) ? ' · <span class="stock ' + stockInfo(m).cls + '">' + esc(stockInfo(m).text) + "</span>" : "") + (st === "bad" ? ' · <b style="color:var(--bad)">' + esc(t("statExpired")) + "</b>" : "") + "</small></label></li>";
       }).join("") : '<li class="muted" style="padding:8px 4px">—</li>';
       return '<div class="slot" data-slot="' + s.id + '"><header><span>' + esc(t(s.key)) + '</span><input type="time" aria-label="' + esc(t(s.key)) + '" data-time="' + s.id + '" value="' + state.reminders[s.id] + '"></header><ul>' + items + "</ul></div>";
     }).join("");
@@ -474,14 +488,18 @@
     if (tk) {
       const [id, slot] = tk.split(":"), on = e.target.checked;
       on ? state.taken.add(tk) : state.taken.delete(tk); renderDoses();
-      try { await api.post("dose_toggle", { item_id: Number(id), slot, taken: on }); }
+      try {
+        const r = await api.post("dose_toggle", { item_id: Number(id), slot, taken: on });
+        const it = state.items.find(x => x.id === Number(id));
+        if (it && r.stock !== undefined && r.stock !== it.stock) { it.stock = r.stock; renderDoses(); renderCabinet(); }
+      }
       catch (err) { on ? state.taken.delete(tk) : state.taken.add(tk); renderDoses(); toast(err.message); }
     }
     if (tm) { state.reminders[tm] = e.target.value; saveReminders(); }
   });
   function remainingDoses() {
     const out = [];
-    SLOTS.forEach(s => state.items.filter(m => (m.times || []).includes(s.id) && !state.taken.has(takenKey(m.id, s.id))).forEach(m => out.push(m.name + " (" + t(s.key) + ")")));
+    SLOTS.forEach(s => state.items.filter(m => (m.times || []).includes(s.id) && courseActive(m) && !state.taken.has(takenKey(m.id, s.id))).forEach(m => out.push(m.name + " (" + t(s.key) + ")")));
     return out;
   }
   $("#btnRemind").addEventListener("click", async () => {
@@ -762,6 +780,45 @@
   $("#tourNext").addEventListener("click", () => { if (tourStep < TOUR_ART.length - 1) { tourStep++; showTourStep(); } else endTour(true); });
   $("#tourSkip").addEventListener("click", () => endTour(false));
   $("#tourDialog").addEventListener("cancel", () => endTour(false));
+
+
+  /* ---------------- Automations panel ---------------- */
+  async function loadAutomations() {
+    try {
+      state.auto = await api.get("automation_get");
+      renderAutomations();
+      const c = await api.post("calendar_link", {}); state.calUrl = c.url; renderCalendar();
+    } catch (e) { /* shown elsewhere */ }
+  }
+  function renderAutomations() {
+    const a = state.auto; if (!a) return;
+    $("#auRefill").checked = a.refill; $("#auMissed").checked = a.missed; $("#auCourse").checked = a.course; $("#auCleanup").checked = a.cleanup;
+    $("#auRefillDays").innerHTML = [3, 5, 7, 10].map(d => '<option value="' + d + '"' + (d === a.refillDays ? " selected" : "") + ">" + esc(t("daysBefore", { d })) + "</option>").join("");
+    $("#auMissedAfter").innerHTML = [30, 60, 90, 120].map(m => '<option value="' + m + '"' + (m === a.missedAfter ? " selected" : "") + ">" + esc(t("minutesAfter", { m })) + "</option>").join("");
+    $("#auRefillDays").disabled = !a.refill; $("#auMissedAfter").disabled = !a.missed;
+  }
+  function renderCalendar() {
+    if (!state.calUrl) return;
+    const webcal = state.calUrl.replace(/^https?:/, "webcal:");
+    $("#calGoogle").href = "https://calendar.google.com/calendar/render?cid=" + encodeURIComponent(webcal);
+    $("#calApple").href = webcal;
+  }
+  const saveAutomations = debounce(async () => {
+    try {
+      state.auto = await api.post("automation_save", { refill_on: $("#auRefill").checked, refill_days: Number($("#auRefillDays").value), missed_on: $("#auMissed").checked,
+        missed_after: Number($("#auMissedAfter").value), course_on: $("#auCourse").checked, cleanup_on: $("#auCleanup").checked });
+      renderAutomations(); renderCabinet(); toast("✔ " + t("saved"));
+    } catch (err) { toast(err.message); }
+  }, 400);
+  $("#autoCard").addEventListener("change", (e) => { if (e.target.matches("input, select")) { $("#auRefillDays").disabled = !$("#auRefill").checked; $("#auMissedAfter").disabled = !$("#auMissed").checked; saveAutomations(); } });
+  $("#calCopy").addEventListener("click", () => {
+    if (!state.calUrl) return;
+    const done = () => toast("✔ " + t("calCopied"));
+    if (navigator.clipboard) navigator.clipboard.writeText(state.calUrl).then(done).catch(() => fallbackCopy(state.calUrl, done)); else fallbackCopy(state.calUrl, done);
+  });
+  $("#calRenew").addEventListener("click", async () => {
+    try { const c = await api.post("calendar_link", { renew: 1 }); state.calUrl = c.url; renderCalendar(); toast("✔ " + t("saved")); } catch (err) { toast(err.message); }
+  });
 
   /* ---------------- Voice assistant ---------------- */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;

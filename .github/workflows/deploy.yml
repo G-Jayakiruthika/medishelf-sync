@@ -1,0 +1,61 @@
+# Automatic deployment to Hostinger (or any host with FTP).
+# Runs after the Test workflow passes on the main branch, and can also be started by hand
+# (Actions → Deploy → Run workflow). Only changed files are uploaded.
+#
+# One-time setup (repo Settings → Secrets and variables → Actions):
+#   Secrets:   FTP_SERVER   e.g. ftp.your-domain.in  (hPanel → Files → FTP Accounts)
+#              FTP_USERNAME e.g. u123456789.your-domain.in
+#              FTP_PASSWORD
+#   Variables: DEPLOY_ENABLED = true
+#              FTP_SERVER_DIR = public_html/   (folder on the server that holds index.php; default public_html/)
+#
+# Never uploaded: core/config.php (your live settings stay on the server), install.lock, the voice cache.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Test"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Upload changed files by FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./public_html/
+          server-dir: ${{ vars.FTP_SERVER_DIR || 'public_html/' }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            core/config.php
+            core/install.lock
+            core/cache/**
+
+      - name: Check the live site answers
+        if: vars.SITE_URL != ''
+        run: |
+          sleep 5
+          code=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.SITE_URL }}/")
+          echo "Home page returned HTTP $code"
+          test "$code" = "200"

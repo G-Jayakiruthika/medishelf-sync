@@ -1,0 +1,77 @@
+# Runs on every push and pull request: checks every file for syntax errors, installs the site on a
+# fresh MySQL database, then runs the SEO, API/security and browser tests. A red ✗ on GitHub means
+# something broke; the deploy workflow will not run until this passes.
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: aushadhbox
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: pdo_mysql, mbstring, openssl, curl
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: PHP syntax check
+        run: find public_html tools tests -name '*.php' -print0 | xargs -0 -n1 php -l | grep -v '^No syntax errors' || true
+
+      - name: Fail on PHP syntax errors
+        run: "! find public_html tools tests -name '*.php' -print0 | xargs -0 -n1 php -l 2>&1 | grep -q 'Parse error'"
+
+      - name: JavaScript syntax check
+        run: for f in public_html/*.js tests/*.js; do node --check "$f"; done
+
+      - name: Cookie banner text is up to date
+        run: |
+          php tools/build_assets.php
+          git diff --exit-code public_html/consent-i18n.js || (echo "Run: php tools/build_assets.php and commit consent-i18n.js" && exit 1)
+
+      - name: Install a test copy of the site
+        run: bash tests/ci_setup.sh
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASS: root
+
+      - name: SEO and site health checks
+        run: php tests/seo_check.php http://127.0.0.1:8080
+
+      - name: API and security tests
+        run: bash tests/api_test.sh http://127.0.0.1:8080
+
+      - name: Browser tests (phone and desktop)
+        run: |
+          npm install --no-save --no-audit --no-fund playwright@1.48.2
+          npx playwright install --with-deps chromium
+          node tests/e2e.js http://127.0.0.1:8080
+
+      - name: Server log (on failure)
+        if: failure()
+        run: cat /tmp/aushadhbox-server.log || true

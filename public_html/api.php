@@ -6,6 +6,7 @@ require __DIR__ . '/core/bootstrap.php';
 require __DIR__ . '/core/catalog.php';
 require __DIR__ . '/core/services.php';
 require __DIR__ . '/core/plans.php';
+require __DIR__ . '/core/automations.php';
 
 security_headers();
 start_session();
@@ -156,7 +157,7 @@ try {
     case 'bootstrap':
         $uid = $hid;
         $members = q('SELECT id, name, relation, allergies, is_self FROM members WHERE user_id = ? ORDER BY is_self DESC, id', [$uid])->fetchAll();
-        $items = q('SELECT id, member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes FROM cabinet_items WHERE user_id = ? ORDER BY exp_month', [$uid])->fetchAll();
+        $items = q('SELECT id, member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end FROM cabinet_items WHERE user_id = ? ORDER BY exp_month', [$uid])->fetchAll();
         $today = date('Y-m-d');
         $doses = q('SELECT item_id, slot FROM dose_logs WHERE user_id = ? AND taken_on = ?', [$uid, $today])->fetchAll();
         $rem = q('SELECT enabled, m_time, a_time, e_time, b_time FROM reminder_settings WHERE user_id = ?', [$user['id']])->fetch() ?: ['enabled' => 0, 'm_time' => '08:00', 'a_time' => '13:30', 'e_time' => '19:30', 'b_time' => '22:00'];
@@ -208,15 +209,19 @@ try {
         if ($catalog && !q('SELECT 1 FROM medicine_catalog WHERE id = ?', [$catalog])->fetch()) $catalog = null;
         $infoId = $catalog ? q('SELECT info_id FROM medicine_catalog WHERE id = ?', [$catalog])->fetch()['info_id'] : null;
         if (!$infoId) $infoId = primary_info_id($name . ' ' . (string) ($in['generic'] ?? ''));
-        $vals = [$member, $name, $catalog, $infoId, str_in($in, 'batch', 40), $mfg, $exp, str_in($in, 'quantity', 40), valid_times(is_array($in['times'] ?? null) ? implode(',', $in['times']) : (string) ($in['times'] ?? '')), str_in($in, 'notes', 300)];
+        $stock = (isset($in['stock']) && $in['stock'] !== '' && $in['stock'] !== null) ? max(0, min(9999, (int) $in['stock'])) : null;
+        $perDose = max(1, min(20, (int) ($in['per_dose'] ?? 1)));
+        $courseEnd = str_in($in, 'course_end', 10);
+        if ($courseEnd !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $courseEnd)) fail('bad_course_end', 'Enter the course end date as a date.');
+        $vals = [$member, $name, $catalog, $infoId, str_in($in, 'batch', 40), $mfg, $exp, str_in($in, 'quantity', 40), valid_times(is_array($in['times'] ?? null) ? implode(',', $in['times']) : (string) ($in['times'] ?? '')), str_in($in, 'notes', 300), $stock, $perDose, $courseEnd];
         $id = (int) ($in['id'] ?? 0);
         if ($id) {
             own('cabinet_items', $id, $hid);
-            q('UPDATE cabinet_items SET member_id=?, name=?, catalog_id=?, info_id=?, batch_no=?, mfg_month=?, exp_month=?, quantity=?, dose_times=?, notes=? WHERE id=? AND user_id=?', array_merge($vals, [$id, $hid]));
+            q('UPDATE cabinet_items SET member_id=?, name=?, catalog_id=?, info_id=?, batch_no=?, mfg_month=?, exp_month=?, quantity=?, dose_times=?, notes=?, stock_count=?, per_dose=?, course_end=? WHERE id=? AND user_id=?', array_merge($vals, [$id, $hid]));
         } else {
             $lim = plan_info($user)['limits']['items'];
             if ((int) q('SELECT COUNT(*) c FROM cabinet_items WHERE user_id = ?', [$hid])->fetch()['c'] >= $lim) fail('limit_items', $lim < PREMIUM_LIMITS['items'] ? "The Free plan holds $lim medicines. Remove expired ones, or upgrade to Family Premium for unlimited medicines." : "Your cabinet is full ($lim medicines).", 402);
-            q('INSERT INTO cabinet_items (member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)', array_merge($vals, [$hid]));
+            q('INSERT INTO cabinet_items (member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', array_merge($vals, [$hid]));
             $id = (int) db()->lastInsertId();
         }
         json_out(['ok' => true, 'item' => public_item(q('SELECT * FROM cabinet_items WHERE id = ?', [$id])->fetch())]);
@@ -234,9 +239,16 @@ try {
         if (!in_array($slot, SLOTS, true)) fail('bad_slot', 'Unknown time of day.');
         own('cabinet_items', $id, $hid);
         $today = date('Y-m-d');
-        if (!empty($in['taken'])) q('INSERT IGNORE INTO dose_logs (user_id, item_id, slot, taken_on) VALUES (?,?,?,?)', [$hid, $id, $slot, $today]);
-        else q('DELETE FROM dose_logs WHERE user_id = ? AND item_id = ? AND slot = ? AND taken_on = ?', [$hid, $id, $slot, $today]);
-        json_out(['ok' => true]);
+        // Automatic stock count: a new tick uses up per_dose; un-ticking puts it back. Only real changes count.
+        if (!empty($in['taken'])) {
+            $changed = q('INSERT IGNORE INTO dose_logs (user_id, item_id, slot, taken_on) VALUES (?,?,?,?)', [$hid, $id, $slot, $today])->rowCount();
+            if ($changed) q('UPDATE cabinet_items SET stock_count = GREATEST(CAST(stock_count AS SIGNED) - per_dose, 0) WHERE id = ? AND stock_count IS NOT NULL', [$id]);
+        } else {
+            $changed = q('DELETE FROM dose_logs WHERE user_id = ? AND item_id = ? AND slot = ? AND taken_on = ?', [$hid, $id, $slot, $today])->rowCount();
+            if ($changed) q('UPDATE cabinet_items SET stock_count = LEAST(stock_count + per_dose, 9999) WHERE id = ? AND stock_count IS NOT NULL', [$id]);
+        }
+        $st = q('SELECT stock_count FROM cabinet_items WHERE id = ?', [$id])->fetchColumn();
+        json_out(['ok' => true, 'stock' => $st === null ? null : (int) $st]);
 
     case 'dose_history':   // last 14 days, for the adherence view
         $rows = q('SELECT taken_on, COUNT(*) n FROM dose_logs WHERE user_id = ? AND taken_on >= CURDATE() - INTERVAL 13 DAY GROUP BY taken_on', [$hid])->fetchAll();
@@ -398,6 +410,19 @@ try {
         q('UPDATE users SET onboarded = 1 WHERE id = ?', [$user['id']]);
         json_out(['ok' => true]);
 
+    /* ---------------- Automations ---------------- */
+    case 'automation_get':
+        $a = auto_settings((int) $user['id']);
+        json_out(automation_public($a));
+
+    case 'automation_save':
+        json_out(automation_public(auto_save((int) $user['id'], input())));
+
+    case 'calendar_link':   // creates (or with renew=1 replaces) the secret calendar address
+        $a = auto_settings((int) $user['id']);
+        $token = (!empty(input()['renew']) || empty($a['ics_token'])) ? auto_new_ics_token((int) $user['id']) : $a['ics_token'];
+        json_out(['url' => base_app_url() . '/calendar/' . $token . '.ics']);
+
     /* ---------------- Website: cookie consent, analytics, contact (no sign-in needed) ---------------- */
     case 'consent_log':
         $in = input();
@@ -506,6 +531,12 @@ function public_user(array $u): array
             'plan' => $pi['plan'], 'planUntil' => $pi['until'], 'owner' => $pi['owner'], 'weeklyEmail' => (bool) $u['weekly_email'], 'onboarded' => (bool) $u['onboarded']];
 }
 
+function automation_public(array $a): array
+{
+    return ['refill' => (bool) $a['refill_on'], 'refillDays' => (int) $a['refill_days'], 'missed' => (bool) $a['missed_on'], 'missedAfter' => (int) $a['missed_after'],
+            'course' => (bool) $a['course_on'], 'cleanup' => (bool) $a['cleanup_on'], 'calendar' => !empty($a['ics_token'])];
+}
+
 function payments_ready(): bool { return razorpay_live() || (bool) config('payments_demo'); }
 
 function base_app_url(): string
@@ -528,7 +559,8 @@ function public_item(array $r): array
     return ['id' => (int) $r['id'], 'member_id' => $r['member_id'] ? (int) $r['member_id'] : null, 'name' => $r['name'],
             'catalog_id' => $r['catalog_id'] ? (int) $r['catalog_id'] : null, 'info' => info_by_id($r['info_id'] ? (int) $r['info_id'] : null),
             'batch' => $r['batch_no'], 'mfg' => date_to_month($r['mfg_month']), 'exp' => date_to_month($r['exp_month']),
-            'quantity' => $r['quantity'], 'times' => $r['dose_times'] === '' ? [] : explode(',', $r['dose_times']), 'notes' => $r['notes']];
+            'quantity' => $r['quantity'], 'times' => $r['dose_times'] === '' ? [] : explode(',', $r['dose_times']), 'notes' => $r['notes'],
+            'stock' => $r['stock_count'] === null ? null : (int) $r['stock_count'], 'perDose' => (int) $r['per_dose'], 'courseEnd' => $r['course_end']];
 }
 
 function sign_in(int $uid): void

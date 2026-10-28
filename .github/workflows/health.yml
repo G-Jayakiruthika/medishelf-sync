@@ -1,0 +1,41 @@
+# Daily health check of the LIVE site at 8:00 am India time. If anything fails (site down, broken page,
+# missing sitemap, config file exposed), GitHub e-mails the repository owner automatically.
+# Setup: repo Settings → Secrets and variables → Actions → Variables → SITE_URL = https://your-domain.in
+name: Live site health
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    if: vars.SITE_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: curl
+          coverage: none
+
+      - name: SEO and safety checks on the live site
+        run: php tests/seo_check.php "${{ vars.SITE_URL }}"
+
+      - name: HTTPS certificate valid for at least 14 more days
+        run: |
+          host=$(echo "${{ vars.SITE_URL }}" | sed -E 's#https?://([^/]+).*#\1#')
+          end=$(echo | openssl s_client -servername "$host" -connect "$host:443" 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+          echo "Certificate expires: $end"
+          test $(( ($(date -d "$end" +%s) - $(date +%s)) / 86400 )) -ge 14
+
+      - name: Installer is not reachable
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" "${{ vars.SITE_URL }}/install.php")
+          body=$(curl -s "${{ vars.SITE_URL }}/install.php")
+          echo "install.php → HTTP $code"
+          # Deleted (404/403) or locked ("Installation is complete") are both fine; an open installer is not.
+          if [ "$code" = "200" ] && ! grep -q "Installation is complete" <<<"$body"; then echo "install.php is open on the live site"; exit 1; fi

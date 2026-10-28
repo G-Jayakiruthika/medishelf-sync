@@ -1,6 +1,6 @@
 /* AushadhBox service worker: offline app shell + push reminders. */
-const CACHE = "aushadhbox-v3";
-const SHELL = ["/app", "/styles.css?v=3", "/app.js?v=3", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/consent.js?v=3", "/consent-i18n.js?v=3",
+const CACHE = "aushadhbox-v4";
+const SHELL = ["/app", "/styles.css?v=4", "/app.js?v=4", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/i18n-auto.js?v=4", "/consent.js?v=3", "/consent-i18n.js?v=3",
   "/lib/qrcode.js", "/lib/jsQR.js", "/icons/icon-192.png", "/icons/icon-512.png",
   "/assets/audio/dose-reminder.mp3", "/assets/audio/expiry-alert.mp3", "/assets/audio/saved.mp3"];
 

@@ -30,13 +30,22 @@ Tap a person's name at the top to see only their medicines. Tap ✕ on a drawer 
 ## 5. Doses and reminders
 When adding a medicine, tick *Morning / Afternoon / Evening / Bedtime*. The **Doses** tab lists today's doses; tick each one after taking it. Tap **Turn on reminders** and allow notifications to get a phone alert at each time, even when the app is closed. On iPhone, add the app to the home screen first.
 
-## 6. Notebook for the doctor
+## 6. Automations
+Open **Account → Automations** to switch each one on or off.
+- **Tablet count:** when adding a medicine, enter *Tablets left* and *Per dose*. Each time you tick a dose, the count goes down by itself (un-ticking puts it back). The drawer shows how many days it will last.
+- **Refill alert:** a few days before a medicine runs out (you choose 3, 5, 7 or 10 days), you get a "Buy more" alert. After buying, edit the medicine and update *Tablets left*.
+- **Missed-dose alert:** if a dose is not ticked 30–120 minutes after its time, everyone sharing the family cabinet gets an alert. Useful for parents living alone.
+- **Courses:** for antibiotics and other short courses, set *Course ends*. Reminders stop by themselves after that day and you get a "Course finished" note.
+- **Monthly clean-up:** on the 1st of every month, a list of expired medicines to take back to a pharmacy.
+- **Phone calendar:** *Add to Google Calendar* or *Add to iPhone Calendar* puts every dose time in your calendar with an alarm, and it updates itself. If you ever share the link by mistake, tap *Make a new private link*.
+
+## 7. Notebook for the doctor
 **Notebook** shows each person's medicines, times and expiry. Tap **Copy for doctor** and paste it into WhatsApp, or show the screen. Premium families can print a full report: **Account → Printable report for doctor → Print or save as PDF**.
 
-## 7. Voice assistant
+## 8. Voice assistant
 Tap **Ask** and speak, e.g. "What is expiring?" or "Which medicines tonight?", in your language. You can also type.
 
-## 8. Family Premium
+## 9. Family Premium
 **Account → Upgrade to Premium.** Choose 1 year (cheaper) or 1 month and pay with UPI, card or net banking through Razorpay. Premium gives:
 - **Family sharing:** Account → Family sharing → **Create invite code**. Send the 8-letter code (or link) to your family. They create their own account and enter the code under *Have an invite code?*. Everyone now sees the same cabinet. The owner can remove people; members can leave.
 - Unlimited medicines and up to 15 people.
@@ -47,13 +56,13 @@ Premium does **not** renew automatically. You get an e-mail 3 days before it end
 
 Refunds: write within 7 days of paying for a full refund (see /refund-policy).
 
-## 9. Your data and privacy
+## 10. Your data and privacy
 - **Account → Download my data** gives a file with everything stored.
 - **Account → Delete my account** removes it all permanently.
 - Photos you scan stay on your phone; only the text read from the label is sent.
 - Cookie choices: **Cookie settings** at the bottom of any page.
 
-## 10. Problems?
+## 11. Problems?
 | Problem | Try this |
 |---|---|
 | Camera does not open | Allow camera access for the site in your browser settings. |
