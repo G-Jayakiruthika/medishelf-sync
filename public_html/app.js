@@ -85,10 +85,11 @@
   /* ---------------- Dates ---------------- */
   const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
   const expEnd = (ym) => { const [y, m] = ym.split("-").map(Number); return new Date(y, m, 0); };
-  const daysLeft = (ym) => Math.round((expEnd(ym) - today()) / DAY);
-  const statusOf = (ym) => { const d = daysLeft(ym); return d < 0 ? "bad" : d <= SOON_DAYS ? "warn" : "ok"; };
+  const daysLeft = (ym) => ym ? Math.round((expEnd(ym) - today()) / DAY) : Infinity;
+  const statusOf = (ym) => { if (!ym) return "unk"; const d = daysLeft(ym); return d < 0 ? "bad" : d <= SOON_DAYS ? "warn" : "ok"; };
   function fmtYM(ym) { if (!ym) return "—"; const [y, m] = ym.split("-").map(Number); try { return new Date(y, m - 1, 1).toLocaleDateString(locale(), { month: "short", year: "numeric" }); } catch (e) { return ym; } }
-  function daysText(ym) { const d = daysLeft(ym); if (d < 0) return t("expiredAgo", { d: -d }); if (d > 120) return t("monthsLeft", { m: Math.floor(d / 30) }); return t("daysLeft", { d }); }
+  function daysText(ym) { if (!ym) return t("addExpiry"); return daysTextKnown(ym); }
+  function daysTextKnown(ym) { const d = daysLeft(ym); if (d < 0) return t("expiredAgo", { d: -d }); if (d > 120) return t("monthsLeft", { m: Math.floor(d / 30) }); return t("daysLeft", { d }); }
 
   /* ---------------- Helpers ---------------- */
   const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -99,7 +100,10 @@
     const perDay = (m.times || []).length * Math.max(1, m.perDose || 1);
     const days = perDay ? Math.floor(m.stock / perDay) : null;
     const limit = state.auto ? state.auto.refillDays : 5;
-    return { text: days === null ? t("stockLeftOnly", { n: m.stock }) : t("stockLeft", { n: m.stock, d: days }), cls: m.stock <= 0 ? "out" : (days !== null && days <= limit ? "low" : "") };
+    // A short course with enough tablets to finish it is not "running low".
+    const courseLeft = m.courseEnd ? Math.round((new Date(m.courseEnd + "T00:00:00") - today()) / DAY) + 1 : null;
+    const covers = courseLeft !== null && days !== null && days >= courseLeft - 1;   // one day of slack: today may already be ticked
+    return { text: days === null ? t("stockLeftOnly", { n: m.stock }) : t("stockLeft", { n: m.stock, d: days }), cls: m.stock <= 0 ? (courseLeft !== null && courseLeft <= 0 ? "" : "out") : (days !== null && days <= limit && !covers ? "low" : "") };
   }
   function fmtShort(d) { try { return new Date(d + "T00:00:00").toLocaleDateString(locale(), { day: "numeric", month: "short" }); } catch (e) { return d; } }
   function toast(msg) { const el = $("#toast"); el.textContent = msg; el.hidden = false; clearTimeout(toast._t); toast._t = setTimeout(() => { el.hidden = true; }, 2800); }
@@ -168,6 +172,7 @@
     let pendingJoin = null; try { pendingJoin = sessionStorage.getItem("ms-join"); } catch (e) { /* */ }
     if (pendingJoin) { try { sessionStorage.removeItem("ms-join"); } catch (e) { /* */ } go("account"); $("#joinCode").value = pendingJoin; }
     else if (h === "upgrade") openUpgrade();
+    else if (h === "shared") openSharedPhoto();
     else if (!state.user.onboarded) openTour();
   }
   $("#btnConsent").addEventListener("click", async () => { await api.post("consent_renew"); state.user.consentCurrent = true; $("#consentBanner").hidden = true; });
@@ -200,7 +205,7 @@
   });
 
   /* ---------------- Cabinet ---------------- */
-  function counts() { const c = { ok: 0, warn: 0, bad: 0 }; state.items.forEach(m => c[statusOf(m.exp)]++); return c; }
+  function counts() { const c = { ok: 0, warn: 0, bad: 0, unk: 0 }; state.items.forEach(m => c[statusOf(m.exp)]++); return c; }
   function renderSummary() {
     const c = counts();
     $("#statTotal").textContent = state.items.length; $("#statSafe").textContent = c.ok; $("#statSoon").textContent = c.warn; $("#statExpired").textContent = c.bad;
@@ -221,7 +226,7 @@
     if (!list.length) { $("#cabinet").innerHTML = '<div class="empty">' + esc(t("emptyCabinet")) + '</div>'; return; }
     $("#cabinet").innerHTML = list.map(m => {
       const st = statusOf(m.exp), info = m.info;
-      const stLabel = st === "bad" ? t("statExpired") : st === "warn" ? t("statSoon") : t("statSafe");
+      const stLabel = st === "bad" ? t("statExpired") : st === "warn" ? t("statSoon") : st === "unk" ? t("expUnknown") : t("statSafe");
       return '<article class="drawer ' + st + '" data-edit="' + m.id + '" tabindex="0" aria-label="' + esc(t("edit") + " " + m.name) + '">' +
         '<button class="del" data-del="' + m.id + '" aria-label="' + esc(t("remove") + " " + m.name) + '">✕</button>' +
         '<div class="top"><span class="pill ' + st + '">' + esc(stLabel) + "</span>" + (info && info.rx ? '<span class="pill rx">Rx</span>' : "") + "</div>" +
@@ -385,6 +390,14 @@
     let info = parseLabel(raw);
     if (!info.exp || !raw) { const ocr = await tryOCR(cv); if (ocr) { raw = (raw ? raw + "\n" : "") + ocr; info = Object.assign(parseLabel(ocr), info); } }
     $("#scanBeam").hidden = true;
+    // A prescription or pharmacy bill? Read every medicine on it and open the review list instead of the single-pack form.
+    if (window.RxParse && raw && !state.editingId && !info.exp) {
+      const doc = window.RxParse.parse(raw, state.today);
+      if ((doc.kind === "prescription" || doc.kind === "bill") && doc.items.length) { setStatus(""); openReview(doc); return; }
+    } else if (window.RxParse && raw && !state.editingId) {
+      const doc = window.RxParse.parse(raw, state.today);
+      if (doc.kind === "bill" && doc.items.length >= 2) { setStatus(""); openReview(doc); return; }
+    }
     $("#fName").value = info.name || ""; $("#fBatch").value = info.batch || ""; $("#fMfg").value = info.mfg || ""; $("#fExp").value = info.exp || "";
     $("#rawText").textContent = raw || "—"; $("#medForm").dataset.generic = info.generic || "";
     await showMatches(raw, info);
@@ -399,6 +412,7 @@
       const r = await api.post("catalog_match", { text: [info.generic, info.name, raw].filter(Boolean).join("\n") });
       showInfo(r.info, info.exp);
       if (!r.info && !info.exp) $("#matchBox").hidden = true;
+      if (r.info && !state.editingId) applyUsual(r.info, r.matches[0] && r.matches[0].unit);
       if (r.matches.length) {
         list.innerHTML = '<span class="muted" style="font-size:.84rem">' + esc(t("matches")) + "</span>" + r.matches.slice(0, 4).map((m, i) =>
           '<label><input type="radio" name="match" value="' + m.id + '"' + (i === 0 ? " checked" : "") + ' data-name="' + esc(m.name) + '"><span>' + esc(m.name) + (m.unit ? ' <span class="muted">· ' + esc(m.unit) + "</span>" : "") + "</span></label>").join("");
@@ -477,12 +491,24 @@
         const done = state.taken.has(takenKey(m.id, s.id)), st = statusOf(m.exp);
         return '<li><label class="packet' + (done ? " done" : "") + '"><input type="checkbox" data-take="' + m.id + ":" + s.id + '"' + (done ? " checked" : "") + "><span>" + esc(m.name) + "</span><small>" + esc(memberName(m.member_id)) + (stockInfo(m) ? ' · <span class="stock ' + stockInfo(m).cls + '">' + esc(stockInfo(m).text) + "</span>" : "") + (st === "bad" ? ' · <b style="color:var(--bad)">' + esc(t("statExpired")) + "</b>" : "") + "</small></label></li>";
       }).join("") : '<li class="muted" style="padding:8px 4px">—</li>';
-      return '<div class="slot" data-slot="' + s.id + '"><header><span>' + esc(t(s.key)) + '</span><input type="time" aria-label="' + esc(t(s.key)) + '" data-time="' + s.id + '" value="' + state.reminders[s.id] + '"></header><ul>' + items + "</ul></div>";
+      const pending = meds.filter(m => !state.taken.has(takenKey(m.id, s.id))).length;
+      return '<div class="slot" data-slot="' + s.id + '"><header><span>' + esc(t(s.key)) + '</span>' + (pending > 1 ? '<button type="button" class="btn btn-ghost slot-all" data-all="' + s.id + '">' + esc(t("takenAll")) + "</button>" : "") + '<input type="time" aria-label="' + esc(t(s.key)) + '" data-time="' + s.id + '" value="' + state.reminders[s.id] + '"></header><ul>' + items + "</ul></div>";
     }).join("");
     $("#remindLabel").textContent = state.reminders.enabled ? t("remindOn") : t("remindOff");
     $("#btnRemind").setAttribute("aria-pressed", String(state.reminders.enabled));
   }
   const saveReminders = debounce(() => api.post("reminders_save", Object.assign({}, state.reminders)).catch(err => toast(err.message)), 500);
+  $("#slots").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-all]"); if (!b) return;
+    const slot = b.dataset.all; b.disabled = true;
+    try {
+      await api.post("dose_slot_taken", { slot });
+      state.items.filter(m => (m.times || []).includes(slot) && courseActive(m) && !state.taken.has(takenKey(m.id, slot))).forEach(m => {
+        state.taken.add(takenKey(m.id, slot)); if (m.stock !== null && m.stock !== undefined) m.stock = Math.max(0, m.stock - (m.perDose || 1));
+      });
+      sound("saved"); renderDoses(); renderCabinet();
+    } catch (err) { toast(err.message); b.disabled = false; }
+  });
   $("#slots").addEventListener("change", async (e) => {
     const tk = e.target.dataset.take, tm = e.target.dataset.time;
     if (tk) {
@@ -560,7 +586,7 @@
     const m = state.members.find(x => x.id === state.nbMember); if (!m) return;
     const lines = ["Medicine notebook: " + m.name, "Date: " + new Date().toLocaleDateString("en-IN"), ""];
     state.items.filter(x => x.member_id === m.id || !x.member_id).forEach(x => {
-      lines.push("- " + x.name + (x.info ? " (" + x.info.ingredient + ")" : "") + " | " + ((x.times || []).map(s => t(SLOTS.find(y => y.id === s).key)).join(", ") || "as needed") + " | Exp " + x.exp + (x.batch ? " | B.No. " + x.batch : ""));
+      lines.push("- " + x.name + (x.info ? " (" + x.info.ingredient + ")" : "") + " | " + ((x.times || []).map(s => t(SLOTS.find(y => y.id === s).key)).join(", ") || "as needed") + " | Exp " + (x.exp || "—") + (x.batch ? " | B.No. " + x.batch : ""));
     });
     lines.push("", "Allergies: " + (m.allergies || "none recorded"));
     const text = lines.join("\n"), done = () => toast("✔ " + t("nbCopied"));
@@ -782,6 +808,168 @@
   $("#tourDialog").addEventListener("cancel", () => endTour(false));
 
 
+
+  /* ---------------- Smart adding: usual schedules, prescriptions, bills, quick add ---------------- */
+  const SLOT_KEYS = { m: "tMorning", a: "tAfternoon", e: "tEvening", b: "tBedtime" };
+  const addDaysISO = (n) => { const d = new Date((state.today || new Date().toISOString().slice(0, 10)) + "T00:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+  function applyUsual(info, unit) {
+    if (!info) return;
+    const anyTime = $$("#fTimes input").some(i => i.checked);
+    let filled = false;
+    if (!anyTime && info.usualTimes && info.usualTimes.length) { $$("#fTimes input").forEach(i => { i.checked = info.usualTimes.includes(i.value); }); filled = true; }
+    if (!$("#fCourseEnd").value && info.courseDays && filled) $("#fCourseEnd").value = addDaysISO(info.courseDays - 1);
+    const pack = window.RxParse ? window.RxParse.packCount(unit) : null;
+    if ($("#fStock").value === "" && pack) $("#fStock").value = String(pack);
+    if (info.food && !$("#fNotes").value) $("#fNotes").value = info.food;
+    $("#usualNote").hidden = !filled;
+  }
+  $("#usualClear").addEventListener("click", () => { $$("#fTimes input").forEach(i => { i.checked = false; }); $("#fCourseEnd").value = ""; $("#usualNote").hidden = true; });
+
+  let rx = { kind: "", rows: [] };
+  function openReview(doc) {
+    rx = { kind: doc.kind, rows: doc.items.map(i => ({ on: true, name: i.name, times: (i.times || []).slice(), days: i.days, stock: i.stock, exp: i.exp || "", batch: i.batch || "",
+      notes: i.notes || "", courseEnd: i.courseEnd || null, perDose: i.perDose || 1, catalog_id: null, usual: false, sos: !!i.sos })) };
+    $("#rxTitle").textContent = t(doc.kind === "bill" ? "rxTitleBill" : "rxTitlePres") + " (" + rx.rows.length + ")";
+    $("#rxFor").innerHTML = '<option value="">' + esc(t("familyAll")) + "</option>" + state.members.map(m => '<option value="' + m.id + '">' + esc(m.name) + "</option>").join("");
+    const self = state.members.find(m => m.self); $("#rxFor").value = self ? String(self.id) : "";
+    showErr($("#rxErr"), ""); renderReview();
+    const d = $("#rxDialog"); if (!d.open) { try { d.showModal(); } catch (e) { d.setAttribute("open", ""); } }
+    // Match each name to the official medicine list; fill usual schedules and pack sizes where the paper didn't say.
+    api.post("catalog_match_many", { names: rx.rows.map(r => r.name) }).then(res => {
+      res.results.forEach((m, i) => {
+        const r = rx.rows[i]; if (!r || !m.match) return;
+        r.catalog_id = m.match.id;
+        const info = m.info;
+        if (info && !r.times.length && !r.sos && info.usualTimes && info.usualTimes.length) {
+          r.times = info.usualTimes.slice(); r.usual = true;
+          if (!r.days && info.courseDays) { r.days = info.courseDays; r.courseEnd = addDaysISO(info.courseDays - 1); }
+          if (info.food && !r.notes) r.notes = info.food;
+        }
+        if (r.stock === null || r.stock === undefined) {
+          const pack = window.RxParse.packCount(m.match.unit);
+          if (r.days && r.times.length) r.stock = r.days * r.times.length * (r.perDose || 1); else if (pack) r.stock = pack;
+        }
+      });
+      renderReview();
+    }).catch(() => { /* offline: the list still works without matches */ });
+  }
+  function renderReview() {
+    const n = rx.rows.filter(r => r.on).length;
+    $("#rxList").innerHTML = rx.rows.length ? rx.rows.map((r, i) => '<div class="rx-row' + (r.on ? "" : " off") + '" data-i="' + i + '">' +
+      '<div class="rx-top"><input type="checkbox" data-f="on" aria-label="' + esc(r.name) + '"' + (r.on ? " checked" : "") + '><input type="text" data-f="name" value="' + esc(r.name) + '" aria-label="' + esc(t("fName")) + '">' + (r.usual ? '<span class="rx-tag">' + esc(t("usualTag")) + "</span>" : "") + "</div>" +
+      '<div class="rx-meta"><span class="slot-chips">' + ["m", "a", "e", "b"].map(sl => '<button type="button" data-slot="' + sl + '" aria-pressed="' + r.times.includes(sl) + '">' + esc(t(SLOT_KEYS[sl])) + "</button>").join("") + "</span>" +
+      '<label>' + esc(t("days")) + ' <input type="number" min="1" max="365" data-f="days" value="' + (r.days || "") + '"></label>' +
+      '<label>' + esc(t("stockShort")) + ' <input type="number" min="0" max="9999" data-f="stock" value="' + (r.stock === null || r.stock === undefined ? "" : r.stock) + '"></label>' +
+      '<label>' + esc(t("expShort")) + ' <input type="month" data-f="exp" value="' + esc(r.exp) + '"></label></div>' +
+      (r.notes ? '<span class="rx-note">' + esc(r.notes) + "</span>" : "") + "</div>").join("") : '<p class="muted">' + esc(t("rxNone")) + "</p>";
+    $("#rxSave").textContent = t("rxSave", { n }); $("#rxSave").disabled = !n;
+  }
+  $("#rxList").addEventListener("input", (e) => {
+    const row = e.target.closest("[data-i]"); if (!row) return; const r = rx.rows[Number(row.dataset.i)], f = e.target.dataset.f;
+    if (f === "on") { r.on = e.target.checked; renderReview(); return; }
+    if (f === "name") r.name = e.target.value;
+    if (f === "days") { r.days = Number(e.target.value) || null; r.courseEnd = r.days ? addDaysISO(r.days - 1) : null; }
+    if (f === "stock") r.stock = e.target.value === "" ? null : Number(e.target.value);
+    if (f === "exp") r.exp = e.target.value;
+  });
+  $("#rxList").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-slot]"); if (!b) return;
+    const r = rx.rows[Number(b.closest("[data-i]").dataset.i)], sl = b.dataset.slot;
+    r.times = r.times.includes(sl) ? r.times.filter(x => x !== sl) : r.times.concat(sl).sort((x, y) => "maeb".indexOf(x) - "maeb".indexOf(y));
+    b.setAttribute("aria-pressed", String(r.times.includes(sl)));
+  });
+  $("#rxSave").addEventListener("click", async () => {
+    const member = $("#rxFor").value ? Number($("#rxFor").value) : null;
+    const items = rx.rows.filter(r => r.on && r.name.trim()).map(r => ({ name: r.name.trim(), catalog_id: r.catalog_id, times: r.times, stock: r.stock, per_dose: r.perDose,
+      course_end: r.courseEnd || "", exp: r.exp || "", batch: r.batch || "", notes: r.notes, member_id: member }));
+    if (!items.length) return;
+    $("#rxSave").disabled = true; showErr($("#rxErr"), "");
+    try {
+      const res = await api.post("items_bulk_save", { items });
+      state.items = state.items.concat(res.items); $("#rxDialog").close(); sound("saved");
+      toast("✔ " + t("rxSave", { n: res.items.length }).replace(/^\S+\s/, "") ); renderAll(); go("cabinet"); track("rx_saved");
+    } catch (err) { showErr($("#rxErr"), err.message); }
+    $("#rxSave").disabled = false;
+  });
+  $("#rxPasteBtn").addEventListener("click", () => {
+    const text = $("#rxPasteText").value.trim(); if (!text) return;
+    const doc = window.RxParse.parse(text, state.today);
+    if (!doc.items.length) { toast(t("rxNone")); return; }
+    if (doc.kind === "label") doc.kind = "prescription";
+    openReview(doc); $("#rxPasteText").value = "";
+  });
+
+  /* Quick add from a typed or spoken sentence. Returns a message for the voice assistant too. */
+  async function quickAddText(text) {
+    const it = window.RxParse.sentence(text, state.members, state.today);
+    if (!it || !it.name || it.name.length < 3) throw new Error(t("quickNotUnderstood"));
+    let catalogId = null;
+    try {
+      const m = (await api.post("catalog_match_many", { names: [it.name] })).results[0];
+      if (m && m.match) {
+        catalogId = m.match.id;
+        if (!it.times.length && !it.sos && m.info && m.info.usualTimes && m.info.usualTimes.length) {
+          it.times = m.info.usualTimes.slice();
+          if (!it.days && m.info.courseDays) { it.days = m.info.courseDays; it.courseEnd = addDaysISO(m.info.courseDays - 1); }
+          if (m.info.food && !it.notes) it.notes = m.info.food;
+        }
+        if (it.stock === null) { const pack = window.RxParse.packCount(m.match.unit); it.stock = it.days && it.times.length ? it.days * it.times.length * it.perDose : pack; }
+      }
+    } catch (e) { /* offline: save what we understood */ }
+    const self = state.members.find(m => m.self);
+    const r = await api.post("item_save", { name: it.name, catalog_id: catalogId, times: it.times, stock: it.stock, per_dose: it.perDose, course_end: it.courseEnd || "", notes: it.notes,
+      member_id: it.member ? it.member.id : (self ? self.id : null) });
+    state.items = state.items.filter(x => x.id !== r.item.id).concat([r.item]); renderAll(); sound("saved"); track("quick_add");
+    return t("quickDone", { name: r.item.name });
+  }
+  $("#quickForm").addEventListener("submit", async (e) => {
+    e.preventDefault(); showErr($("#quickErr"), "");
+    const text = $("#quickInput").value.trim(); if (!text) return;
+    try { toast("✔ " + await quickAddText(text)); $("#quickInput").value = ""; } catch (err) { showErr($("#quickErr"), err.message); }
+  });
+  $("#quickMic").addEventListener("click", () => {
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Rec) { showErr($("#quickErr"), t("voiceNoMic")); return; }
+    const r = new Rec(); r.lang = langInfo().speech; r.interimResults = false;
+    r.onresult = (ev) => { $("#quickInput").value = ev.results[0][0].transcript; $("#quickForm").requestSubmit(); };
+    r.onerror = () => showErr($("#quickErr"), t("voiceNoMic"));
+    try { r.start(); } catch (err) { showErr($("#quickErr"), t("voiceNoMic")); }
+  });
+
+  /* Shopping list: what is running out, finished or expired while still in use, with the cheaper generic. */
+  function shoppingList() {
+    const out = [];
+    state.items.forEach(m => {
+      const si = stockInfo(m), st = statusOf(m.exp), inUse = (m.times || []).length && courseActive(m);
+      let why = null;
+      if (si && si.cls === "out") why = t("shopOut"); else if (si && si.cls === "low") why = t("shopLow") + " (" + si.text + ")";
+      else if (st === "bad" && (inUse || m.stock !== null)) why = t("shopExpired");
+      if (why) out.push({ m, why, generic: m.info ? m.info.ingredient : "" });
+    });
+    return out;
+  }
+  $("#btnShop").addEventListener("click", () => {
+    const list = shoppingList();
+    $("#shopList").innerHTML = list.length ? list.map(x => "<li><b>" + esc(x.m.name) + "</b><small>" + esc(memberName(x.m.member_id) + " · " + x.why) + "</small>" +
+      (x.generic ? "<small>" + esc(t("shopGeneric", { g: x.generic + " (Jan Aushadhi)" })) + "</small>" : "") + "</li>").join("") : '<li class="muted">' + esc(t("shopEmpty")) + "</li>";
+    const text = t("shopTitle") + " (AushadhBox)\n" + list.map(x => "• " + x.m.name + " — " + x.why + (x.generic ? " — " + x.generic : "")).join("\n");
+    $("#shopWa").href = "https://wa.me/?text=" + encodeURIComponent(text); $("#shopWa").hidden = !list.length; $("#shopCopy").dataset.text = text;
+    const d = $("#shopDialog"); try { d.showModal(); } catch (e) { d.setAttribute("open", ""); }
+  });
+  $("#shopCopy").addEventListener("click", (e) => { const tx = e.currentTarget.dataset.text || ""; const done = () => toast("✔ " + t("calCopied")); if (navigator.clipboard) navigator.clipboard.writeText(tx).then(done).catch(() => fallbackCopy(tx, done)); else fallbackCopy(tx, done); });
+
+  /* Shared from WhatsApp or the gallery (Android "Share" → AushadhBox): the service worker keeps the photo for us. */
+  async function openSharedPhoto() {
+    try {
+      const cache = await caches.open("aushadhbox-share"), res = await cache.match("/shared-image"); if (!res) return;
+      const blob = await res.blob(); await cache.delete("/shared-image");
+      resetForm(); go("scan");
+      const img = new Image();
+      img.onload = () => { drawToCanvas(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(img.src); processCanvas(canvas); };
+      img.src = URL.createObjectURL(blob);
+    } catch (e) { /* nothing shared */ }
+  }
+
   /* ---------------- Automations panel ---------------- */
   async function loadAutomations() {
     try {
@@ -792,7 +980,7 @@
   }
   function renderAutomations() {
     const a = state.auto; if (!a) return;
-    $("#auRefill").checked = a.refill; $("#auMissed").checked = a.missed; $("#auCourse").checked = a.course; $("#auCleanup").checked = a.cleanup;
+    $("#auRefill").checked = a.refill; $("#auMissed").checked = a.missed; $("#auCourse").checked = a.course; $("#auCleanup").checked = a.cleanup; $("#auTiming").checked = a.timing !== false;
     $("#auRefillDays").innerHTML = [3, 5, 7, 10].map(d => '<option value="' + d + '"' + (d === a.refillDays ? " selected" : "") + ">" + esc(t("daysBefore", { d })) + "</option>").join("");
     $("#auMissedAfter").innerHTML = [30, 60, 90, 120].map(m => '<option value="' + m + '"' + (m === a.missedAfter ? " selected" : "") + ">" + esc(t("minutesAfter", { m })) + "</option>").join("");
     $("#auRefillDays").disabled = !a.refill; $("#auMissedAfter").disabled = !a.missed;
@@ -806,7 +994,7 @@
   const saveAutomations = debounce(async () => {
     try {
       state.auto = await api.post("automation_save", { refill_on: $("#auRefill").checked, refill_days: Number($("#auRefillDays").value), missed_on: $("#auMissed").checked,
-        missed_after: Number($("#auMissedAfter").value), course_on: $("#auCourse").checked, cleanup_on: $("#auCleanup").checked });
+        missed_after: Number($("#auMissedAfter").value), course_on: $("#auCourse").checked, cleanup_on: $("#auCleanup").checked, timing_on: $("#auTiming").checked });
       renderAutomations(); renderCabinet(); toast("✔ " + t("saved"));
     } catch (err) { toast(err.message); }
   }, 400);
@@ -846,6 +1034,10 @@
   function detectIntent(q) { q = q.toLowerCase(); for (const intent of ["scan", "expiring", "doses", "help"]) if (INTENTS[intent].some(w => q.includes(w.toLowerCase()))) return intent; return null; }
   function answer(q) {
     bubble(q, "me");
+    if (/^\s*(please\s+)?(add|remind me|new medicine|i take)\b/i.test(q) || (window.RxParse && window.RxParse.schedule(q).matched.length && /[a-z]{4,}/i.test(q) && !detectIntent(q))) {
+      quickAddText(q).then(msg => { bubble(msg, "bot"); speak(msg); }).catch(err => { bubble(err.message, "bot"); speak(err.message); });
+      return;
+    }
     const intent = detectIntent(q); let reply;
     if (intent === "expiring") {
       const soon = state.items.filter(m => statusOf(m.exp) === "warn"), bad = state.items.filter(m => statusOf(m.exp) === "bad"), parts = [];

@@ -49,6 +49,31 @@ async function journey(browser, label, viewport) {
   await p.click('#btnSave'); await p.waitForTimeout(800);
   ok((await p.textContent('#statTotal')).trim() === '1', 'medicine saved to cabinet');
 
+
+  // Whole prescription from text: review list, usual schedules, saved in one go
+  await p.click('#bottomnav [data-go="scan"], #tabs [data-go="scan"] >> visible=true'); await p.waitForTimeout(300);
+  await p.click('details.paste-rx summary');
+  await p.fill('#rxPasteText', 'Rx\n1. Tab Dolo 650 1-0-1 x 5 days after food\n2. Tab Metformin 500 mg\n3. Cap Amoxicillin 500 mg TDS x 5 days');
+  await p.click('#rxPasteBtn'); await p.waitForSelector('#rxDialog[open]'); await p.waitForTimeout(1200);
+  ok((await p.$$('#rxList .rx-row')).length === 3, 'prescription review lists 3 medicines');
+  ok(await p.isVisible('#rxList .rx-tag'), 'usual schedule filled for the medicine without instructions');
+  await p.click('#rxSave'); await p.waitForTimeout(1000);
+  ok((await p.textContent('#statTotal')).trim() === '4', 'all 3 saved in one tap');
+
+  // One sentence
+  await p.click('#bottomnav [data-go="scan"], #tabs [data-go="scan"] >> visible=true'); await p.waitForTimeout(300);
+  await p.fill('#quickInput', 'Add Cetirizine 10 mg at night for 5 days'); await p.click('#quickForm button[type=submit]'); await p.waitForTimeout(1200);
+  ok((await p.textContent('#statTotal')).trim() === '5', 'medicine added from one typed sentence');
+
+  // Whole time slot in one tap, then the shopping list
+  await p.click('#bottomnav [data-go="doses"], #tabs [data-go="doses"] >> visible=true'); await p.waitForTimeout(400);
+  const allBtn = await p.$('[data-all="m"]');
+  ok(!!allBtn, '"All taken" button for the morning');
+  if (allBtn) { await allBtn.click(); await p.waitForTimeout(800); ok((await p.$$('[data-slot="m"] .packet.done')).length >= 2, 'all morning doses ticked at once'); }
+  await p.click('#bottomnav [data-go="cabinet"], #tabs [data-go="cabinet"] >> visible=true'); await p.waitForTimeout(300);
+  await p.click('#btnShop'); await p.waitForSelector('#shopDialog[open]');
+  ok((await p.$$('#shopList li')).length >= 1, 'shopping list opens');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
   await p.click('#bottomnav [data-go="account"], #tabs [data-go="account"] >> visible=true');
   await p.waitForTimeout(800);
   ok((await p.textContent('#planBadge')).trim().length > 0, 'plan card shows');

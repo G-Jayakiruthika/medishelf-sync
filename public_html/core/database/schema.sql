@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS medicine_info (
   storage     VARCHAR(160) NULL,
   note        VARCHAR(300) NULL,
   slug        VARCHAR(100) NULL,
+  usual_times VARCHAR(10)  NOT NULL DEFAULT '',   -- common schedule shown as a suggestion (m,a,e,b); '' = when needed / as prescribed
+  course_days TINYINT UNSIGNED NULL,              -- common course length for short treatments (antibiotics)
+  food        VARCHAR(20)  NULL,                  -- after food / before food / empty stomach
   UNIQUE KEY uq_info_ingredient (ingredient),
   UNIQUE KEY uq_info_slug (slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -79,7 +82,7 @@ CREATE TABLE IF NOT EXISTS cabinet_items (
   info_id     INT UNSIGNED NULL,
   batch_no    VARCHAR(40)  NULL,
   mfg_month   DATE         NULL,          -- stored as first day of the month
-  exp_month   DATE         NOT NULL,      -- usable until the END of this month
+  exp_month   DATE         NULL,          -- usable until the END of this month; NULL = not known yet (added from a prescription)
   quantity    VARCHAR(40)  NULL,
   dose_times  VARCHAR(10)  NOT NULL DEFAULT '',   -- any of m,a,e,b
   notes       VARCHAR(300) NULL,
@@ -252,6 +255,7 @@ CREATE TABLE IF NOT EXISTS automation_settings (
   missed_after SMALLINT UNSIGNED NOT NULL DEFAULT 60,    -- minutes after the dose time
   course_on    TINYINT(1) NOT NULL DEFAULT 1,
   cleanup_on   TINYINT(1) NOT NULL DEFAULT 1,
+  timing_on    TINYINT(1) NOT NULL DEFAULT 1,                -- move reminder times to match when doses are really ticked
   ics_token    CHAR(32) NULL,                            -- secret address of the calendar feed
   UNIQUE KEY uq_auto_ics (ics_token),
   CONSTRAINT fk_auto_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

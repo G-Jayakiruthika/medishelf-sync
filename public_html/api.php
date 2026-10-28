@@ -197,34 +197,22 @@ try {
         json_out(['ok' => true]);
 
     case 'item_save':
-        $in = input();
-        $name = str_in($in, 'name', 120, true);
-        $exp = month_to_date(str_in($in, 'exp', 7, true));
-        if (!$exp) fail('bad_exp', 'Enter the expiry month and year printed on the pack.');
-        $mfg = month_to_date(str_in($in, 'mfg', 7));
-        if ($mfg && $mfg > $exp) fail('bad_dates', 'The manufacturing date must be before the expiry date.');
-        $member = !empty($in['member_id']) ? (int) $in['member_id'] : null;
-        if ($member) own('members', $member, $hid);
-        $catalog = !empty($in['catalog_id']) ? (int) $in['catalog_id'] : null;
-        if ($catalog && !q('SELECT 1 FROM medicine_catalog WHERE id = ?', [$catalog])->fetch()) $catalog = null;
-        $infoId = $catalog ? q('SELECT info_id FROM medicine_catalog WHERE id = ?', [$catalog])->fetch()['info_id'] : null;
-        if (!$infoId) $infoId = primary_info_id($name . ' ' . (string) ($in['generic'] ?? ''));
-        $stock = (isset($in['stock']) && $in['stock'] !== '' && $in['stock'] !== null) ? max(0, min(9999, (int) $in['stock'])) : null;
-        $perDose = max(1, min(20, (int) ($in['per_dose'] ?? 1)));
-        $courseEnd = str_in($in, 'course_end', 10);
-        if ($courseEnd !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $courseEnd)) fail('bad_course_end', 'Enter the course end date as a date.');
-        $vals = [$member, $name, $catalog, $infoId, str_in($in, 'batch', 40), $mfg, $exp, str_in($in, 'quantity', 40), valid_times(is_array($in['times'] ?? null) ? implode(',', $in['times']) : (string) ($in['times'] ?? '')), str_in($in, 'notes', 300), $stock, $perDose, $courseEnd];
-        $id = (int) ($in['id'] ?? 0);
-        if ($id) {
-            own('cabinet_items', $id, $hid);
-            q('UPDATE cabinet_items SET member_id=?, name=?, catalog_id=?, info_id=?, batch_no=?, mfg_month=?, exp_month=?, quantity=?, dose_times=?, notes=?, stock_count=?, per_dose=?, course_end=? WHERE id=? AND user_id=?', array_merge($vals, [$id, $hid]));
-        } else {
-            $lim = plan_info($user)['limits']['items'];
-            if ((int) q('SELECT COUNT(*) c FROM cabinet_items WHERE user_id = ?', [$hid])->fetch()['c'] >= $lim) fail('limit_items', $lim < PREMIUM_LIMITS['items'] ? "The Free plan holds $lim medicines. Remove expired ones, or upgrade to Family Premium for unlimited medicines." : "Your cabinet is full ($lim medicines).", 402);
-            q('INSERT INTO cabinet_items (member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', array_merge($vals, [$hid]));
-            $id = (int) db()->lastInsertId();
-        }
+        $id = save_item(input(), $user, $hid);
         json_out(['ok' => true, 'item' => public_item(q('SELECT * FROM cabinet_items WHERE id = ?', [$id])->fetch())]);
+
+    case 'items_bulk_save':   // everything read from one prescription or pharmacy bill, saved in one go
+        $in = input();
+        $list = is_array($in['items'] ?? null) ? array_slice($in['items'], 0, 40) : [];
+        if (!$list) fail('empty', 'Nothing to save.');
+        $lim = plan_info($user)['limits']['items'];
+        $have = (int) q('SELECT COUNT(*) FROM cabinet_items WHERE user_id = ?', [$hid])->fetchColumn();
+        if ($have + count($list) > $lim) fail('limit_items', "The Free plan holds $lim medicines. You have $have. Save fewer, or upgrade to Family Premium for unlimited medicines.", 402);
+        db()->beginTransaction();
+        $ids = [];
+        foreach ($list as $one) { if (is_array($one)) $ids[] = save_item($one, $user, $hid); }
+        db()->commit();
+        $rows = $ids ? q('SELECT * FROM cabinet_items WHERE id IN (' . implode(',', array_map('intval', $ids)) . ')')->fetchAll() : [];
+        json_out(['ok' => true, 'items' => array_map('public_item', $rows)]);
 
     case 'item_delete':
         $id = (int) (input()['id'] ?? 0);
@@ -242,13 +230,27 @@ try {
         // Automatic stock count: a new tick uses up per_dose; un-ticking puts it back. Only real changes count.
         if (!empty($in['taken'])) {
             $changed = q('INSERT IGNORE INTO dose_logs (user_id, item_id, slot, taken_on) VALUES (?,?,?,?)', [$hid, $id, $slot, $today])->rowCount();
-            if ($changed) q('UPDATE cabinet_items SET stock_count = GREATEST(CAST(stock_count AS SIGNED) - per_dose, 0) WHERE id = ? AND stock_count IS NOT NULL', [$id]);
+            if ($changed) q('UPDATE cabinet_items SET stock_count = GREATEST(CAST(stock_count AS SIGNED) - CAST(per_dose AS SIGNED), 0) WHERE id = ? AND stock_count IS NOT NULL', [$id]);
         } else {
             $changed = q('DELETE FROM dose_logs WHERE user_id = ? AND item_id = ? AND slot = ? AND taken_on = ?', [$hid, $id, $slot, $today])->rowCount();
             if ($changed) q('UPDATE cabinet_items SET stock_count = LEAST(stock_count + per_dose, 9999) WHERE id = ? AND stock_count IS NOT NULL', [$id]);
         }
         $st = q('SELECT stock_count FROM cabinet_items WHERE id = ?', [$id])->fetchColumn();
         json_out(['ok' => true, 'stock' => $st === null ? null : (int) $st]);
+
+    case 'dose_slot_taken':   // "Taken" on a reminder notification: tick every dose due in that time slot today
+        $slot = (string) (input()['slot'] ?? '');
+        if (!in_array($slot, SLOTS, true)) fail('bad_slot', 'Unknown time of day.');
+        $today = date('Y-m-d');
+        $due = q("SELECT id FROM cabinet_items WHERE user_id = ? AND FIND_IN_SET(?, dose_times) AND (course_end IS NULL OR course_end >= ?)", [$hid, $slot, $today])->fetchAll();
+        $n = 0;
+        foreach ($due as $i) {
+            if (q('INSERT IGNORE INTO dose_logs (user_id, item_id, slot, taken_on) VALUES (?,?,?,?)', [$hid, $i['id'], $slot, $today])->rowCount()) {
+                q('UPDATE cabinet_items SET stock_count = GREATEST(CAST(stock_count AS SIGNED) - CAST(per_dose AS SIGNED), 0) WHERE id = ? AND stock_count IS NOT NULL', [$i['id']]);
+                $n++;
+            }
+        }
+        json_out(['ok' => true, 'ticked' => $n]);
 
     case 'dose_history':   // last 14 days, for the adherence view
         $rows = q('SELECT taken_on, COUNT(*) n FROM dose_logs WHERE user_id = ? AND taken_on >= CURDATE() - INTERVAL 13 DAY GROUP BY taken_on', [$hid])->fetchAll();
@@ -284,6 +286,15 @@ try {
     case 'catalog_match':
         $text = (string) (input()['text'] ?? '');
         json_out(match_label(mb_substr($text, 0, 4000)));
+
+    case 'catalog_match_many':   // best medicine-list match for each name read from a prescription or bill
+        $names = array_slice(array_filter((array) (input()['names'] ?? []), 'is_string'), 0, 40);
+        $out = [];
+        foreach ($names as $n) {
+            $r = match_label(mb_substr($n, 0, 200), 1);
+            $out[] = ['query' => $n, 'match' => $r['matches'][0] ?? null, 'info' => $r['info']];
+        }
+        json_out(['results' => $out]);
 
     case 'info_list':
         json_out(['info' => array_map('info_public', info_rows())]);
@@ -518,6 +529,38 @@ try {
 }
 
 /* ---------------- helpers ---------------- */
+/* Validates and saves one medicine (new or edited). Expiry is optional: a prescription doesn't print one. */
+function save_item(array $in, array $user, int $hid): int
+{
+    $name = str_in($in, 'name', 120, true);
+    $expIn = str_in($in, 'exp', 7);
+    $exp = $expIn !== null ? month_to_date($expIn) : null;
+    if ($expIn !== null && !$exp) fail('bad_exp', 'Enter the expiry month and year printed on the pack.');
+    $mfg = month_to_date(str_in($in, 'mfg', 7));
+    if ($mfg && $exp && $mfg > $exp) fail('bad_dates', 'The manufacturing date must be before the expiry date.');
+    $member = !empty($in['member_id']) ? (int) $in['member_id'] : null;
+    if ($member) own('members', $member, $hid);
+    $catalog = !empty($in['catalog_id']) ? (int) $in['catalog_id'] : null;
+    if ($catalog && !q('SELECT 1 FROM medicine_catalog WHERE id = ?', [$catalog])->fetch()) $catalog = null;
+    $infoId = $catalog ? q('SELECT info_id FROM medicine_catalog WHERE id = ?', [$catalog])->fetch()['info_id'] : null;
+    if (!$infoId) $infoId = primary_info_id($name . ' ' . (string) ($in['generic'] ?? ''));
+    $stock = (isset($in['stock']) && $in['stock'] !== '' && $in['stock'] !== null) ? max(0, min(9999, (int) $in['stock'])) : null;
+    $perDose = max(1, min(20, (int) ($in['per_dose'] ?? 1)));
+    $courseEnd = str_in($in, 'course_end', 10);
+    if ($courseEnd !== null && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $courseEnd)) fail('bad_course_end', 'Enter the course end date as a date.');
+    $vals = [$member, $name, $catalog, $infoId, str_in($in, 'batch', 40), $mfg, $exp, str_in($in, 'quantity', 40), valid_times(is_array($in['times'] ?? null) ? implode(',', $in['times']) : (string) ($in['times'] ?? '')), str_in($in, 'notes', 300), $stock, $perDose, $courseEnd];
+    $id = (int) ($in['id'] ?? 0);
+    if ($id) {
+        own('cabinet_items', $id, $hid);
+        q('UPDATE cabinet_items SET member_id=?, name=?, catalog_id=?, info_id=?, batch_no=?, mfg_month=?, exp_month=?, quantity=?, dose_times=?, notes=?, stock_count=?, per_dose=?, course_end=? WHERE id=? AND user_id=?', array_merge($vals, [$id, $hid]));
+        return $id;
+    }
+    $lim = plan_info($user)['limits']['items'];
+    if ((int) q('SELECT COUNT(*) c FROM cabinet_items WHERE user_id = ?', [$hid])->fetch()['c'] >= $lim) fail('limit_items', $lim < PREMIUM_LIMITS['items'] ? "The Free plan holds $lim medicines. Remove expired ones, or upgrade to Family Premium for unlimited medicines." : "Your cabinet is full ($lim medicines).", 402);
+    q('INSERT INTO cabinet_items (member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', array_merge($vals, [$hid]));
+    return (int) db()->lastInsertId();
+}
+
 function lang_in($v): string
 {
     return is_string($v) && in_array($v, LANGS, true) ? $v : 'en';
@@ -534,7 +577,7 @@ function public_user(array $u): array
 function automation_public(array $a): array
 {
     return ['refill' => (bool) $a['refill_on'], 'refillDays' => (int) $a['refill_days'], 'missed' => (bool) $a['missed_on'], 'missedAfter' => (int) $a['missed_after'],
-            'course' => (bool) $a['course_on'], 'cleanup' => (bool) $a['cleanup_on'], 'calendar' => !empty($a['ics_token'])];
+            'course' => (bool) $a['course_on'], 'cleanup' => (bool) $a['cleanup_on'], 'timing' => (bool) ($a['timing_on'] ?? 1), 'calendar' => !empty($a['ics_token'])];
 }
 
 function payments_ready(): bool { return razorpay_live() || (bool) config('payments_demo'); }

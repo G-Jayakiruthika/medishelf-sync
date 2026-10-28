@@ -38,7 +38,7 @@ function info_rows(): array
 {
     static $rows = null;
     if ($rows === null) {
-        $rows = q('SELECT id, ingredient, keywords, use_text, rx, storage, note, slug FROM medicine_info')->fetchAll();
+        $rows = q('SELECT id, ingredient, keywords, use_text, rx, storage, note, slug, usual_times, course_days, food FROM medicine_info')->fetchAll();
         foreach ($rows as &$r) $r['kw'] = array_values(array_filter(array_map('trim', explode(',', mb_strtolower($r['keywords'])))));
     }
     return $rows;
@@ -78,7 +78,8 @@ function strengths(string $text): array
 function info_public(?array $r): ?array
 {
     if (!$r) return null;
-    return ['id' => (int) $r['id'], 'ingredient' => $r['ingredient'], 'use' => $r['use_text'], 'rx' => (bool) $r['rx'], 'storage' => $r['storage'], 'note' => $r['note'], 'slug' => $r['slug'] ?? null];
+    return ['id' => (int) $r['id'], 'ingredient' => $r['ingredient'], 'use' => $r['use_text'], 'rx' => (bool) $r['rx'], 'storage' => $r['storage'], 'note' => $r['note'], 'slug' => $r['slug'] ?? null,
+            'usualTimes' => isset($r['usual_times']) && $r['usual_times'] !== '' ? explode(',', $r['usual_times']) : [], 'courseDays' => isset($r['course_days']) ? (int) $r['course_days'] : null, 'food' => $r['food'] ?? null];
 }
 
 function info_by_id(?int $id): ?array
@@ -182,9 +183,11 @@ function parse_list_file(string $content): array
 function load_info_json(string $file): int
 {
     $items = json_decode((string) file_get_contents($file), true) ?: [];
-    $st = db()->prepare('INSERT INTO medicine_info (ingredient, keywords, use_text, rx, storage, note, slug) VALUES (?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE keywords=VALUES(keywords), use_text=VALUES(use_text), rx=VALUES(rx), storage=VALUES(storage), note=VALUES(note), slug=VALUES(slug)');
-    foreach ($items as $it) $st->execute([$it['ingredient'], $it['keywords'], $it['use'], (int) $it['rx'], $it['storage'] ?: null, $it['note'] ?: null, slugify($it['ingredient'])]);
+    $st = db()->prepare('INSERT INTO medicine_info (ingredient, keywords, use_text, rx, storage, note, slug, usual_times, course_days, food) VALUES (?,?,?,?,?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE keywords=VALUES(keywords), use_text=VALUES(use_text), rx=VALUES(rx), storage=VALUES(storage), note=VALUES(note), slug=VALUES(slug),
+        usual_times=VALUES(usual_times), course_days=VALUES(course_days), food=VALUES(food)');
+    foreach ($items as $it) $st->execute([$it['ingredient'], $it['keywords'], $it['use'], (int) $it['rx'], $it['storage'] ?: null, $it['note'] ?: null, slugify($it['ingredient']),
+        (string) ($it['times'] ?? ''), isset($it['course_days']) ? (int) $it['course_days'] : null, ($it['food'] ?? '') ?: null]);
     return count($items);
 }
 

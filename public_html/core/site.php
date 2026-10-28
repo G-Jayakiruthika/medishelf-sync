@@ -125,6 +125,8 @@ function route_site(string $path): void
         case $page === 'robots.txt':     robots(); return;
         case preg_match('#^calendar/([a-f0-9]{32})\.ics$#', $page, $m) === 1: calendar_out($m[1]); return;
         case $page === 'app':            serve_app(); return;
+        // Share target when the service worker isn't running yet: just open the scanner.
+        case $page === 'app/share':      header('Location: /app#scan', true, 303); return;
         case $page === 'report':         require APP_DIR . '/pages/report.php'; return;
         default: not_found();
     }

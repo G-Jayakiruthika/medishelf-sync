@@ -7,7 +7,7 @@
    Each person switches these on or off in Account → Automations (table automation_settings). */
 declare(strict_types=1);
 
-const AUTO_DEFAULTS = ['refill_on' => 1, 'refill_days' => 5, 'missed_on' => 1, 'missed_after' => 60, 'course_on' => 1, 'cleanup_on' => 1, 'ics_token' => null];
+const AUTO_DEFAULTS = ['refill_on' => 1, 'refill_days' => 5, 'missed_on' => 1, 'missed_after' => 60, 'course_on' => 1, 'cleanup_on' => 1, 'timing_on' => 1, 'ics_token' => null];
 
 function auto_settings(int $uid): array
 {
@@ -25,11 +25,12 @@ function auto_save(int $uid, array $in): array
         'missed_after' => in_array((int) ($in['missed_after'] ?? 0), [30, 60, 90, 120], true) ? (int) $in['missed_after'] : (int) $cur['missed_after'],
         'course_on' => !empty($in['course_on']) ? 1 : 0,
         'cleanup_on' => !empty($in['cleanup_on']) ? 1 : 0,
+        'timing_on' => array_key_exists('timing_on', $in) ? (!empty($in['timing_on']) ? 1 : 0) : (int) $cur['timing_on'],
     ];
-    q('INSERT INTO automation_settings (user_id, refill_on, refill_days, missed_on, missed_after, course_on, cleanup_on) VALUES (?,?,?,?,?,?,?)
+    q('INSERT INTO automation_settings (user_id, refill_on, refill_days, missed_on, missed_after, course_on, cleanup_on, timing_on) VALUES (?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE refill_on=VALUES(refill_on), refill_days=VALUES(refill_days), missed_on=VALUES(missed_on),
-       missed_after=VALUES(missed_after), course_on=VALUES(course_on), cleanup_on=VALUES(cleanup_on)',
-      [$uid, $v['refill_on'], $v['refill_days'], $v['missed_on'], $v['missed_after'], $v['course_on'], $v['cleanup_on']]);
+       missed_after=VALUES(missed_after), course_on=VALUES(course_on), cleanup_on=VALUES(cleanup_on), timing_on=VALUES(timing_on)',
+      [$uid, $v['refill_on'], $v['refill_days'], $v['missed_on'], $v['missed_after'], $v['course_on'], $v['cleanup_on'], $v['timing_on']]);
     return auto_settings($uid);
 }
 
@@ -79,6 +80,8 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
             if (!course_active($i['course_end'], $today)) continue;
             $days = stock_days((int) $i['stock_count'], (int) $i['per_dose'], $i['dose_times']);
             if ($days === null || $days > (int) $s['refill_days'] || $logged('f', (int) $i['id'], '', $twoDaysAgo)) continue;
+            // A short course with enough tablets left to finish it needs no refill.
+            if ($i['course_end'] && $days >= (int) (new DateTime($today))->diff(new DateTime($i['course_end']))->days + 1) continue;
             $log('f', (int) $i['id'], '');
             $out[] = ['title' => $days <= 0 ? 'Out of ' . $i['name'] : 'Buy more ' . $i['name'],
                       'body' => $who($i['member_id']) . ((int) $i['stock_count']) . ' left, enough for ' . $days . ($days === 1 ? ' day' : ' days') . '. Tap to update the count after you buy.',
@@ -101,7 +104,7 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
             $labels = ['m' => 'morning', 'a' => 'afternoon', 'e' => 'evening', 'b' => 'bedtime'];
             $out[] = ['title' => 'Not ticked yet: ' . $labels[$slot] . ' dose',
                       'body' => implode(', ', array_map(fn($i) => $who($i['member_id']) . $i['name'], $due)) . '. Please check they were taken.',
-                      'tag' => 'missed-' . $slot, 'url' => '/app#doses', 'kind' => 'missed'];
+                      'tag' => 'missed-' . $slot, 'url' => '/app#doses', 'kind' => 'missed', 'slot' => $slot];
         }
     }
 
@@ -124,6 +127,29 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
         if ($expired) $out[] = ['title' => 'Medicine box clean-up: ' . count($expired) . ' expired',
                                 'body' => implode(', ', array_slice(array_column($expired, 'name'), 0, 6)) . (count($expired) > 6 ? ' and more' : '') . '. Take them to a pharmacy take-back point.',
                                 'tag' => 'cleanup', 'url' => '/app#cabinet', 'kind' => 'cleanup'];
+    }
+    // t — reminder times learn the family's routine (checked once a day, in the evening window)
+    if ((int) ($s['timing_on'] ?? 1) && (int) $now->format('H') === 21 && (int) $now->format('i') < 20 && !$logged('t', 0, '', $today)) {
+        $log('t', 0, '');
+        $own = q('SELECT m_time, a_time, e_time, b_time FROM reminder_settings WHERE user_id = ?', [$uid])->fetch();
+        $labels = ['m' => 'morning', 'a' => 'afternoon', 'e' => 'evening', 'b' => 'bedtime'];
+        $weekAgo = (clone $now)->modify('-7 day')->format('Y-m-d');
+        foreach ($own ? SLOTS : [] as $slot) {
+            $mins = array_map(fn($r) => (int) $r['h'] * 60 + (int) $r['m'], q('SELECT HOUR(MIN(taken_at)) h, MINUTE(MIN(taken_at)) m FROM dose_logs
+                     WHERE user_id = ? AND slot = ? AND taken_on >= ? AND taken_on < ? GROUP BY taken_on', [$hid, $slot, $weekAgo, $today])->fetchAll());
+            if (count($mins) < 4) continue;
+            sort($mins);
+            $median = $mins[intdiv(count($mins), 2)];
+            [$h, $m] = array_map('intval', explode(':', $own[$slot . '_time']));
+            $cur = $h * 60 + $m;
+            $target = (int) (round($median / 15) * 15);
+            // Only follow a steady habit: at least 30 minutes away, and the ticks agree with each other within an hour.
+            if (abs($target - $cur) < 30 || ($mins[count($mins) - 1] - $mins[0]) > 90 || $target < 5 * 60 || $target > 23 * 60 + 30) continue;
+            $new = sprintf('%02d:%02d', intdiv($target, 60), $target % 60);
+            q("UPDATE reminder_settings SET {$slot}_time = ? WHERE user_id = ?", [$new, $uid]);
+            $out[] = ['title' => 'Reminder time adjusted', 'body' => 'Your ' . $labels[$slot] . ' reminder now rings at ' . $new . ', the time you usually take these medicines. Change it any time under Doses.',
+                      'tag' => 'timing-' . $slot, 'url' => '/app#doses', 'kind' => 'timing'];
+        }
     }
     return $out;
 }

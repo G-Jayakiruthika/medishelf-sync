@@ -7,6 +7,7 @@ require __DIR__ . '/core/bootstrap.php';
 require __DIR__ . '/core/services.php';
 require __DIR__ . '/core/plans.php';
 require __DIR__ . '/core/automations.php';
+require __DIR__ . '/core/catalog.php';
 require __DIR__ . '/core/migrate.php';
 header('Content-Type: text/plain; charset=utf-8');
 
@@ -87,7 +88,7 @@ foreach ($users as $u) {
         $due = q("SELECT c.name FROM cabinet_items c LEFT JOIN dose_logs d ON d.item_id = c.id AND d.slot = ? AND d.taken_on = ?
                   WHERE c.user_id = ? AND FIND_IN_SET(?, c.dose_times) AND d.id IS NULL AND (c.course_end IS NULL OR c.course_end >= ?)", [$s, $today, $u['hid'], $s, $today])->fetchAll();
         q('INSERT IGNORE INTO reminder_log (user_id, slot, sent_on) VALUES (?,?,?)', [$u['user_id'], $s, $today]);
-        if ($due) $messages[] = ['title' => $labels[$s] . ' medicines', 'body' => implode(', ', array_column($due, 'name')), 'tag' => 'dose-' . $s, 'url' => '/app#doses'];
+        if ($due) $messages[] = ['title' => $labels[$s] . ' medicines', 'body' => implode(', ', array_column($due, 'name')), 'tag' => 'dose-' . $s, 'url' => '/app#doses', 'slot' => $s];
     }
 
     // 2. Expiry alert: at most once a week, at the morning time.

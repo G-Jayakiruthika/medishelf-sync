@@ -48,6 +48,9 @@ jobs:
       - name: JavaScript syntax check
         run: for f in public_html/*.js tests/*.js; do node --check "$f"; done
 
+      - name: Prescription and bill reader
+        run: node tests/rx_parse_test.js
+
       - name: Cookie banner text is up to date
         run: |
           php tools/build_assets.php

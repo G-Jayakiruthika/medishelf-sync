@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=4">
+<link rel="stylesheet" href="/styles.css?v=5">
 </head>
 <body>
 
@@ -109,13 +109,14 @@
         <div class="stat bad"><b id="statExpired">0</b><span data-i18n="statExpired">Expired</span></div>
       </div>
     </div>
-    <div class="section-head"><h2 data-i18n="cabinetTitle">Your cabinet</h2><div class="chips" id="memberFilter"></div></div>
+    <div class="section-head"><h2 data-i18n="cabinetTitle">Your cabinet</h2><button class="btn btn-ghost btn-sm" type="button" id="btnShop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 4h2l2.4 11h11L21 7H6.2M9 20a1 1 0 1 0 0-.01M18 20a1 1 0 1 0 0-.01"/></svg><span data-i18n="shopTitle">Shopping list</span></button></div>
+    <div class="chips" id="memberFilter" style="margin-bottom:14px"></div>
     <div class="cabinet" id="cabinet"></div>
   </section>
 
   <!-- SCAN / ADD / EDIT -->
   <section class="view" id="view-scan" data-view="scan" hidden>
-    <div class="section-head"><div><h2 data-i18n="scanTitle">Scan a medicine</h2><p class="muted" data-i18n="scanDesc" style="margin-top:6px">Take a photo of the strip, bottle or its QR code.</p></div></div>
+    <div class="section-head"><div><h2 data-i18n="scanTitle">Scan a medicine</h2><p class="muted" data-i18n="scanDesc" style="margin-top:6px">Take a photo of the strip, bottle or its QR code.</p><p class="scan-any" data-i18n="scanAny">Works with a medicine strip, a doctor's prescription or a pharmacy bill. One photo adds everything.</p></div></div>
     <div class="scan-grid">
       <div class="panel" style="display:grid; gap:14px">
         <div class="viewer" id="viewer">
@@ -136,6 +137,22 @@
           <button class="btn btn-ghost" id="btnSample"><span data-i18n="scanSample">Try a sample pack</span></button>
         </div>
         <div class="status-line" id="scanStatus" aria-live="polite"></div>
+        <form class="quick-add" id="quickForm" autocomplete="off">
+          <label for="quickInput" data-i18n="quickTitle">Add by typing or speaking</label>
+          <div class="quick-row">
+            <input id="quickInput" maxlength="200" data-i18n-ph="quickPh" placeholder="e.g. Dolo 650 twice a day for 3 days for Amma">
+            <button type="button" class="icon-btn" id="quickMic" aria-label="Speak"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+            <button class="btn btn-primary btn-sm" type="submit" data-i18n="quickAdd">Add</button>
+          </div>
+          <p class="error" id="quickErr" hidden></p>
+        </form>
+        <details class="paste-rx">
+          <summary data-i18n="rxPaste">Paste prescription text</summary>
+          <p class="muted small" data-i18n="rxPasteHint">From an e-prescription, SMS or WhatsApp message</p>
+          <label for="rxPasteText" class="skip" data-i18n="rxPaste">Paste prescription text</label>
+          <textarea id="rxPasteText" rows="5" placeholder="Tab Metformin 500 mg 1-0-1 x 30 days&#10;Tab Atorvastatin 10 HS"></textarea>
+          <div><button class="btn btn-ghost btn-sm" type="button" id="rxPasteBtn" data-i18n="rxRead">Read it</button></div>
+        </details>
       </div>
 
       <form class="panel" id="medForm" style="display:grid; gap:14px" autocomplete="off">
@@ -147,7 +164,7 @@
           <div class="field"><label for="fBatch" data-i18n="fBatch">Batch no.</label><input id="fBatch" class="mono" maxlength="40" placeholder="AB24117"></div>
           <div class="field"><label for="fFor" data-i18n="fFor">For</label><select id="fFor"></select></div>
           <div class="field"><label for="fMfg" data-i18n="fMfg">Mfg. date</label><input id="fMfg" type="month"></div>
-          <div class="field"><label for="fExp" data-i18n="fExp">Expiry date</label><input id="fExp" type="month" required></div>
+          <div class="field"><label for="fExp" data-i18n="fExp">Expiry date</label><input id="fExp" type="month"></div>
           <div class="field"><label for="fQty" data-i18n="quantity">Quantity</label><input id="fQty" maxlength="40" placeholder="10 tablets"></div>
           <div class="field"><label for="fNotes" data-i18n="notes">Notes</label><input id="fNotes" maxlength="300"></div>
           <div class="field"><label for="fStock" data-i18n="fStock">Tablets left</label><input id="fStock" type="number" inputmode="numeric" min="0" max="9999" placeholder="15" aria-describedby="fStockHint"></div>
@@ -161,6 +178,7 @@
               <label><input type="checkbox" value="e" id="te"><span data-i18n="tEvening">Evening</span></label>
               <label><input type="checkbox" value="b" id="tb"><span data-i18n="tBedtime">Bedtime</span></label>
             </div>
+            <p class="usual-note" id="usualNote" hidden><span data-i18n="usualFilled">Usual schedule filled in.</span> <button type="button" class="link" id="usualClear" data-i18n="clear">Clear</button></p>
           </div>
         </div>
         <details><summary class="muted" style="cursor:pointer">Text read from the label</summary><pre class="raw mono" id="rawText">—</pre></details>
@@ -272,6 +290,7 @@
           <li><label class="switch"><input type="checkbox" id="auMissed"><span class="track" aria-hidden="true"></span><span data-i18n="autoMissed">Tell the family when a dose is not ticked</span></label>
             <select id="auMissedAfter" aria-labelledby="auMissed"></select></li>
           <li><label class="switch"><input type="checkbox" id="auCourse"><span class="track" aria-hidden="true"></span><span data-i18n="autoCourse">Stop reminders when a course ends</span></label></li>
+          <li><label class="switch"><input type="checkbox" id="auTiming"><span class="track" aria-hidden="true"></span><span data-i18n="autoTiming">Move reminder times to when we really take the medicines</span></label></li>
           <li><label class="switch"><input type="checkbox" id="auCleanup"><span class="track" aria-hidden="true"></span><span data-i18n="autoCleanup">Monthly list of expired medicines to throw away</span></label></li>
         </ul>
         <div class="cal-box">
@@ -356,6 +375,26 @@
   <p class="muted small"><a href="/pricing" target="_blank" rel="noopener">Compare plans</a> · <a href="/refund-policy" target="_blank" rel="noopener">Refund policy</a></p>
 </dialog>
 
+<!-- Prescription / bill review -->
+<dialog class="sheet wide" id="rxDialog" aria-labelledby="rxTitle">
+  <form method="dialog" class="sheet-x"><button class="icon-btn" aria-label="Close">✕</button></form>
+  <h2 id="rxTitle"></h2>
+  <p class="muted" data-i18n="rxCheck">Check the list and save.</p>
+  <div class="field" style="max-width:260px"><label for="rxFor" data-i18n="rxFor">For</label><select id="rxFor"></select></div>
+  <div class="rx-list" id="rxList"></div>
+  <p class="usual-note" data-i18n="usualFilled">Usual schedule filled in.</p>
+  <p class="error" id="rxErr" hidden></p>
+  <button class="btn btn-primary" type="button" id="rxSave"></button>
+</dialog>
+
+<!-- Shopping list -->
+<dialog class="sheet" id="shopDialog" aria-labelledby="shopHead">
+  <form method="dialog" class="sheet-x"><button class="icon-btn" aria-label="Close">✕</button></form>
+  <h2 id="shopHead" data-i18n="shopTitle">Shopping list</h2>
+  <ul class="shop-list" id="shopList"></ul>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" id="shopWa" href="#" target="_blank" rel="noopener" data-i18n="shopShare">Share on WhatsApp</a><button class="btn btn-ghost btn-sm" type="button" id="shopCopy" data-i18n="shopCopy">Copy list</button></div>
+</dialog>
+
 <!-- Welcome tour -->
 <dialog class="sheet tour" id="tourDialog" aria-labelledby="tourTitle">
   <div class="tour-art" id="tourArt" aria-hidden="true"></div>
@@ -371,7 +410,9 @@
 <script src="/i18n-account.js?v=3"></script>
 <script src="/i18n-premium.js?v=3"></script>
 <script src="/i18n-auto.js?v=4"></script>
-<script src="/app.js?v=4"></script>
+<script src="/i18n-smart.js?v=5"></script>
+<script src="/rx-parse.js?v=5"></script>
+<script src="/app.js?v=5"></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer></script>
 </body>

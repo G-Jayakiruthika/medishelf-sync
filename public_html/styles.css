@@ -325,3 +325,40 @@ a.btn { text-decoration: none; } a.btn-ghost { color: var(--ink); }
 .stock.low { color: var(--warn); } .stock.out { color: var(--bad); }
 .stock::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: currentColor; }
 @media (prefers-reduced-motion: reduce) { .switch .track, .switch .track::after { transition: none; } }
+
+/* ---------- Smart adding, shopping list (v5) ---------- */
+.scan-any { margin-top: 8px; font-weight: 600; color: var(--ai); }
+.quick-add { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
+.quick-add label { font-weight: 700; font-size: .95rem; }
+.quick-row { display: flex; gap: 8px; align-items: center; }
+.quick-row input { flex: 1; min-width: 0; font: inherit; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--paper); color: var(--ink); }
+.paste-rx { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.paste-rx summary { cursor: pointer; font-weight: 600; }
+.paste-rx[open] { display: grid; gap: 8px; }
+.paste-rx textarea { font: inherit; width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--paper); color: var(--ink); }
+.small { font-size: .84rem; }
+.usual-note { font-size: .84rem; color: var(--muted); margin: 6px 0 0; }
+dialog.sheet.wide { width: min(720px, calc(100vw - 24px)); }
+.rx-list { display: grid; gap: 10px; max-height: 52vh; overflow: auto; padding-right: 2px; }
+.rx-row { border: 1px solid var(--line); border-radius: 14px; padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+dialog.sheet { grid-template-columns: minmax(0, 1fr); }
+#rxList { display: grid; gap: 10px; min-width: 0; overflow-y: auto; }
+.rx-row.off { opacity: .5; }
+.rx-top { display: flex; gap: 10px; align-items: center; }
+.rx-top input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--ai); flex: none; }
+.rx-top input[type=text] { flex: 1; min-width: 0; font: inherit; font-weight: 700; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--paper); color: var(--ink); }
+.rx-meta { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; font-size: .85rem; }
+.rx-meta label { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); }
+.rx-meta input { font: inherit; width: 84px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--paper); color: var(--ink); }
+.rx-meta input[type=month] { width: 140px; }
+.slot-chips { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; }
+.slot-chips button { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: .82rem; cursor: pointer; min-height: 32px; }
+.slot-chips button[aria-pressed="true"] { background: var(--ai); color: var(--ai-ink); border-color: var(--ai); }
+.rx-tag { font-size: .75rem; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 2px 8px; }
+.rx-note { font-size: .82rem; color: var(--muted); }
+.shop-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.shop-list li { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; }
+.shop-list small { color: var(--muted); }
+.drawer.unk .handle { background: var(--line); }
+.pill.unk { background: var(--sunk); color: var(--muted); }
+.slot-all { font-size: .8rem; padding: 4px 10px; min-height: 30px; }

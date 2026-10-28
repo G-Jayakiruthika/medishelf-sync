@@ -36,7 +36,7 @@ def page_file(path):
     if route == "admin.html": return "admin.html"
     return None
 
-STATIC = re.compile(r"^/(site\.css|site\.js|consent\.js|consent-i18n\.js|styles\.css|app\.js|admin\.js|i18n[\w-]*\.js|manifest\.webmanifest|img/[\w.-]+|icons/[\w.-]+|lib/[\w.-]+|assets/[\w/.-]+)(\?.*)?$")
+STATIC = re.compile(r"^/(site\.css|site\.js|consent\.js|consent-i18n\.js|styles\.css|app\.js|admin\.js|rx-parse\.js|i18n[\w-]*\.js|manifest\.webmanifest|img/[\w.-]+|icons/[\w.-]+|lib/[\w.-]+|assets/[\w/.-]+)(\?.*)?$")
 
 def rewrite_url(u, have):
     if u.startswith(BASE): u = u[len(BASE):] or "/"
@@ -64,7 +64,7 @@ def main():
     # 1. Data for the demo API
     php = r'''require "core/bootstrap.php"; require "core/catalog.php";
       $c = array_map(fn($r) => ["id"=>(int)$r["id"],"n"=>$r["generic_name"],"u"=>$r["unit_size"],"c"=>$r["drug_code"],"i"=>$r["info_id"]?(int)$r["info_id"]:null,"s"=>$r["search_text"]], q("SELECT id, generic_name, unit_size, drug_code, info_id, search_text FROM medicine_catalog ORDER BY id")->fetchAll());
-      $i = array_map(fn($r) => ["id"=>(int)$r["id"],"ingredient"=>$r["ingredient"],"keywords"=>$r["keywords"],"use"=>$r["use_text"],"rx"=>(int)$r["rx"],"storage"=>$r["storage"],"note"=>$r["note"],"slug"=>$r["slug"]], q("SELECT * FROM medicine_info ORDER BY id")->fetchAll());
+      $i = array_map(fn($r) => ["id"=>(int)$r["id"],"ingredient"=>$r["ingredient"],"keywords"=>$r["keywords"],"use"=>$r["use_text"],"rx"=>(int)$r["rx"],"storage"=>$r["storage"],"note"=>$r["note"],"slug"=>$r["slug"],"ut"=>$r["usual_times"],"cd"=>$r["course_days"]===null?null:(int)$r["course_days"],"fd"=>$r["food"]], q("SELECT * FROM medicine_info ORDER BY id")->fetchAll());
       echo json_encode(["catalog"=>$c,"info"=>$i], JSON_UNESCAPED_UNICODE);'''
     data = subprocess.run(["php", "-r", php], cwd=PUB, capture_output=True, text=True, check=True).stdout
     open(os.path.join(SITE, "demo-data.json"), "w").write(data)

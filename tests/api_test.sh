@@ -61,6 +61,17 @@ CAL=$(sed -E 's/.*"url":"([^"]+)".*/\1/' "$T/out" | sed 's#\\/#/#g')
 if curl -s "$CAL" | grep -q "BEGIN:VCALENDAR"; then PASS=$((PASS+1)); echo "  ✓ calendar feed is valid iCalendar"; else FAIL=$((FAIL+1)); echo "  ✗ calendar feed"; fi
 c=$(curl -s -o /dev/null -w "%{http_code}" "${CAL%/*}/00000000000000000000000000000000.ics"); expect "wrong calendar link is refused" "$c" 404
 
+echo "Smart adding"
+expect "medicine without expiry is allowed" "$(post a item_save '{"name":"No expiry yet","times":["m"]}')" 200; body_has "expiry left empty" '"exp":null'
+expect "bad expiry still refused" "$(post a item_save '{"name":"Bad","exp":"2027-13"}')" 400
+expect "match many names" "$(post a catalog_match_many '{"names":["Metformin 500 mg","Azithromycin 500"]}')" 200; body_has "usual schedule comes with the match" '"usualTimes":\["m","e"\]'
+body_has "short course length comes with the match" '"courseDays":3'
+expect "save a whole prescription" "$(post a items_bulk_save '{"items":[{"name":"Rx one","times":["m","e"],"stock":10,"course_end":"2099-01-01"},{"name":"Rx two","times":["m"],"stock":5,"exp":"2027-08","batch":"B12"}]}')" 200; body_has "both saved" '"name":"Rx two"'
+expect "empty list refused" "$(post a items_bulk_save '{"items":[]}')" 400
+expect "one tap ticks the whole morning" "$(post a dose_slot_taken '{"slot":"m"}')" 200; body_has "several doses ticked" '"ticked":[2-9]'
+get a bootstrap >/dev/null; body_has "stock went down" '"name":"Rx one".*"stock":9'
+expect "unknown slot refused" "$(post a dose_slot_taken '{"slot":"z"}')" 400
+
 echo "Your data (DPDP)"
 expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'
 expect "delete needs password" "$(post a account_delete '{"password":"wrong"}')" 403

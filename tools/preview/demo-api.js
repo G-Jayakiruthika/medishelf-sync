@@ -28,7 +28,7 @@
       it(9, "ORS sachet", 4, ym(-2), [], "ORS1002", null, null, null)
     ];
     return { users: users, members: members, items: items, taken: [], kit: ["supply", "numbers"], session: null, nextId: 100, invites: {},
-      auto: { refill: true, refillDays: 5, missed: true, missedAfter: 60, course: true, cleanup: true, calendar: true },
+      auto: { refill: true, refillDays: 5, missed: true, missedAfter: 60, course: true, cleanup: true, timing: true, calendar: true },
       reminders: { 1: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, 2: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" } },
       payments: [{ created_at: TODAY + " 10:12", period: "year", amount: 399, status: "paid", order_id: "demo_order_1", name: "Lakshmi" }],
       messages: [{ id: 1, name: "Priya S", email: "priya@example.in", topic: "help", message: "Can my father use this on his phone in Tamil?", handled: 0, created_at: TODAY + " 09:40" }] };
@@ -48,7 +48,7 @@
   var norm = function (s) { return String(s || "").toLowerCase().replace(/[^a-z0-9.%+]+/g, " ").trim(); };
   function infoBySlug(slug) { if (!DATA || !slug) return null; var i = DATA.info.find(function (x) { return x.slug === slug; }); return i ? pubInfo(i) : null; }
   function infoById(id) { if (!DATA || !id) return null; var i = DATA.info.find(function (x) { return x.id === id; }); return i ? pubInfo(i) : null; }
-  function pubInfo(i) { return { id: i.id, ingredient: i.ingredient, use: i.use, rx: !!i.rx, storage: i.storage, note: i.note, slug: i.slug }; }
+  function pubInfo(i) { return { id: i.id, ingredient: i.ingredient, use: i.use, rx: !!i.rx, storage: i.storage, note: i.note, slug: i.slug, usualTimes: i.ut ? i.ut.split(",") : [], courseDays: i.cd || null, food: i.fd || null }; }
   function ingredientsIn(text) { var t = " " + norm(text) + " ", out = []; (DATA ? DATA.info : []).forEach(function (i) { if (i.keywords.split(",").some(function (k) { return k && t.indexOf(" " + k.trim()) >= 0; })) out.push(i.id); }); return out; }
   function cat(c) { return { id: c.id, name: c.n, unit: c.u, code: c.c, source: "janaushadhi-2025-12", info: infoById(c.i) }; }
 
@@ -100,8 +100,9 @@
     member_delete: function (b) { var h = hid(need()); S.members = S.members.filter(function (m) { return !(m.id === b.id && m.hid === h && !m.self); }); S.items.forEach(function (i) { if (i.member_id === b.id) i.member_id = null; }); return { ok: true }; },
     item_save: function (b) {
       var u = need(), h = hid(u);
-      if (!b.exp) fail(400, "bad_exp", "Enter the expiry month and year printed on the pack.");
-      var rec = { hid: h, member_id: b.member_id || null, name: b.name, exp: b.exp, mfg: b.mfg || null, batch: b.batch || null, quantity: b.quantity || "", notes: b.notes || "",
+      if (b.exp && !/^\d{4}-\d{2}$/.test(b.exp)) fail(400, "bad_exp", "Enter the expiry month and year printed on the pack.");
+      if (!String(b.name || "").trim()) fail(400, "bad_name", "Enter the medicine name.");
+      var rec = { hid: h, member_id: b.member_id || null, name: String(b.name).trim().slice(0, 160), exp: b.exp || null, mfg: b.mfg || null, batch: b.batch || null, quantity: b.quantity || "", notes: b.notes || "",
         times: Array.isArray(b.times) ? b.times : [], stock: b.stock === null || b.stock === undefined || b.stock === "" ? null : Math.max(0, Number(b.stock)), perDose: Math.max(1, Number(b.per_dose) || 1), courseEnd: b.course_end || null, catalog_id: b.catalog_id || null };
       if (b.catalog_id && DATA) { var c = DATA.catalog.find(function (x) { return x.id === b.catalog_id; }); if (c) rec.info_id = c.i; }
       if (!rec.info_id) { var ing = ingredientsIn(b.name + " " + (b.generic || "")); if (ing.length) rec.info_id = ing[0]; }
@@ -112,6 +113,20 @@
         rec.id = ++S.nextId; S.items.push(rec); existing = rec;
       }
       return { ok: true, item: pubItem(existing) };
+    },
+    items_bulk_save: function (b) {
+      var u = need(), h = hid(u), list = (b.items || []).slice(0, 40), have = S.items.filter(function (i) { return i.hid === h; }).length;
+      if (!list.length) fail(400, "empty", "Nothing to save.");
+      if (have + list.length > limits(u).items) fail(402, "limit_items", "The Free plan holds 30 medicines. You have " + have + ". Save fewer, or upgrade to Family Premium for unlimited medicines.");
+      return { ok: true, items: list.map(function (one) { var c = Object.assign({}, one); delete c.id; return actions.item_save(c).item; }) };
+    },
+    dose_slot_taken: function (b) {
+      var h = hid(need()), n = 0;
+      S.items.filter(function (i) { return i.hid === h && (i.times || []).indexOf(b.slot) >= 0 && (!i.courseEnd || i.courseEnd >= TODAY); }).forEach(function (i) {
+        if (S.taken.some(function (t) { return t.item === i.id && t.slot === b.slot && t.day === TODAY; })) return;
+        S.taken.push({ hid: h, item: i.id, slot: b.slot, day: TODAY }); if (i.stock !== null) i.stock = Math.max(0, i.stock - (i.perDose || 1)); n++;
+      });
+      return { ok: true, ticked: n };
     },
     item_delete: function (b) { var h = hid(need()); S.items = S.items.filter(function (i) { return !(i.id === b.id && i.hid === h); }); return { ok: true }; },
     dose_toggle: function (b) {
@@ -139,6 +154,9 @@
       var out = cands.slice(0, 5).map(function (x) { var r = cat(x.c); r.score = x.s; return r; });
       return { matches: out, info: out[0] ? out[0].info : (ing.length ? infoById(ing[0]) : null) };
     },
+    catalog_match_many: function (b) {
+      return { results: (b.names || []).slice(0, 40).map(function (n) { var r = actions.catalog_match({ text: n }); return { query: n, match: r.matches[0] || null, info: r.info }; }) };
+    },
     info_list: function () { return { info: DATA.info.map(pubInfo) }; },
     push_key: function () { return { key: null }; },
     tts: function () { fail(501, "tts_off", "Server voice is not set up."); },
@@ -155,7 +173,7 @@
     household_leave: function () { need().household = null; return { ok: true }; },
     household_remove: function (b) { var u = need(); S.users.forEach(function (x) { if (x.id === b.user_id && x.household === u.id) x.household = null; }); return { ok: true }; },
     automation_get: function () { need(); return S.auto; },
-    automation_save: function (b) { need(); S.auto = { refill: !!b.refill_on, refillDays: Number(b.refill_days) || 5, missed: !!b.missed_on, missedAfter: Number(b.missed_after) || 60, course: !!b.course_on, cleanup: !!b.cleanup_on, calendar: true }; return S.auto; },
+    automation_save: function (b) { need(); S.auto = { refill: !!b.refill_on, refillDays: Number(b.refill_days) || 5, missed: !!b.missed_on, missedAfter: Number(b.missed_after) || 60, course: !!b.course_on, cleanup: !!b.cleanup_on, timing: b.timing_on !== false, calendar: true }; return S.auto; },
     calendar_link: function () { need(); return { url: "https://aushadhbox.in/calendar/preview-only.ics" }; },
     consent_log: function () { return { ok: true }; },
     track: function () { return { ok: true }; },

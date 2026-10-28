@@ -11,6 +11,19 @@ const MIGRATION_COLUMNS = [
         'per_dose' => 'TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER stock_count',
         'course_end' => 'DATE NULL AFTER per_dose',
     ],
+    'medicine_info' => [
+        'usual_times' => "VARCHAR(10) NOT NULL DEFAULT '' AFTER slug",
+        'course_days' => 'TINYINT UNSIGNED NULL AFTER usual_times',
+        'food' => 'VARCHAR(20) NULL AFTER course_days',
+    ],
+    'automation_settings' => [
+        'timing_on' => 'TINYINT(1) NOT NULL DEFAULT 1 AFTER cleanup_on',
+    ],
+];
+
+/* Columns whose definition changed: table => [column => [check, new definition]] */
+const MIGRATION_CHANGES = [
+    'cabinet_items' => ['exp_month' => ['nullable', 'DATE NULL']],
 ];
 
 function migrate(): array
@@ -33,6 +46,17 @@ function migrate(): array
                 $done[] = "added $table.$col";
             }
         }
+    }
+    // 3. Changed column definitions.
+    foreach (MIGRATION_CHANGES as $table => $cols) {
+        foreach ($cols as $col => [$check, $def]) {
+            $r = q('SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', [$table, $col])->fetch();
+            if ($r && $check === 'nullable' && $r['IS_NULLABLE'] === 'NO') { db()->exec("ALTER TABLE `$table` MODIFY `$col` $def"); $done[] = "made $table.$col optional"; }
+        }
+    }
+    // 4. Ingredient data that came with this version (usual schedules).
+    if (function_exists('load_info_json') && (int) q("SELECT COUNT(*) FROM medicine_info WHERE usual_times <> '' OR course_days IS NOT NULL")->fetchColumn() === 0) {
+        $done[] = 'loaded ' . load_info_json(APP_DIR . '/database/medicine_info.json') . ' ingredient schedules';
     }
     return $done;
 }

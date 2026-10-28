@@ -11,6 +11,13 @@ A simple guide for families. The same help is on the website at **/help**.
 Change the language any time with the language menu at the top. The voice assistant uses the same language.
 
 ## 2. Add medicines
+You rarely need to type anything. One scan button handles everything: it works out by itself whether the photo is a medicine strip, a doctor's prescription or a pharmacy bill.
+- **Prescription or pharmacy bill:** photograph it (or paste its text under *Have the prescription as text?*). Every medicine on it appears in one list with its times, number of days and tablets already filled in. It understands doctor shorthand (1-0-1, OD, BD, TDS, HS, SOS, "x 5 days", after food) and Hindi and Tamil words. A pharmacy bill also gives batch number, expiry and quantity. Untick anything that isn't a medicine, choose who it is for and tap **Save**.
+- **Usual schedule:** if the paper doesn't say when to take a medicine, the app fills in the usual times for that ingredient (for example Metformin morning and night after food, Azithromycin once a day for 3 days) and marks it *usual*. Always follow your own doctor's prescription if it is different; tap *Clear* to remove it.
+- **Tablet count from the pack:** the number of tablets is filled in from the pack size (10's, 15's) or from the course length.
+- **Say or type one sentence:** in *Quick add*, type or tap 🎤 and say, for example, "Amma's Telma 40 every morning" or "Add Dolo 650 twice a day for 3 days". The voice assistant (Ask) understands the same sentences.
+- **Share from WhatsApp or the gallery:** on Android, after installing the app, choose *Share → AushadhBox* on a photo of a prescription or strip. It opens and scans straight away.
+- Expiry is optional. Medicines without one show *Expiry not added*; add it later from the pack.
 - **Scan:** tap **Scan medicine** → *Take or upload photo* (or *Use live camera*). Point at the back of the strip where B.No., Mfg. and Exp. are printed, or at the QR code. Check what was found, choose who it is for, tap **Save to cabinet**.
 - **Type:** tap **Add by hand**, start typing the name and pick from the list.
 - If the scan misreads a date, correct it before saving.
@@ -28,7 +35,7 @@ Tap a person's name at the top to see only their medicines. Tap ✕ on a drawer 
 **Account → Family members**: add everyone (Amma, Appa, children) with their relation. In **Notebook**, write each person's allergies.
 
 ## 5. Doses and reminders
-When adding a medicine, tick *Morning / Afternoon / Evening / Bedtime*. The **Doses** tab lists today's doses; tick each one after taking it. Tap **Turn on reminders** and allow notifications to get a phone alert at each time, even when the app is closed. On iPhone, add the app to the home screen first.
+Times are usually filled in for you (see above). The **Doses** tab lists today's doses; tick each one after taking it, or tap **All taken** to tick a whole morning or night at once. The reminder on your phone has a **✓ Taken** button, so you can tick without opening the app. Tap **Turn on reminders** and allow notifications to get a phone alert at each time, even when the app is closed. On iPhone, add the app to the home screen first.
 
 ## 6. Automations
 Open **Account → Automations** to switch each one on or off.
@@ -37,6 +44,8 @@ Open **Account → Automations** to switch each one on or off.
 - **Missed-dose alert:** if a dose is not ticked 30–120 minutes after its time, everyone sharing the family cabinet gets an alert. Useful for parents living alone.
 - **Courses:** for antibiotics and other short courses, set *Course ends*. Reminders stop by themselves after that day and you get a "Course finished" note.
 - **Monthly clean-up:** on the 1st of every month, a list of expired medicines to take back to a pharmacy.
+- **Reminder times learn your routine:** if you keep taking your morning medicines at about 9:40 although the reminder says 8:00, after a few days the reminder moves to 9:45 by itself and tells you so. It only follows a steady habit.
+- **Shopping list:** the 🛒 button on the cabinet lists everything running low, finished or expired while still in use, with the cheaper Jan Aushadhi generic. Send it to the family or the pharmacy on WhatsApp in one tap. A short course with enough tablets to finish is not listed.
 - **Phone calendar:** *Add to Google Calendar* or *Add to iPhone Calendar* puts every dose time in your calendar with an alarm, and it updates itself. If you ever share the link by mistake, tap *Make a new private link*.
 
 ## 7. Notebook for the doctor

@@ -15,7 +15,8 @@ $items = q("SELECT c.*, m.name AS member, i.ingredient, i.use_text, i.rx FROM ca
             LEFT JOIN members m ON m.id = c.member_id LEFT JOIN medicine_info i ON i.id = c.info_id
             WHERE $where ORDER BY m.name IS NULL, m.name, c.exp_month", $args)->fetchAll();
 $slotNames = ['m' => 'Morning', 'a' => 'Afternoon', 'e' => 'Evening', 'b' => 'Bedtime'];
-$status = function (string $exp): array {
+$status = function (?string $exp): array {
+    if (!$exp) return ['Expiry not added', 'var(--muted)'];
     $end = date('Y-m-t', strtotime($exp));
     $days = (int) floor((strtotime($end) - strtotime(date('Y-m-d'))) / 86400);
     return $days < 0 ? ['Expired', 'var(--bad)'] : ($days <= 30 ? ['Expires soon', 'var(--warn)'] : ['OK', 'var(--ok)']);
@@ -48,7 +49,7 @@ ob_start();
           <td><?= e($i['member'] ?? 'Family') ?></td>
           <td><?= e(implode(', ', array_map(fn($s) => $slotNames[$s] ?? $s, array_filter(explode(',', (string) $i['dose_times']))))) ?: '—' ?></td>
           <td><?= e($i['batch_no'] ?? '—') ?></td>
-          <td><?= e(date('M Y', strtotime($i['exp_month']))) ?></td>
+          <td><?= $i['exp_month'] ? e(date('M Y', strtotime($i['exp_month']))) : '—' ?></td>
           <td><b style="color:<?= $col ?>"><?= $st ?></b></td></tr>
       <?php endforeach; ?></tbody>
     </table>
