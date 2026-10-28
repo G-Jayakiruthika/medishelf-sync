@@ -6,7 +6,7 @@ $base = rtrim($argv[1] ?? 'http://127.0.0.1:8080', '/');
 $fails = 0; $checks = 0;
 function fetch(string $url): array {
     $ch = curl_init($url);
-    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_FOLLOWLOCATION => false, CURLOPT_TIMEOUT => 20, CURLOPT_USERAGENT => 'MediShelf-SEO-Check']);
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_FOLLOWLOCATION => false, CURLOPT_TIMEOUT => 20, CURLOPT_USERAGENT => 'AushadhBox-SEO-Check']);
     $r = curl_exec($ch); $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); $hs = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE); curl_close($ch);
     return [$code, substr((string) $r, 0, $hs), substr((string) $r, $hs)];
 }

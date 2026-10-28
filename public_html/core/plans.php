@@ -79,7 +79,7 @@ function mark_paid(string $orderId, string $paymentId): bool
     return true;
 }
 
-function site_title(): string { return (string) (config('site_name') ?: 'MediShelf-Sync'); }
+function site_title(): string { return (string) (config('site_name') ?: 'AushadhBox'); }
 
 function razorpay_live(): bool { return (string) config('razorpay_key_id') !== '' && (string) config('razorpay_key_secret') !== ''; }
 

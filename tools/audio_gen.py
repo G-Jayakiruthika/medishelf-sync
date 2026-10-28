@@ -1,4 +1,4 @@
-"""Generate all original sound files for WaterGuard and MediShelf-Sync.
+"""Generate all original sound files for WaterGuard and AushadhBox.
 Everything is synthesised from scratch with numpy (no samples, no downloads).
 Usage: python3 audio_gen.py <projects_root>
 """
@@ -161,8 +161,8 @@ C, Am, F, G = [261.63, 329.63, 392.0, 523.25], [220.0, 261.63, 329.63, 440.0], [
 save_wav(music_bed(36, [C, Am, F, G], 96, "bell"), "/tmp/wg_music.wav")
 print("wrote /tmp/wg_music.wav")
 
-# ---------------- MediShelf-Sync ----------------
-ms = os.path.join(ROOT, "medishelf-sync", "assets", "audio")
+# ---------------- AushadhBox ----------------
+ms = os.path.join(ROOT, "aushadhbox", "assets", "audio")
 # Japanese-feel pentatonic (in-sen-ish / yo scale on D)
 D4, E4, G4, A4, B4, D5, E5 = 293.66, 329.63, 392.0, 440.0, 493.88, 587.33, 659.25
 

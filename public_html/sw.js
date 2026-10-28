@@ -1,5 +1,5 @@
-/* MediShelf-Sync service worker: offline app shell + push reminders. */
-const CACHE = "medishelf-v3";
+/* AushadhBox service worker: offline app shell + push reminders. */
+const CACHE = "aushadhbox-v3";
 const SHELL = ["/app", "/styles.css?v=3", "/app.js?v=3", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/consent.js?v=3", "/consent-i18n.js?v=3",
   "/lib/qrcode.js", "/lib/jsQR.js", "/icons/icon-192.png", "/icons/icon-512.png",
   "/assets/audio/dose-reminder.mp3", "/assets/audio/expiry-alert.mp3", "/assets/audio/saved.mp3"];
@@ -21,10 +21,10 @@ self.addEventListener("fetch", (e) => {
 });
 
 self.addEventListener("push", (e) => {
-  let data = { title: "MediShelf-Sync", body: "Time to check your medicines." };
+  let data = { title: "AushadhBox", body: "Time to check your medicines." };
   try { data = Object.assign(data, e.data.json()); } catch (err) { /* plain text */ }
   e.waitUntil(self.registration.showNotification(data.title, {
-    body: data.body, tag: data.tag || "medishelf", renotify: true, icon: "/icons/icon-192.png", badge: "/icons/badge-72.png",
+    body: data.body, tag: data.tag || "aushadhbox", renotify: true, icon: "/icons/icon-192.png", badge: "/icons/badge-72.png",
     data: { url: data.url || "/app" }, vibrate: [120, 60, 120]
   }));
 });

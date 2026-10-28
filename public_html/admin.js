@@ -56,7 +56,7 @@
     const r = await call("admin_messages");
     const open = r.messages.filter(m => !Number(m.handled)).length;
     $("#msgCount").textContent = open + " open";
-    $("#messages").innerHTML = r.messages.length ? r.messages.map(m => '<div class="msg' + (Number(m.handled) ? " done" : "") + '"><div><b>' + esc(m.name) + '</b> · <a href="mailto:' + esc(m.email) + '?subject=' + encodeURIComponent("Re: your message to MediShelf-Sync") + '">' + esc(m.email) + "</a> · " + esc(m.topic) + ' · <span class="muted">' + esc(m.created_at) + '</span></div><div style="white-space:pre-wrap">' + esc(m.message) + "</div>" + (Number(m.handled) ? "" : '<div><button class="btn btn-ghost btn-sm" data-done="' + m.id + '">Mark as handled</button></div>') + "</div>").join("") : '<p class="muted">No messages yet.</p>';
+    $("#messages").innerHTML = r.messages.length ? r.messages.map(m => '<div class="msg' + (Number(m.handled) ? " done" : "") + '"><div><b>' + esc(m.name) + '</b> · <a href="mailto:' + esc(m.email) + '?subject=' + encodeURIComponent("Re: your message to AushadhBox") + '">' + esc(m.email) + "</a> · " + esc(m.topic) + ' · <span class="muted">' + esc(m.created_at) + '</span></div><div style="white-space:pre-wrap">' + esc(m.message) + "</div>" + (Number(m.handled) ? "" : '<div><button class="btn btn-ghost btn-sm" data-done="' + m.id + '">Mark as handled</button></div>') + "</div>").join("") : '<p class="muted">No messages yet.</p>';
   }
   $("#messages").addEventListener("click", async (e) => { const b = e.target.closest("[data-done]"); if (!b) return; await call("admin_message_done", { id: Number(b.dataset.done) }); loadMessages(); });
 

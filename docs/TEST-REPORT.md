@@ -1,4 +1,4 @@
-# Test report — MediShelf-Sync v3
+# Test report — AushadhBox v3
 
 | | |
 |---|---|

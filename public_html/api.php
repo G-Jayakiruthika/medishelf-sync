@@ -1,5 +1,5 @@
 <?php
-/* MediShelf-Sync JSON API. Every call: api.php?action=<name>
+/* AushadhBox JSON API. Every call: api.php?action=<name>
    Reads use GET; anything that changes data uses POST with the X-CSRF-Token header. */
 declare(strict_types=1);
 require __DIR__ . '/core/bootstrap.php';
@@ -82,7 +82,7 @@ try {
             $token = bin2hex(random_bytes(32));
             q('INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES (?,?, NOW() + INTERVAL 1 HOUR)', [$u['id'], hash('sha256', $token)]);
             $link = base_app_url() . '/app#reset=' . $token;
-            send_mail($email, 'Reset your MediShelf-Sync password', "Hello {$u['name']},\n\nOpen this link within 1 hour to set a new password:\n$link\n\nIf you did not ask for this, ignore this e-mail.\n\nMediShelf-Sync");
+            send_mail($email, 'Reset your AushadhBox password', "Hello {$u['name']},\n\nOpen this link within 1 hour to set a new password:\n$link\n\nIf you did not ask for this, ignore this e-mail.\n\nAushadhBox");
         }
         log_attempt('forgot', true);
         json_out(['ok' => true]);   // same answer whether or not the e-mail exists
@@ -139,7 +139,7 @@ try {
             'doses_taken' => q('SELECT c.name, d.slot, d.taken_on, d.taken_at FROM dose_logs d JOIN cabinet_items c ON c.id = d.item_id WHERE d.user_id = ? ORDER BY d.taken_on DESC', [$uid])->fetchAll(),
             'reminders' => q('SELECT enabled, m_time, a_time, e_time, b_time FROM reminder_settings WHERE user_id = ?', [$user['id']])->fetch(),
         ];
-        header('Content-Disposition: attachment; filename="medishelf-my-data.json"');
+        header('Content-Disposition: attachment; filename="aushadhbox-my-data.json"');
         json_out($data);
 
     case 'account_delete':   // DPDP: right to erasure. Everything linked to the user is removed by ON DELETE CASCADE.

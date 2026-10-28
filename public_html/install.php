@@ -55,11 +55,11 @@ function install_all(array &$msg): void
 }
 ?><!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Install MediShelf-Sync</title>
+<title>Install AushadhBox</title>
 <style>body{font:16px/1.6 system-ui,sans-serif;max-width:560px;margin:40px auto;padding:0 16px;color:#16202E;background:#EEF2EF}
 form{display:grid;gap:12px;background:#fff;padding:20px;border-radius:14px;border:1px solid #CDD6D0}input{padding:10px;border:1px solid #CDD6D0;border-radius:10px;font:inherit}
 button{padding:12px;border:0;border-radius:999px;background:#1F3358;color:#fff;font-weight:700;cursor:pointer}.err{color:#B3382A}.ok{color:#3E7D49}</style></head><body>
-<h1>Install MediShelf-Sync</h1>
+<h1>Install AushadhBox</h1>
 <?php if ($done): ?>
   <?php foreach ($msg as $m): ?><p class="ok">✔ <?= htmlspecialchars($m) ?></p><?php endforeach; ?>
   <p><b>Installation is complete.</b> Delete <code>install.php</code> from the server now, then <a href="/">open your website</a>. Your app is at <a href="/app">/app</a> and the admin dashboard at <a href="/admin.html">/admin.html</a>.</p>

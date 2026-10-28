@@ -30,7 +30,7 @@ async function journey(browser, label, viewport) {
   ok((await p.locator('.med-list li').count()) > 3, 'medicine search returns results');
 
   await p.goto(B + '/');
-  await p.click('.hero-ctas .btn-primary');
+  await p.click('.hero-ctas a[data-track="cta_hero"]');
   await p.waitForSelector('#signupForm:not([hidden])');
   ok(true, 'Start free opens the sign-up form');
   await p.fill('#suName', 'E2E User'); await p.fill('#suEmail', 'e2e' + Date.now() + Math.floor(Math.random() * 1e4) + '@test.in');

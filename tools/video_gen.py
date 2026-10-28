@@ -1,6 +1,6 @@
 """Render the two explainer videos from scratch (Pillow frames -> ffmpeg H.264),
 then mix the English narration and the original music bed underneath.
-Usage: python3 video_gen.py <projects_root> [waterguard|medishelf|both]
+Usage: python3 video_gen.py <projects_root> [waterguard|aushadhbox|both]
 """
 import math, os, subprocess, sys
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -230,7 +230,7 @@ def ms_render(t):
                 col = [c["matcha"], c["amber"], c["white"], c["white"], c["white"], c["matcha"], c["white"], c["shu"], c["white"], c["white"], c["matcha"], c["white"]][r * cols + q]
                 rr(dd, (x, y, x + cw, y + ch), 14, fill=c["white"], outline=c["line"], width=2)
                 rr(dd, (x + cw / 2 - 26, y + ch - 26, x + cw / 2 + 26, y + ch - 16), 5, fill=col if col != c["white"] else c["line"])
-        text_c(dd, (640, 500), "MediShelf-Sync", F(80, "ExtraBold"), c["ai"])
+        text_c(dd, (640, 500), "AushadhBox", F(80, "ExtraBold"), c["ai"])
         text_c(dd, (640, 568), "Your family medicine cabinet", F(32, "Medium"), c["ai2"])
     layer(img, s1, fade_alpha(t, 0, 6.2))
 
@@ -301,7 +301,7 @@ def ms_render(t):
 
     # Scene 6: languages end card 35-end
     def s6(dd, lay):
-        text_c(dd, (640, 220), "MediShelf-Sync", F(76, "ExtraBold"), c["ai"])
+        text_c(dd, (640, 220), "AushadhBox", F(76, "ExtraBold"), c["ai"])
         text_c(dd, (640, 290), "Scan · Track · Stay safe", F(32, "Medium"), c["ai2"])
         langs = [("Tamil", "தமிழ்"), ("Devanagari", "हिन्दी"), ("Telugu", "తెలుగు"), ("Kannada", "ಕನ್ನಡ"), ("Malayalam", "മലയാളം"), ("Bengali", "বাংলা")]
         for i, (sc, word) in enumerate(langs):
@@ -318,8 +318,8 @@ if WHICH in ("waterguard", "both"):
     os.makedirs(out, exist_ok=True)
     encode("wg", wg_render, 31.0, "/tmp/waterguard_narration.mp3", "/tmp/wg_music.wav",
            os.path.join(out, "waterguard-guide.mp4"), 8.5, os.path.join(out, "waterguard-poster.jpg"))
-if WHICH in ("medishelf", "both"):
-    out = os.path.join(ROOT, "medishelf-sync", "assets", "video")
+if WHICH in ("aushadhbox", "both"):
+    out = os.path.join(ROOT, "aushadhbox", "assets", "video")
     os.makedirs(out, exist_ok=True)
-    encode("ms", ms_render, 40.0, "/tmp/medishelf-sync_narration.mp3", "/tmp/ms_music.wav",
-           os.path.join(out, "medishelf-guide.mp4"), 12.0, os.path.join(out, "medishelf-poster.jpg"))
+    encode("ms", ms_render, 40.0, "/tmp/aushadhbox_narration.mp3", "/tmp/ms_music.wav",
+           os.path.join(out, "aushadhbox-guide.mp4"), 12.0, os.path.join(out, "aushadhbox-poster.jpg"))

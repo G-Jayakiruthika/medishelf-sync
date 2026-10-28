@@ -41,7 +41,7 @@ if ($lang !== 'en') $navItems[0][0] = '/' . $lang . '/#features';
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&family=Noto+Sans:wght@400;500;600;700<?= $lang !== 'en' ? '&family=' . e(['hi' => 'Noto+Sans+Devanagari', 'mr' => 'Noto+Sans+Devanagari', 'bn' => 'Noto+Sans+Bengali', 'te' => 'Noto+Sans+Telugu', 'ta' => 'Noto+Sans+Tamil', 'gu' => 'Noto+Sans+Gujarati', 'kn' => 'Noto+Sans+Kannada', 'ml' => 'Noto+Sans+Malayalam', 'pa' => 'Noto+Sans+Gurmukhi'][$lang]) . ':wght@400;600;700' : '' ?>&display=swap">
-<link rel="stylesheet" href="/site.css?v=4">
+<link rel="stylesheet" href="/site.css?v=5">
 <?php foreach (($meta['jsonld'] ?? []) as $ld) echo jsonld($ld), "\n"; ?>
 </head>
 <body class="page-<?= e($meta['body_class'] ?? 'default') ?>">
@@ -49,7 +49,7 @@ if ($lang !== 'en') $navItems[0][0] = '/' . $lang . '/#features';
 <header class="nav" id="top">
   <div class="wrap nav-inner">
     <a class="logo" href="<?= e(url('')) ?>" aria-label="<?= e(site_name()) ?> home">
-      <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="9" fill="#1F3358"/><g fill="#fff"><rect x="8" y="9" width="11" height="9" rx="2"/><rect x="21" y="9" width="11" height="9" rx="2"/><rect x="8" y="21" width="11" height="9" rx="2"/><rect x="21" y="21" width="11" height="9" rx="2"/></g><rect x="25" y="26" width="3" height="2" rx="1" fill="#E7B24E"/><rect x="12" y="14" width="3" height="2" rx="1" fill="#78C084"/></svg>
+      <svg width="34" height="34" viewBox="0 0 112 112" aria-hidden="true"><rect x="4" y="10" width="104" height="96" rx="24" fill="#1F3358"/><rect x="20" y="4" width="72" height="14" rx="7" fill="#1F3358"/><rect x="20" y="26" width="34" height="32" rx="7" fill="#FFFFFF"/><rect x="58" y="26" width="34" height="32" rx="7" fill="#FFFFFF"/><rect x="20" y="62" width="34" height="32" rx="7" fill="#FFFFFF"/><rect x="58" y="62" width="34" height="32" rx="7" fill="#FFFFFF"/><rect x="29" y="47" width="16" height="5" rx="2.5" fill="#3E7D49"/><rect x="67" y="83" width="16" height="5" rx="2.5" fill="#E7B24E"/></svg>
       <span><?= e(site_name()) ?></span>
     </a>
     <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="navLinks" aria-label="Menu"><span></span><span></span><span></span></button>
@@ -74,7 +74,7 @@ if ($lang !== 'en') $navItems[0][0] = '/' . $lang . '/#features';
 <footer class="footer">
   <div class="wrap foot-grid">
     <div class="foot-brand">
-      <a class="logo" href="<?= e(url('')) ?>"><svg width="30" height="30" viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="9" fill="#fff"/><g fill="#1F3358"><rect x="8" y="9" width="11" height="9" rx="2"/><rect x="21" y="9" width="11" height="9" rx="2"/><rect x="8" y="21" width="11" height="9" rx="2"/><rect x="21" y="21" width="11" height="9" rx="2"/></g></svg><span><?= e(site_name()) ?></span></a>
+      <a class="logo" href="<?= e(url('')) ?>"><svg width="30" height="30" viewBox="0 0 112 112" aria-hidden="true"><rect x="4" y="10" width="104" height="96" rx="24" fill="#FFFFFF"/><rect x="20" y="4" width="72" height="14" rx="7" fill="#FFFFFF"/><rect x="20" y="26" width="34" height="32" rx="7" fill="#1F3358"/><rect x="58" y="26" width="34" height="32" rx="7" fill="#1F3358"/><rect x="20" y="62" width="34" height="32" rx="7" fill="#1F3358"/><rect x="58" y="62" width="34" height="32" rx="7" fill="#1F3358"/><rect x="29" y="47" width="16" height="5" rx="2.5" fill="#3E7D49"/><rect x="67" y="83" width="16" height="5" rx="2.5" fill="#E7B24E"/></svg><span><?= e(site_name()) ?></span></a>
       <p><?= e(st('disclaimer')) ?></p>
       <p class="foot-small">PvPI side-effect helpline: 1800-180-3024 · Emergency: 112</p>
     </div>
@@ -84,7 +84,7 @@ if ($lang !== 'en') $navItems[0][0] = '/' . $lang . '/#features';
   </div>
   <div class="wrap foot-bottom">© <?= date('Y') ?> <?= e(config('business_name') ?: site_name()) ?> · Made in India</div>
 </footer>
-<script src="/site.js?v=4" defer></script>
+<script src="/site.js?v=5" defer></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer data-lang="<?= e($lang) ?>" data-ga="<?= e((string) config('ga4_id')) ?>"></script>
 </body>

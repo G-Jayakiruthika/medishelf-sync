@@ -1,4 +1,4 @@
-# MediShelf-Sync v3 — family medicine cabinet for India
+# AushadhBox v3 — family medicine cabinet for India
 
 A complete, deployable web product: a public marketing website built for Google search, a multilingual
 web app (installable on phones), a Premium plan with Razorpay payments, family sharing, a cookie-consent
@@ -10,7 +10,7 @@ Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hosting
 | Website (10 languages) | App on a phone | Admin dashboard |
 |---|---|---|
 | ![Home page](docs/screenshots/website-home.jpg) | ![Cabinet](docs/screenshots/app-cabinet.jpg) | ![Admin](docs/screenshots/admin-dashboard.jpg) |
-| ![Tamil home page](docs/screenshots/website-tamil.jpg) | ![Upgrade](docs/screenshots/app-upgrade.jpg) | ![Medicine page](docs/screenshots/medicine-page.jpg) |
+| ![Home page on a phone](docs/screenshots/website-mobile.jpg) | ![Upgrade](docs/screenshots/app-upgrade.jpg) | ![Medicine page](docs/screenshots/medicine-page.jpg) |
 
 ## What's in the box
 
@@ -47,7 +47,7 @@ tools/                  import_list.php, make_vapid_keys.php, build_assets.php, 
 ```
 
 ## Run it on your laptop
-1. Install PHP 8.1+ and MySQL/MariaDB (XAMPP on Windows is fine). Create a database `medishelf` (utf8mb4).
+1. Install PHP 8.1+ and MySQL/MariaDB (XAMPP on Windows is fine). Create a database `aushadhbox` (utf8mb4).
 2. Copy `public_html/core/config.example.php` to `config.php`; fill in the database and a `cron_key`. Set `'payments_demo' => true` to try Premium without Razorpay.
 3. `cd public_html && php -S localhost:8000 index.php`
 4. Open `http://localhost:8000/install.php`, then `http://localhost:8000/`.
@@ -60,4 +60,4 @@ Read **docs/DEPLOY.md** (Hostinger step by step, Razorpay, Google Search Console
 - CDSCO guidance on disposal of expired/unused drugs (2025); CDSCO FAQs on QR codes (2023); Drugs Rules 1945.
 - Ingredient guides are general information written for this project, not medical advice.
 
-> MediShelf-Sync helps families organise medicines. It does not replace a doctor or pharmacist.
+> AushadhBox helps families organise medicines. It does not replace a doctor or pharmacist.

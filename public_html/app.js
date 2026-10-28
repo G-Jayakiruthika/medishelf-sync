@@ -1,4 +1,4 @@
-/* MediShelf-Sync — browser app. Talks to api.php; all data lives in the MySQL database. */
+/* AushadhBox — browser app. Talks to api.php; all data lives in the MySQL database. */
 (function () {
   "use strict";
 
@@ -612,7 +612,7 @@
     try {
       const res = await fetch("/api.php?action=export", { credentials: "same-origin" });
       const blob = await res.blob(), a = document.createElement("a");
-      a.href = URL.createObjectURL(blob); a.download = "medishelf-my-data.json"; document.body.appendChild(a); a.click(); a.remove();
+      a.href = URL.createObjectURL(blob); a.download = "aushadhbox-my-data.json"; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 5000);
     } catch (err) { toast(t("offline")); }
   });
@@ -673,7 +673,7 @@
   $("#btnCopyCode").addEventListener("click", () => {
     const code = $("#inviteCode").textContent, link = $("#inviteBox").dataset.link || "";
     const text = code + (link ? "\n" + link : "");
-    if (navigator.share) { navigator.share({ title: "MediShelf-Sync", text: t("joinCode") + ": " + code, url: link }).catch(() => {}); return; }
+    if (navigator.share) { navigator.share({ title: "AushadhBox", text: t("joinCode") + ": " + code, url: link }).catch(() => {}); return; }
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast("✔ " + t("copyCode"))).catch(() => fallbackCopy(text, () => toast("✔")));
     else fallbackCopy(text, () => toast("✔"));
   });

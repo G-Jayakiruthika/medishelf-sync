@@ -1,9 +1,11 @@
-# Design document — MediShelf-Sync v3
+# Design document — AushadhBox v3
 
 ## 1. Concept
 The visual idea is the Japanese **kusuri-dansu**, the wooden apothecary chest with many small drawers. Every medicine is a drawer; the **handle colour** is its status: green safe, amber use soon, red expired. The same three colours appear on the website, in the app, in e-mails and on the printed report, so families learn the signal once.
 
 Indigo (*ai-iro*), a traditional Japanese dye colour, is the brand colour. It reads as trustworthy and calm, and stays readable for people with colour-vision differences because status is never shown by colour alone (labels "Safe / Use soon / Expired" are always present).
+
+The home page opens with this chest in **3D**: a wooden cabinet built with CSS 3D transforms (no WebGL or libraries, so it loads instantly on budget phones). On load its drawers slide out one by one to show green, amber and red handles, and a tag pops up on the drawer that expires soon; on desktop it tilts gently with the pointer. That is the page's one orchestrated moment: everything else is deliberately still. People who turn on *reduce motion* on their phone see the cabinet already open, without animation.
 
 The visual system is documented interactively in **design-system.html** (open it in a browser).
 
@@ -126,3 +128,5 @@ erDiagram
 | Welcome tour of 4 cards, skippable, ends on Scan | Gets the first medicine in quickly, which predicts retention |
 | Report is a web page with print CSS | Works on any phone; "Save as PDF" comes free from the browser |
 | Text sizes ≥ 16 px, large tap targets, plain words | Many users are older family members |
+| 3D cabinet in CSS, not a 3D library | Same wow effect at a few kilobytes; works on ₹8,000 phones and slow networks |
+| Sentence-case labels, no decorative all-caps | Easier to read, especially in Indian scripts that have no capitals |

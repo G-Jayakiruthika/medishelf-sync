@@ -1,4 +1,4 @@
-# Project handover — MediShelf-Sync v3
+# Project handover — AushadhBox v3
 
 ## 1. Deliverables
 | # | Deliverable | Where |
@@ -23,7 +23,7 @@
 3. **Razorpay KYC** and keys (DEPLOY.md §11).
 4. **Tax**: ask a chartered accountant whether you need GST registration (generally required once turnover crosses the threshold, and for some online services earlier) and how to issue invoices. Prices are shown as "including taxes".
 5. **Legal review**: the Privacy, Terms, Refund and Cookie pages are solid templates written for Indian law (DPDP Act 2023, DPDP Rules 2025, Consumer Protection (E-Commerce) Rules) but are not a lawyer's opinion. Get them reviewed before you scale.
-6. **Brand name**: check that "MediShelf-Sync" (or your chosen name, set via `site_name`) is not someone else's trademark on ipindia.gov.in before printing posters.
+6. **Brand name**: check that "AushadhBox" (or your chosen name, set via `site_name`) is not someone else's trademark on ipindia.gov.in before printing posters.
 
 ## 3. Launch checklist
 - [ ] HTTPS active; http and www redirect to https://your-domain

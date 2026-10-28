@@ -1,4 +1,4 @@
-# MediShelf-Sync — Apache settings (Hostinger and most shared hosts)
+# AushadhBox — Apache settings (Hostinger and most shared hosts)
 
 Options -Indexes
 DirectoryIndex index.php

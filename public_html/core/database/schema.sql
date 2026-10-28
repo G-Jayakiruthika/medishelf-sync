@@ -1,4 +1,4 @@
--- MediShelf-Sync database schema (MySQL 8 / MariaDB 10.6+)
+-- AushadhBox database schema (MySQL 8 / MariaDB 10.6+)
 -- Character set utf8mb4 so Tamil, Hindi and all Indian scripts store correctly.
 
 SET NAMES utf8mb4;

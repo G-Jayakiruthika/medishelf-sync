@@ -39,7 +39,7 @@ function url(string $path = '', ?string $lang = null): string
     return '/' . $prefix . $path;
 }
 
-function site_name(): string { return (string) (config('site_name') ?: 'MediShelf-Sync'); }
+function site_name(): string { return (string) (config('site_name') ?: 'AushadhBox'); }
 
 function money(int $rupees): string { return '₹' . number_format($rupees); }
 

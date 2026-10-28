@@ -1,13 +1,13 @@
-# Software Requirements Specification — MediShelf-Sync v3
+# Software Requirements Specification — AushadhBox v3
 
 | | |
 |---|---|
-| Product | MediShelf-Sync: family medicine cabinet web app and website |
+| Product | AushadhBox: family medicine cabinet web app and website |
 | Version | 3.0 (October 2026) |
 | Audience | Client, developers, testers |
 
 ## 1. Purpose and scope
-Indian households keep many medicines with tiny, English-only labels and forget expiry dates. MediShelf-Sync lets a family record every medicine (by scanning or typing), see at a glance what is safe, due soon or expired, get dose and expiry reminders, and share one cabinet across family members' phones, in 10 Indian languages. The business earns through a low-cost Premium plan.
+Indian households keep many medicines with tiny, English-only labels and forget expiry dates. AushadhBox lets a family record every medicine (by scanning or typing), see at a glance what is safe, due soon or expired, get dose and expiry reminders, and share one cabinet across family members' phones, in 10 Indian languages. The business earns through a low-cost Premium plan.
 
 Out of scope: selling medicines, prescriptions, medical advice, teleconsultation.
 

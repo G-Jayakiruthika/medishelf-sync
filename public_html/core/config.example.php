@@ -1,6 +1,6 @@
 <?php
 /*
- * MediShelf-Sync configuration.
+ * AushadhBox configuration.
  * Copy this file to config.php and fill in your own values.
  * Never upload config.php to GitHub (it is listed in .gitignore).
  */
@@ -8,15 +8,15 @@ return [
     // Database (from your hosting control panel → MySQL Databases)
     'db_host' => 'localhost',
     'db_port' => 3306,
-    'db_name' => 'medishelf',
-    'db_user' => 'medishelf_user',
+    'db_name' => 'aushadhbox',
+    'db_user' => 'aushadhbox_user',
     'db_pass' => 'change-me',
 
     // Public address of the site, without a trailing slash (your domain, with https)
     'app_url' => 'https://your-site.example.com',
 
     // ---- Your business details (shown on Contact, Privacy, Terms, Refund pages and invoices) ----
-    'site_name'        => 'MediShelf-Sync',
+    'site_name'        => 'AushadhBox',
     'business_name'    => 'Your Name (Proprietor)',     // legal name used with Razorpay
     'business_address' => 'Street, City, Tamil Nadu, PIN, India',
     'support_email'    => 'support@your-site.example.com',
@@ -56,7 +56,7 @@ return [
     'smtp_user' => '',
     'smtp_pass' => '',
     'mail_from' => '',          // e.g. no-reply@your-site.example.com
-    'mail_from_name' => 'MediShelf-Sync',
+    'mail_from_name' => 'AushadhBox',
 
     // ---- Optional: background push reminders (create keys with: php tools/make_vapid_keys.php) ----
     'vapid_public'  => '',

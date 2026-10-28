@@ -46,3 +46,19 @@ document.addEventListener("click", function (e) {
 document.addEventListener("change", function (e) {
   if (e.target.matches("[data-autosubmit]") && e.target.form) e.target.form.submit();
 });
+/* Hero cabinet follows the pointer a little (desktop only, never with reduced motion). */
+(function () {
+  var cab = document.getElementById("cabinet"), hero = cab && cab.closest(".hero3d");
+  if (!cab || !window.matchMedia("(hover: hover) and (pointer: fine)").matches || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  var raf = 0;
+  hero.addEventListener("pointermove", function (e) {
+    if (raf) return;
+    raf = requestAnimationFrame(function () {
+      raf = 0;
+      var r = hero.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+      cab.style.setProperty("--ry", (-30 + x * 22).toFixed(1) + "deg");
+      cab.style.setProperty("--rx", (-15 - y * 12).toFixed(1) + "deg");
+    });
+  });
+  hero.addEventListener("pointerleave", function () { cab.style.removeProperty("--ry"); cab.style.removeProperty("--rx"); });
+})();

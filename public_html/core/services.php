@@ -22,11 +22,11 @@ function send_mail(string $to, string $subject, string $text): bool
     $cmd = function (string $c, array $ok) use ($fp, $read) { fwrite($fp, $c . "\r\n"); $r = $read(); if (!in_array((int) substr($r, 0, 3), $ok, true)) throw new RuntimeException('SMTP: ' . trim($r)); return $r; };
     try {
         $read();
-        $cmd('EHLO medishelf', [250]);
+        $cmd('EHLO aushadhbox', [250]);
         if ($port !== 465) {
             $cmd('STARTTLS', [220]);
             if (!stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT | STREAM_CRYPTO_METHOD_TLSv1_3_CLIENT)) throw new RuntimeException('TLS failed');
-            $cmd('EHLO medishelf', [250]);
+            $cmd('EHLO aushadhbox', [250]);
         }
         if ((string) config('smtp_user') !== '') {
             $cmd('AUTH LOGIN', [334]);
@@ -42,7 +42,7 @@ function send_mail(string $to, string $subject, string $text): bool
             'To: <' . $to . '>',
             'Subject: =?UTF-8?B?' . base64_encode($subject) . '?=',
             'Date: ' . date('r'),
-            'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . (parse_url((string) config('app_url'), PHP_URL_HOST) ?: 'medishelf') . '>',
+            'Message-ID: <' . bin2hex(random_bytes(12)) . '@' . (parse_url((string) config('app_url'), PHP_URL_HOST) ?: 'aushadhbox') . '>',
             'MIME-Version: 1.0',
             'Content-Type: text/plain; charset=UTF-8',
             'Content-Transfer-Encoding: base64',

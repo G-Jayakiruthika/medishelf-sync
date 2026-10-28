@@ -1,6 +1,6 @@
 {
-  "name": "MediShelf-Sync",
-  "short_name": "MediShelf",
+  "name": "AushadhBox",
+  "short_name": "AushadhBox",
   "description": "Family medicine cabinet: scan medicines, track expiry and get dose reminders in 10 Indian languages.",
   "start_url": "/app#cabinet",
   "scope": "./",

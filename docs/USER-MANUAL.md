@@ -1,4 +1,4 @@
-# MediShelf-Sync — User manual
+# AushadhBox — User manual
 
 A simple guide for families. The same help is on the website at **/help**.
 
@@ -62,4 +62,4 @@ Refunds: write within 7 days of paying for a full refund (see /refund-policy).
 | Forgot password | Sign in screen → *Forgot password?* → check your e-mail (and spam). |
 | Paid but still Free | Close and reopen the app. Still Free after 10 minutes? Use the Contact page with your Razorpay payment ID. |
 
-> MediShelf-Sync organises medicines. It does not give medical advice. In an emergency call 112. Report side effects to the PvPI helpline 1800-180-3024.
+> AushadhBox organises medicines. It does not give medical advice. In an emergency call 112. Report side effects to the PvPI helpline 1800-180-3024.

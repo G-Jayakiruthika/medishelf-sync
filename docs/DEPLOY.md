@@ -12,7 +12,7 @@ You only need to do three things yourself (they need your identity and money): *
 Any host with **PHP 8.1+**, **MySQL 8 / MariaDB 10.6+**, **cron jobs** and **free SSL** works. Hostinger's *Premium Web Hosting* plan (about ₹150–250/month on a 12–48 month term) includes all of these plus a free domain for the first year and free e-mail accounts.
 
 1. On hostinger.in, buy **Premium Web Hosting** (or higher). Choose a 12-month or longer term for the free domain.
-2. Pick your domain, e.g. `medishelf.in` or `mymedicinebox.in`. Short `.in` or `.com` names are best. Avoid trademarks of other companies.
+2. Pick your domain, e.g. `aushadhbox.in`. Short `.in` or `.com` names are best. Avoid trademarks of other companies.
 3. In **hPanel → Websites → Add website**, choose *Empty PHP/HTML website* for your domain.
 
 > Prefer another host? Everything below uses standard cPanel/hPanel features, so the steps are the same with different menu names.
@@ -20,12 +20,12 @@ Any host with **PHP 8.1+**, **MySQL 8 / MariaDB 10.6+**, **cron jobs** and **fre
 ## 2. Create the database
 
 hPanel → **Databases → MySQL Databases**:
-1. Database name `medishelf`, user `medishelf`, a strong password. Hostinger adds a prefix like `u123456789_`.
+1. Database name `aushadhbox`, user `aushadhbox`, a strong password. Hostinger adds a prefix like `u123456789_`.
 2. Write down the full **database name**, **user name** and **password**. The host is `localhost` on Hostinger.
 
 ## 3. Fill in your settings
 
-1. Unzip `MediShelf-Sync-v3.zip` on your computer.
+1. Unzip `AushadhBox-v3.zip` on your computer.
 2. In `public_html/core/`, copy `config.example.php` to **`config.php`** and open it in Notepad.
 3. Fill in:
 
@@ -33,7 +33,7 @@ hPanel → **Databases → MySQL Databases**:
 |---|---|
 | `db_name`, `db_user`, `db_pass` | From step 2 |
 | `app_url` | `https://your-domain.in` (no slash at the end) |
-| `site_name` | The brand name shown everywhere (default MediShelf-Sync) |
+| `site_name` | The brand name shown everywhere (default AushadhBox) |
 | `business_name`, `business_address`, `support_email`, `support_phone`, `grievance_officer` | Your real legal name and address. These appear on the Contact, Privacy, Terms and Refund pages, which Razorpay checks and Indian law requires. |
 | `price_month`, `price_year` | Premium prices in rupees (default 49 and 399) |
 | `cron_key` | A long random password (40+ characters). It is also the setup key for the installer. |
@@ -85,7 +85,7 @@ hPanel → **Emails** → create `support@your-domain.in` and `no-reply@your-dom
 ```
 'smtp_host' => 'smtp.hostinger.com', 'smtp_port' => 465,
 'smtp_user' => 'no-reply@your-domain.in', 'smtp_pass' => '…',
-'mail_from' => 'no-reply@your-domain.in', 'mail_from_name' => 'MediShelf-Sync',
+'mail_from' => 'no-reply@your-domain.in', 'mail_from_name' => 'AushadhBox',
 ```
 Contact-form messages are forwarded to `support_email` and also kept in the admin dashboard.
 

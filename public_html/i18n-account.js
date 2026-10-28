@@ -4,13 +4,13 @@
     en: {
       personName: "Name", authTitle: "Your family's medicine cabinet, safe and in sync", authSub: "Sign in to see the same cabinet on every phone in your family.",
       signIn: "Sign in", createAccount: "Create account", email: "E-mail", password: "Password", yourName: "Your name", phoneOpt: "Mobile number (optional)",
-      consentText: "I agree to the privacy notice. MediShelf-Sync stores my family's medicine details to remind me about doses and expiry.", privacyLink: "Read the privacy notice",
+      consentText: "I agree to the privacy notice. AushadhBox stores my family's medicine details to remind me about doses and expiry.", privacyLink: "Read the privacy notice",
       forgot: "Forgot password?", sendReset: "Send reset link", resetSent: "If this e-mail has an account, a reset link is on its way.", newPassword: "New password", setPassword: "Set new password", signOut: "Sign out",
       navAccount: "Account", accTitle: "Account", profile: "Profile", saveChanges: "Save changes", saved: "Saved",
       family: "Family members", addMember: "Add member", relation: "Relation", membersHint: "Add everyone whose medicines you keep at home.",
       changePassword: "Change password", currentPassword: "Current password", yourData: "Your data", exportData: "Download my data", deleteAccount: "Delete my account",
       deleteWarn: "This permanently deletes your account, family members and medicines. Enter your password to confirm.", confirmDelete: "Delete permanently",
-      consentRenew: "Our privacy notice has changed. Please review it and agree to keep using MediShelf-Sync.", agree: "I agree",
+      consentRenew: "Our privacy notice has changed. Please review it and agree to keep using AushadhBox.", agree: "I agree",
       edit: "Edit", cancel: "Cancel", confirmRemove: "Remove?", quantity: "Quantity", notes: "Notes", familyAll: "Whole family",
       pushOn: "Phone notifications on", pushHint: "Get reminders even when the app is closed.", offline: "You are offline. Changes need an internet connection.",
       matches: "Closest medicines in our list", noMatch: "Not in our list yet. You can still save it.", adminPanel: "Admin panel", emptyCabinet: "Your cabinet is empty. Scan your first medicine to begin."
@@ -18,7 +18,7 @@
     hi: {
       personName: "नाम", authTitle: "आपके परिवार की दवा अलमारी, सुरक्षित और हर फोन पर एक जैसी", authSub: "परिवार के हर फोन पर एक ही अलमारी देखने के लिए साइन इन करें।",
       signIn: "साइन इन", createAccount: "खाता बनाएं", email: "ई-मेल", password: "पासवर्ड", yourName: "आपका नाम", phoneOpt: "मोबाइल नंबर (वैकल्पिक)",
-      consentText: "मैं गोपनीयता सूचना से सहमत हूं। मेडीशेल्फ सिंक खुराक और एक्सपायरी की याद दिलाने के लिए मेरे परिवार की दवाओं का विवरण रखता है।", privacyLink: "गोपनीयता सूचना पढ़ें",
+      consentText: "मैं गोपनीयता सूचना से सहमत हूं। AushadhBox खुराक और एक्सपायरी की याद दिलाने के लिए मेरे परिवार की दवाओं का विवरण रखता है।", privacyLink: "गोपनीयता सूचना पढ़ें",
       forgot: "पासवर्ड भूल गए?", sendReset: "रीसेट लिंक भेजें", resetSent: "अगर इस ई-मेल का खाता है, तो रीसेट लिंक भेज दिया गया है।", newPassword: "नया पासवर्ड", setPassword: "नया पासवर्ड सेट करें", signOut: "साइन आउट",
       navAccount: "खाता", accTitle: "खाता", profile: "प्रोफ़ाइल", saveChanges: "बदलाव सेव करें", saved: "सेव हो गया",
       family: "परिवार के सदस्य", addMember: "सदस्य जोड़ें", relation: "रिश्ता", membersHint: "उन सभी को जोड़ें जिनकी दवाएं घर में रखी हैं।",
@@ -32,7 +32,7 @@
     bn: {
       personName: "নাম", authTitle: "আপনার পরিবারের ওষুধের আলমারি, নিরাপদ ও সব ফোনে এক", authSub: "পরিবারের সব ফোনে একই আলমারি দেখতে সাইন ইন করুন।",
       signIn: "সাইন ইন", createAccount: "অ্যাকাউন্ট খুলুন", email: "ই-মেল", password: "পাসওয়ার্ড", yourName: "আপনার নাম", phoneOpt: "মোবাইল নম্বর (ঐচ্ছিক)",
-      consentText: "আমি গোপনীয়তা নোটিশে সম্মত। ডোজ ও মেয়াদের কথা মনে করাতে মেডিশেলফ সিঙ্ক আমার পরিবারের ওষুধের তথ্য রাখে।", privacyLink: "গোপনীয়তা নোটিশ পড়ুন",
+      consentText: "আমি গোপনীয়তা নোটিশে সম্মত। ডোজ ও মেয়াদের কথা মনে করাতে AushadhBox আমার পরিবারের ওষুধের তথ্য রাখে।", privacyLink: "গোপনীয়তা নোটিশ পড়ুন",
       forgot: "পাসওয়ার্ড ভুলে গেছেন?", sendReset: "রিসেট লিঙ্ক পাঠান", resetSent: "এই ই-মেলে অ্যাকাউন্ট থাকলে রিসেট লিঙ্ক পাঠানো হয়েছে।", newPassword: "নতুন পাসওয়ার্ড", setPassword: "নতুন পাসওয়ার্ড দিন", signOut: "সাইন আউট",
       navAccount: "অ্যাকাউন্ট", accTitle: "অ্যাকাউন্ট", profile: "প্রোফাইল", saveChanges: "সংরক্ষণ করুন", saved: "সংরক্ষিত",
       family: "পরিবারের সদস্য", addMember: "সদস্য যোগ করুন", relation: "সম্পর্ক", membersHint: "যাঁদের ওষুধ বাড়িতে রাখেন, তাঁদের সবাইকে যোগ করুন।",
@@ -46,7 +46,7 @@
     mr: {
       personName: "नाव", authTitle: "तुमच्या कुटुंबाचे औषधांचे कपाट, सुरक्षित आणि सर्व फोनवर सारखे", authSub: "कुटुंबातील प्रत्येक फोनवर एकच कपाट पाहण्यासाठी साइन इन करा.",
       signIn: "साइन इन", createAccount: "खाते तयार करा", email: "ई-मेल", password: "पासवर्ड", yourName: "तुमचे नाव", phoneOpt: "मोबाईल नंबर (ऐच्छिक)",
-      consentText: "मी गोपनीयता सूचनेशी सहमत आहे. डोस आणि मुदतीची आठवण करून देण्यासाठी मेडीशेल्फ सिंक माझ्या कुटुंबाच्या औषधांची माहिती ठेवते.", privacyLink: "गोपनीयता सूचना वाचा",
+      consentText: "मी गोपनीयता सूचनेशी सहमत आहे. डोस आणि मुदतीची आठवण करून देण्यासाठी AushadhBox माझ्या कुटुंबाच्या औषधांची माहिती ठेवते.", privacyLink: "गोपनीयता सूचना वाचा",
       forgot: "पासवर्ड विसरलात?", sendReset: "रीसेट लिंक पाठवा", resetSent: "या ई-मेलचे खाते असल्यास रीसेट लिंक पाठवली आहे.", newPassword: "नवीन पासवर्ड", setPassword: "नवीन पासवर्ड ठेवा", signOut: "साइन आउट",
       navAccount: "खाते", accTitle: "खाते", profile: "प्रोफाइल", saveChanges: "बदल जतन करा", saved: "जतन झाले",
       family: "कुटुंबातील सदस्य", addMember: "सदस्य जोडा", relation: "नाते", membersHint: "ज्यांची औषधे घरी ठेवता त्या सर्वांना जोडा.",
@@ -60,7 +60,7 @@
     te: {
       personName: "పేరు", authTitle: "మీ కుటుంబ మందుల అలమారా, సురక్షితంగా, అన్ని ఫోన్లలో ఒకేలా", authSub: "కుటుంబంలోని ప్రతి ఫోన్‌లో ఒకే అలమారా చూడటానికి సైన్ ఇన్ చేయండి.",
       signIn: "సైన్ ఇన్", createAccount: "ఖాతా తెరవండి", email: "ఈ-మెయిల్", password: "పాస్‌వర్డ్", yourName: "మీ పేరు", phoneOpt: "మొబైల్ నంబర్ (ఐచ్ఛికం)",
-      consentText: "నేను గోప్యతా నోటీసుకు అంగీకరిస్తున్నాను. డోసులు, గడువు గుర్తు చేయడానికి మెడిషెల్ఫ్ సింక్ నా కుటుంబ మందుల వివరాలు ఉంచుతుంది.", privacyLink: "గోప్యతా నోటీసు చదవండి",
+      consentText: "నేను గోప్యతా నోటీసుకు అంగీకరిస్తున్నాను. డోసులు, గడువు గుర్తు చేయడానికి AushadhBox నా కుటుంబ మందుల వివరాలు ఉంచుతుంది.", privacyLink: "గోప్యతా నోటీసు చదవండి",
       forgot: "పాస్‌వర్డ్ మర్చిపోయారా?", sendReset: "రీసెట్ లింక్ పంపండి", resetSent: "ఈ ఈ-మెయిల్‌కు ఖాతా ఉంటే రీసెట్ లింక్ పంపాము.", newPassword: "కొత్త పాస్‌వర్డ్", setPassword: "కొత్త పాస్‌వర్డ్ పెట్టండి", signOut: "సైన్ అవుట్",
       navAccount: "ఖాతా", accTitle: "ఖాతా", profile: "ప్రొఫైల్", saveChanges: "మార్పులు సేవ్ చేయండి", saved: "సేవ్ అయింది",
       family: "కుటుంబ సభ్యులు", addMember: "సభ్యుడిని జోడించండి", relation: "సంబంధం", membersHint: "ఇంట్లో ఎవరి మందులు ఉంచుతారో వారందరినీ జోడించండి.",
@@ -74,7 +74,7 @@
     ta: {
       personName: "பெயர்", authTitle: "உங்கள் குடும்ப மருந்து அலமாரி, பாதுகாப்பாக, எல்லா போன்களிலும் ஒன்றாக", authSub: "குடும்பத்தின் ஒவ்வொரு போனிலும் ஒரே அலமாரியைப் பார்க்க உள்நுழையுங்கள்.",
       signIn: "உள்நுழை", createAccount: "கணக்கு உருவாக்கு", email: "மின்னஞ்சல்", password: "கடவுச்சொல்", yourName: "உங்கள் பெயர்", phoneOpt: "கைபேசி எண் (விருப்பம்)",
-      consentText: "தனியுரிமை அறிவிப்பை ஏற்கிறேன். மருந்து நேரம் மற்றும் காலாவதியை நினைவூட்ட மெடிஷெல்ஃப் சிங்க் என் குடும்ப மருந்து விவரங்களை சேமிக்கிறது.", privacyLink: "தனியுரிமை அறிவிப்பைப் படிக்கவும்",
+      consentText: "தனியுரிமை அறிவிப்பை ஏற்கிறேன். மருந்து நேரம் மற்றும் காலாவதியை நினைவூட்ட AushadhBox என் குடும்ப மருந்து விவரங்களை சேமிக்கிறது.", privacyLink: "தனியுரிமை அறிவிப்பைப் படிக்கவும்",
       forgot: "கடவுச்சொல் மறந்துவிட்டதா?", sendReset: "மீட்டமைப்பு இணைப்பை அனுப்பு", resetSent: "இந்த மின்னஞ்சலுக்கு கணக்கு இருந்தால், இணைப்பு அனுப்பப்பட்டது.", newPassword: "புதிய கடவுச்சொல்", setPassword: "புதிய கடவுச்சொல் அமை", signOut: "வெளியேறு",
       navAccount: "கணக்கு", accTitle: "கணக்கு", profile: "சுயவிவரம்", saveChanges: "மாற்றங்களைச் சேமி", saved: "சேமிக்கப்பட்டது",
       family: "குடும்ப உறுப்பினர்கள்", addMember: "உறுப்பினரைச் சேர்", relation: "உறவு", membersHint: "வீட்டில் யாருடைய மருந்துகளை வைத்திருக்கிறீர்களோ அவர்கள் அனைவரையும் சேர்க்கவும்.",
@@ -88,7 +88,7 @@
     gu: {
       personName: "નામ", authTitle: "તમારા પરિવારનું દવાનું કબાટ, સલામત અને દરેક ફોન પર એકસરખું", authSub: "પરિવારના દરેક ફોન પર એક જ કબાટ જોવા માટે સાઇન ઇન કરો.",
       signIn: "સાઇન ઇન", createAccount: "ખાતું બનાવો", email: "ઈ-મેલ", password: "પાસવર્ડ", yourName: "તમારું નામ", phoneOpt: "મોબાઇલ નંબર (વૈકલ્પિક)",
-      consentText: "હું ગોપનીયતા સૂચના સાથે સંમત છું. ડોઝ અને એક્સપાયરી યાદ અપાવવા મેડીશેલ્ફ સિંક મારા પરિવારની દવાઓની વિગતો રાખે છે.", privacyLink: "ગોપનીયતા સૂચના વાંચો",
+      consentText: "હું ગોપનીયતા સૂચના સાથે સંમત છું. ડોઝ અને એક્સપાયરી યાદ અપાવવા AushadhBox મારા પરિવારની દવાઓની વિગતો રાખે છે.", privacyLink: "ગોપનીયતા સૂચના વાંચો",
       forgot: "પાસવર્ડ ભૂલી ગયા?", sendReset: "રીસેટ લિંક મોકલો", resetSent: "આ ઈ-મેલનું ખાતું હશે તો રીસેટ લિંક મોકલી છે.", newPassword: "નવો પાસવર્ડ", setPassword: "નવો પાસવર્ડ સેટ કરો", signOut: "સાઇન આઉટ",
       navAccount: "ખાતું", accTitle: "ખાતું", profile: "પ્રોફાઇલ", saveChanges: "ફેરફાર સાચવો", saved: "સાચવ્યું",
       family: "પરિવારના સભ્યો", addMember: "સભ્ય ઉમેરો", relation: "સંબંધ", membersHint: "જેમની દવાઓ ઘરમાં રાખો છો તે બધાને ઉમેરો.",
@@ -102,7 +102,7 @@
     kn: {
       personName: "ಹೆಸರು", authTitle: "ನಿಮ್ಮ ಕುಟುಂಬದ ಔಷಧಿ ಕಪಾಟು, ಸುರಕ್ಷಿತ ಮತ್ತು ಎಲ್ಲಾ ಫೋನ್‌ಗಳಲ್ಲಿ ಒಂದೇ", authSub: "ಕುಟುಂಬದ ಪ್ರತಿ ಫೋನ್‌ನಲ್ಲಿ ಒಂದೇ ಕಪಾಟು ನೋಡಲು ಸೈನ್ ಇನ್ ಮಾಡಿ.",
       signIn: "ಸೈನ್ ಇನ್", createAccount: "ಖಾತೆ ತೆರೆಯಿರಿ", email: "ಇ-ಮೇಲ್", password: "ಪಾಸ್‌ವರ್ಡ್", yourName: "ನಿಮ್ಮ ಹೆಸರು", phoneOpt: "ಮೊಬೈಲ್ ಸಂಖ್ಯೆ (ಐಚ್ಛಿಕ)",
-      consentText: "ಗೌಪ್ಯತಾ ಸೂಚನೆಗೆ ನಾನು ಒಪ್ಪುತ್ತೇನೆ. ಡೋಸ್ ಮತ್ತು ಅವಧಿ ನೆನಪಿಸಲು ಮೆಡಿಶೆಲ್ಫ್ ಸಿಂಕ್ ನನ್ನ ಕುಟುಂಬದ ಔಷಧಿ ವಿವರ ಉಳಿಸುತ್ತದೆ.", privacyLink: "ಗೌಪ್ಯತಾ ಸೂಚನೆ ಓದಿ",
+      consentText: "ಗೌಪ್ಯತಾ ಸೂಚನೆಗೆ ನಾನು ಒಪ್ಪುತ್ತೇನೆ. ಡೋಸ್ ಮತ್ತು ಅವಧಿ ನೆನಪಿಸಲು AushadhBox ನನ್ನ ಕುಟುಂಬದ ಔಷಧಿ ವಿವರ ಉಳಿಸುತ್ತದೆ.", privacyLink: "ಗೌಪ್ಯತಾ ಸೂಚನೆ ಓದಿ",
       forgot: "ಪಾಸ್‌ವರ್ಡ್ ಮರೆತಿರಾ?", sendReset: "ರೀಸೆಟ್ ಲಿಂಕ್ ಕಳುಹಿಸಿ", resetSent: "ಈ ಇ-ಮೇಲ್‌ಗೆ ಖಾತೆ ಇದ್ದರೆ ರೀಸೆಟ್ ಲಿಂಕ್ ಕಳುಹಿಸಲಾಗಿದೆ.", newPassword: "ಹೊಸ ಪಾಸ್‌ವರ್ಡ್", setPassword: "ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಹೊಂದಿಸಿ", signOut: "ಸೈನ್ ಔಟ್",
       navAccount: "ಖಾತೆ", accTitle: "ಖಾತೆ", profile: "ಪ್ರೊಫೈಲ್", saveChanges: "ಬದಲಾವಣೆ ಉಳಿಸಿ", saved: "ಉಳಿಸಲಾಗಿದೆ",
       family: "ಕುಟುಂಬ ಸದಸ್ಯರು", addMember: "ಸದಸ್ಯರನ್ನು ಸೇರಿಸಿ", relation: "ಸಂಬಂಧ", membersHint: "ಮನೆಯಲ್ಲಿ ಯಾರ ಔಷಧಿ ಇಡುತ್ತೀರೋ ಅವರೆಲ್ಲರನ್ನು ಸೇರಿಸಿ.",
@@ -116,7 +116,7 @@
     ml: {
       personName: "പേര്", authTitle: "നിങ്ങളുടെ കുടുംബത്തിന്റെ മരുന്ന് അലമാര, സുരക്ഷിതമായി എല്ലാ ഫോണിലും ഒരുപോലെ", authSub: "കുടുംബത്തിലെ എല്ലാ ഫോണിലും ഒരേ അലമാര കാണാൻ സൈൻ ഇൻ ചെയ്യുക.",
       signIn: "സൈൻ ഇൻ", createAccount: "അക്കൗണ്ട് തുറക്കുക", email: "ഇ-മെയിൽ", password: "പാസ്‌വേഡ്", yourName: "നിങ്ങളുടെ പേര്", phoneOpt: "മൊബൈൽ നമ്പർ (ഐച്ഛികം)",
-      consentText: "സ്വകാര്യതാ അറിയിപ്പിന് ഞാൻ സമ്മതിക്കുന്നു. ഡോസും കാലാവധിയും ഓർമ്മിപ്പിക്കാൻ മെഡിഷെൽഫ് സിങ്ക് എന്റെ കുടുംബത്തിന്റെ മരുന്ന് വിവരങ്ങൾ സൂക്ഷിക്കുന്നു.", privacyLink: "സ്വകാര്യതാ അറിയിപ്പ് വായിക്കുക",
+      consentText: "സ്വകാര്യതാ അറിയിപ്പിന് ഞാൻ സമ്മതിക്കുന്നു. ഡോസും കാലാവധിയും ഓർമ്മിപ്പിക്കാൻ AushadhBox എന്റെ കുടുംബത്തിന്റെ മരുന്ന് വിവരങ്ങൾ സൂക്ഷിക്കുന്നു.", privacyLink: "സ്വകാര്യതാ അറിയിപ്പ് വായിക്കുക",
       forgot: "പാസ്‌വേഡ് മറന്നോ?", sendReset: "റീസെറ്റ് ലിങ്ക് അയക്കുക", resetSent: "ഈ ഇ-മെയിലിന് അക്കൗണ്ട് ഉണ്ടെങ്കിൽ റീസെറ്റ് ലിങ്ക് അയച്ചു.", newPassword: "പുതിയ പാസ്‌വേഡ്", setPassword: "പുതിയ പാസ്‌വേഡ് സജ്ജമാക്കുക", signOut: "സൈൻ ഔട്ട്",
       navAccount: "അക്കൗണ്ട്", accTitle: "അക്കൗണ്ട്", profile: "പ്രൊഫൈൽ", saveChanges: "മാറ്റങ്ങൾ സേവ് ചെയ്യുക", saved: "സേവ് ചെയ്തു",
       family: "കുടുംബാംഗങ്ങൾ", addMember: "അംഗത്തെ ചേർക്കുക", relation: "ബന്ധം", membersHint: "വീട്ടിൽ ആരുടെയെല്ലാം മരുന്ന് സൂക്ഷിക്കുന്നോ അവരെയെല്ലാം ചേർക്കുക.",
@@ -130,7 +130,7 @@
     pa: {
       personName: "ਨਾਮ", authTitle: "ਤੁਹਾਡੇ ਪਰਿਵਾਰ ਦੀ ਦਵਾਈਆਂ ਦੀ ਅਲਮਾਰੀ, ਸੁਰੱਖਿਅਤ ਅਤੇ ਹਰ ਫ਼ੋਨ 'ਤੇ ਇੱਕੋ ਜਿਹੀ", authSub: "ਪਰਿਵਾਰ ਦੇ ਹਰ ਫ਼ੋਨ 'ਤੇ ਇੱਕੋ ਅਲਮਾਰੀ ਵੇਖਣ ਲਈ ਸਾਈਨ ਇਨ ਕਰੋ।",
       signIn: "ਸਾਈਨ ਇਨ", createAccount: "ਖਾਤਾ ਬਣਾਓ", email: "ਈ-ਮੇਲ", password: "ਪਾਸਵਰਡ", yourName: "ਤੁਹਾਡਾ ਨਾਮ", phoneOpt: "ਮੋਬਾਈਲ ਨੰਬਰ (ਚੋਣਵਾਂ)",
-      consentText: "ਮੈਂ ਗੋਪਨੀਯਤਾ ਸੂਚਨਾ ਨਾਲ ਸਹਿਮਤ ਹਾਂ। ਖੁਰਾਕ ਅਤੇ ਮਿਆਦ ਯਾਦ ਕਰਾਉਣ ਲਈ ਮੈਡੀਸ਼ੈਲਫ ਸਿੰਕ ਮੇਰੇ ਪਰਿਵਾਰ ਦੀਆਂ ਦਵਾਈਆਂ ਦਾ ਵੇਰਵਾ ਰੱਖਦਾ ਹੈ।", privacyLink: "ਗੋਪਨੀਯਤਾ ਸੂਚਨਾ ਪੜ੍ਹੋ",
+      consentText: "ਮੈਂ ਗੋਪਨੀਯਤਾ ਸੂਚਨਾ ਨਾਲ ਸਹਿਮਤ ਹਾਂ। ਖੁਰਾਕ ਅਤੇ ਮਿਆਦ ਯਾਦ ਕਰਾਉਣ ਲਈ AushadhBox ਮੇਰੇ ਪਰਿਵਾਰ ਦੀਆਂ ਦਵਾਈਆਂ ਦਾ ਵੇਰਵਾ ਰੱਖਦਾ ਹੈ।", privacyLink: "ਗੋਪਨੀਯਤਾ ਸੂਚਨਾ ਪੜ੍ਹੋ",
       forgot: "ਪਾਸਵਰਡ ਭੁੱਲ ਗਏ?", sendReset: "ਰੀਸੈੱਟ ਲਿੰਕ ਭੇਜੋ", resetSent: "ਜੇ ਇਸ ਈ-ਮੇਲ ਦਾ ਖਾਤਾ ਹੈ ਤਾਂ ਰੀਸੈੱਟ ਲਿੰਕ ਭੇਜ ਦਿੱਤਾ ਹੈ।", newPassword: "ਨਵਾਂ ਪਾਸਵਰਡ", setPassword: "ਨਵਾਂ ਪਾਸਵਰਡ ਰੱਖੋ", signOut: "ਸਾਈਨ ਆਊਟ",
       navAccount: "ਖਾਤਾ", accTitle: "ਖਾਤਾ", profile: "ਪ੍ਰੋਫਾਈਲ", saveChanges: "ਬਦਲਾਅ ਸੰਭਾਲੋ", saved: "ਸੰਭਾਲਿਆ",
       family: "ਪਰਿਵਾਰ ਦੇ ਮੈਂਬਰ", addMember: "ਮੈਂਬਰ ਜੋੜੋ", relation: "ਰਿਸ਼ਤਾ", membersHint: "ਜਿਨ੍ਹਾਂ ਦੀਆਂ ਦਵਾਈਆਂ ਘਰ ਰੱਖਦੇ ਹੋ, ਉਹਨਾਂ ਸਭ ਨੂੰ ਜੋੜੋ।",
