@@ -19,6 +19,8 @@ const MIGRATION_COLUMNS = [
     'users' => [
         'last_seen_at' => 'DATETIME NULL AFTER onboarded',
         'ai_opt_in' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER last_seen_at',
+        'pharmacy_name' => 'VARCHAR(80) NULL AFTER ai_opt_in',
+        'pharmacy_phone' => 'VARCHAR(15) NULL AFTER pharmacy_name',
     ],
     'contact_messages' => [
         'category' => 'VARCHAR(12) NULL AFTER handled',
@@ -30,7 +32,10 @@ const MIGRATION_COLUMNS = [
         'replied_at' => 'DATETIME NULL AFTER reply',
     ],
     'members' => [
-        'account_id' => 'INT UNSIGNED NULL AFTER is_self',
+        'blood_group' => 'VARCHAR(4) NULL AFTER is_self',
+        'conditions' => 'VARCHAR(300) NULL AFTER blood_group',
+        'emergency_contact' => 'VARCHAR(80) NULL AFTER conditions',
+        'account_id' => 'INT UNSIGNED NULL AFTER emergency_contact',
     ],
     'dose_logs' => [
         'status' => "VARCHAR(8) NOT NULL DEFAULT 'taken' AFTER taken_at",
@@ -39,6 +44,7 @@ const MIGRATION_COLUMNS = [
     ],
     'automation_settings' => [
         'timing_on' => 'TINYINT(1) NOT NULL DEFAULT 1 AFTER cleanup_on',
+        'watch_hours' => 'TINYINT UNSIGNED NOT NULL DEFAULT 24 AFTER timing_on',
     ],
 ];
 

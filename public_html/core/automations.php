@@ -7,7 +7,7 @@
    Each person switches these on or off in Account → Automations (table automation_settings). */
 declare(strict_types=1);
 
-const AUTO_DEFAULTS = ['refill_on' => 1, 'refill_days' => 5, 'missed_on' => 1, 'missed_after' => 60, 'course_on' => 1, 'cleanup_on' => 1, 'timing_on' => 1, 'ics_token' => null];
+const AUTO_DEFAULTS = ['refill_on' => 1, 'refill_days' => 5, 'missed_on' => 1, 'missed_after' => 60, 'course_on' => 1, 'cleanup_on' => 1, 'timing_on' => 1, 'watch_hours' => 24, 'ics_token' => null];
 
 function auto_settings(int $uid): array
 {
@@ -26,11 +26,12 @@ function auto_save(int $uid, array $in): array
         'course_on' => !empty($in['course_on']) ? 1 : 0,
         'cleanup_on' => !empty($in['cleanup_on']) ? 1 : 0,
         'timing_on' => array_key_exists('timing_on', $in) ? (!empty($in['timing_on']) ? 1 : 0) : (int) $cur['timing_on'],
+        'watch_hours' => array_key_exists('watch_hours', $in) && in_array((int) $in['watch_hours'], [0, 12, 24, 48], true) ? (int) $in['watch_hours'] : (int) ($cur['watch_hours'] ?? 24),
     ];
-    q('INSERT INTO automation_settings (user_id, refill_on, refill_days, missed_on, missed_after, course_on, cleanup_on, timing_on) VALUES (?,?,?,?,?,?,?,?)
+    q('INSERT INTO automation_settings (user_id, refill_on, refill_days, missed_on, missed_after, course_on, cleanup_on, timing_on, watch_hours) VALUES (?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE refill_on=VALUES(refill_on), refill_days=VALUES(refill_days), missed_on=VALUES(missed_on),
-       missed_after=VALUES(missed_after), course_on=VALUES(course_on), cleanup_on=VALUES(cleanup_on), timing_on=VALUES(timing_on)',
-      [$uid, $v['refill_on'], $v['refill_days'], $v['missed_on'], $v['missed_after'], $v['course_on'], $v['cleanup_on'], $v['timing_on']]);
+       missed_after=VALUES(missed_after), course_on=VALUES(course_on), cleanup_on=VALUES(cleanup_on), timing_on=VALUES(timing_on), watch_hours=VALUES(watch_hours)',
+      [$uid, $v['refill_on'], $v['refill_days'], $v['missed_on'], $v['missed_after'], $v['course_on'], $v['cleanup_on'], $v['timing_on'], $v['watch_hours']]);
     return auto_settings($uid);
 }
 
@@ -189,6 +190,57 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
             $log('r', (int) $dev['id'], '');
             $out[] = ['title' => 'Fill ' . $dev['name'] . ' for the week', 'body' => 'Put next week\'s tablets in each lid. Openings while you fill it are not counted as doses.',
                       'tag' => 'fill-' . $dev['id'], 'url' => '/app#doses', 'kind' => 'pillbox'];
+        }
+    }
+
+    // ---- Ideas from Japanese medication-notebook apps ----
+    // q — follow-up check-in after a new medicine (day 3 and day 10), asked with the morning reminder
+    if ($isMorning && function_exists('followups_due')) foreach (followups_due($hid) as $f) {
+        if ($f['due'] !== $today || $logged('q', $f['id'], '', $today)) continue;
+        $acct = $f['memberId'] ? q('SELECT account_id FROM members WHERE id = ?', [$f['memberId']])->fetchColumn() : null;
+        if ($acct && (int) $acct !== $uid) continue;   // the person answers on their own phone
+        $log('q', $f['id'], '');
+        $out[] = ['title' => 'How is it going with ' . $f['name'] . '?', 'body' => $who($f['memberId']) . 'Tap to answer: better, same, worse or a side effect. It goes into the visit sheet for the doctor.',
+                  'tag' => 'fu-' . $f['id'], 'url' => '/app#doses', 'kind' => 'followup'];
+    }
+    // y — a follow-up answered "worse" or "side effect": the rest of the family hears
+    foreach (q("SELECT f.id, f.answer, f.note, c.name, c.member_id FROM followups f JOIN cabinet_items c ON c.id = f.item_id WHERE f.user_id = ? AND f.answer IN ('worse','side') AND f.answered_at >= NOW() - INTERVAL 1 DAY", [$hid])->fetchAll() as $f) {
+        if ($logged('y', (int) $f['id'], '', date('Y-m-d', strtotime('-1 day')))) continue;
+        $log('y', (int) $f['id'], '');
+        $out[] = ['title' => ($f['answer'] === 'side' ? 'Side effect reported: ' : 'Feeling worse on ') . $f['name'], 'body' => $who($f['member_id']) . ($f['note'] ? '"' . mb_substr($f['note'], 0, 120) . '" ' : '') . 'Please talk to the doctor or pharmacist; do not stop a medicine without asking.',
+                  'tag' => 'fu-bad-' . $f['id'], 'url' => '/app#notebook', 'kind' => 'followup'];
+    }
+    // h — a very high or very low health reading in the last hour
+    foreach (q("SELECT id, member_id, kind, v1, v2 FROM vitals WHERE user_id = ? AND flag = 'urgent' AND taken_at >= NOW() - INTERVAL 1 HOUR", [$hid])->fetchAll() as $v) {
+        if ($logged('h', (int) $v['id'], '', $today)) continue;
+        $log('h', (int) $v['id'], '');
+        $lab = ['bp' => 'Blood pressure', 'sugar' => 'Blood sugar', 'temp' => 'Temperature', 'spo2' => 'Oxygen', 'pulse' => 'Pulse', 'weight' => 'Weight'][$v['kind']];
+        $out[] = ['title' => $lab . ' needs attention', 'body' => $who($v['member_id']) . rtrim(rtrim((string) $v['v1'], '0'), '.') . ($v['v2'] !== null ? '/' . rtrim(rtrim((string) $v['v2'], '0'), '.') : '') .
+                  '. Call the doctor now. If they feel very unwell, call 112.', 'tag' => 'vital-' . $v['id'], 'url' => '/app#notebook', 'kind' => 'vital'];
+    }
+    // p — doctor visit: the evening before (7 pm) and 2 hours before
+    foreach (q('SELECT id, member_id, doctor, place, at FROM appointments WHERE user_id = ? AND at BETWEEN NOW() - INTERVAL 1 HOUR AND NOW() + INTERVAL 2 DAY', [$hid])->fetchAll() as $ap) {
+        $mins = (int) round((strtotime($ap['at']) - $now->getTimestamp()) / 60);
+        $slot = null;
+        if ((int) $now->format('H') === 19 && (int) $now->format('i') < 20 && substr($ap['at'], 0, 10) === date('Y-m-d', strtotime("$today +1 day"))) $slot = 'd';
+        elseif ($mins <= 120 && $mins > 95) $slot = 'h';
+        if (!$slot || $logged('p', (int) $ap['id'], $slot, $today)) continue;
+        $log('p', (int) $ap['id'], $slot);
+        $out[] = ['title' => ($slot === 'd' ? 'Doctor visit tomorrow ' : 'Doctor visit at ') . substr($ap['at'], 11, 5) . ': ' . $ap['doctor'],
+                  'body' => $who($ap['member_id']) . ($ap['place'] ? $ap['place'] . '. ' : '') . 'The visit sheet (medicines, tablets left, readings, side effects) is ready in the Notebook. Take the medicine strips along.',
+                  'tag' => 'appt-' . $ap['id'], 'url' => '/app#notebook', 'kind' => 'appointment'];
+    }
+    // v — watch-over: someone with their own phone or a pillbox has shown no sign of life for a while
+    $watch = (int) ($s['watch_hours'] ?? 24);
+    if ($watch > 0 && function_exists('last_sign_of_life')) {
+        foreach (q("SELECT m.id, m.name, m.account_id, m.created_at FROM members m WHERE m.user_id = ? AND (m.account_id IS NULL OR m.account_id <> ?) AND (m.account_id IS NOT NULL OR EXISTS (SELECT 1 FROM devices v WHERE v.member_id = m.id AND v.token_hash IS NOT NULL))", [$hid, $uid])->fetchAll() as $mb) {
+            if (!q("SELECT 1 FROM cabinet_items WHERE user_id = ? AND member_id = ? AND dose_times <> '' AND (course_end IS NULL OR course_end >= ?)", [$hid, $mb['id'], $today])->fetch()) continue;
+            $last = last_sign_of_life($hid, $mb);
+            $since = $last ?? $mb['created_at'];
+            if (strtotime($since) > $now->getTimestamp() - $watch * 3600 || $logged('v', (int) $mb['id'], '', $today)) continue;
+            $log('v', (int) $mb['id'], '');
+            $out[] = ['title' => 'No sign from ' . $mb['name'] . ' since ' . date('D j M, g:i a', strtotime($since)), 'body' => 'No doses ticked, no pillbox opening and the app not opened for over ' . $watch . ' hours. Please give them a call.',
+                      'tag' => 'watch-' . $mb['id'], 'url' => '/app#doses', 'kind' => 'watch'];
         }
     }
 

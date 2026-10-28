@@ -136,7 +136,7 @@ function current_user(): ?array
     if (empty($_SESSION['uid'])) return null;
     static $user = null;
     if ($user === null) {
-        $user = q('SELECT id, name, email, phone, language, role, consent_version, plan, plan_until, household_id, weekly_email, onboarded, created_at, ai_opt_in FROM users WHERE id = ?', [$_SESSION['uid']])->fetch() ?: null;
+        $user = q('SELECT id, name, email, phone, language, role, consent_version, plan, plan_until, household_id, weekly_email, onboarded, created_at, ai_opt_in, pharmacy_name, pharmacy_phone FROM users WHERE id = ?', [$_SESSION['uid']])->fetch() ?: null;
         if (!$user) { $_SESSION = []; }
     }
     return $user;

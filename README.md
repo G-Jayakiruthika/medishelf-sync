@@ -26,6 +26,7 @@ Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hosting
 | **Automations** | "✓ Taken" on the reminder notification; "All taken" per time of day; reminder times that move to the family's real routine; shopping list with generics shared on WhatsApp; tablet count goes down by itself with each ticked dose; refill alerts before medicine runs out; missed-dose alerts to the whole family; reminders stop when a course ends; monthly clean-up list; a dose calendar for Google Calendar and iPhone. Each can be switched on or off. |
 | **Autopilot (admin)** | Ask your data in plain words (with charts); anomaly detection on every daily number (robust z-score); growth tips; daily digest by e-mail and push; support autopilot (ticket numbers, category, priority, mood, reply targets, automatic acknowledgement, drafted replies, one-click send); system health with self-healing (migrations, cache, old logs, unlinked medicines, stuck Razorpay payments); family health scores and segments (likely to upgrade, at risk, not started, gone quiet) with automatic helpful reminders; IndexNow; admin audit log. Optional AI (Claude or any OpenAI-compatible API) with rule-based fallbacks everywhere. |
 | **Safety (families)** | Automatic checks every time a medicine is added: the same medicine in two brands, two of the same kind, well-known risky pairs, medicines to take hours apart, and allergies. 200+ Indian brand names recognised (Dolo, Crocin, Telma, Augmentin…). Optional AI helper (with consent) answers questions about the family's own medicines in their language. Habit patterns in the weekly report (weekend misses, late doses). |
+| **Ideas from Japan** | From Japanese medication-notebook apps (お薬手帳) and pharmacy follow-up (see docs/IDEAS-FROM-JAPAN.md): health diary with safe-range checks and charts; follow-up check-ins on day 3 and day 10 of a new medicine; doctor visits with reminders and a visit sheet (tablets left, doses, side effects, readings, questions); "My pharmacy" on WhatsApp; offline emergency card with QR code and home-screen shortcut; watch-over alerts for parents living alone; printable weekly medicine calendar. |
 | **Cookie consent** | Accept / Reject / Choose banner in 10 languages. Analytics run **only after Accept**. Choices are logged as proof. Withdrawing deletes past statistics. |
 | **Admin** (`/admin.html`) | Revenue, Premium families, conversion, sign-ups, visitors, top pages, traffic sources, button clicks, devices, payments, contact messages, medicine-list import. |
 | **Privacy & security** | DPDP Act 2023 / Rules 2025: consent at sign-up, download my data, delete account, grievance officer, retention clean-up. bcrypt, CSRF, rate limits, ownership checks, CSP, HTTPS, private `core/` folder. |
@@ -39,6 +40,7 @@ public_html/            ← upload the contents of this folder to your host
   api.php               JSON API for the app
   device.php            API for the smart pillbox (token, no cookies)
   core/autopilot.php support.php health.php ai.php safety.php assistant.php   autopilot, support sorting, health, AI, safety checks
+  core/care.php         health diary, follow-up check-ins, visit sheet, watch-over
   webhook.php           Razorpay webhook
   cron.php install.php  scheduled jobs, one-time installer
   admin.html admin.js   admin dashboard
@@ -50,7 +52,7 @@ public_html/            ← upload the contents of this folder to your host
     content/guides.php  articles (add more here)
     database/           schema, ingredient guides, Jan Aushadhi list
 hardware/               smart pillbox: README (build guide), wiring.svg, firmware/ (ESP32 Arduino), simulator/ (Python)
-docs/                   DEPLOY, HANDOVER, SRS, DESIGN, design-system.html, TEST-REPORT, USER-MANUAL, SEO-GROWTH
+docs/                   IDEAS-FROM-JAPAN, DEPLOY, HANDOVER, SRS, DESIGN, design-system.html, TEST-REPORT, USER-MANUAL, SEO-GROWTH
 tests/                  seo_check.php, api_test.sh, e2e.js, rx_parse_test.js, autopilot_test.php
 tools/                  import_list.php, make_vapid_keys.php, build_assets.php, media generators
 ```

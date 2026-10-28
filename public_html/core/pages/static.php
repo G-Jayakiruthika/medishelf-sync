@@ -49,7 +49,7 @@ HTML],
 <h2>2. What we collect, and why</h2>
 <table><thead><tr><th>Data</th><th>Why we need it</th><th>Legal basis</th></tr></thead><tbody>
 <tr><td>Name, e-mail, optional mobile, password (stored only as a secure hash)</td><td>To create your account, sign you in and reset your password</td><td>Your consent at sign-up</td></tr>
-<tr><td>Family members: name, relation, allergies you choose to record</td><td>To show whose medicine is whose and warn about allergies</td><td>Your consent</td></tr>
+<tr><td>Family members: name, relation, allergies, blood group, health conditions and an emergency contact you choose to record</td><td>To show whose medicine is whose, warn about allergies and fill the emergency card</td><td>Your consent</td></tr><tr><td>Health diary readings (blood pressure, sugar, weight, temperature, oxygen, pulse), answers to follow-up check-ins and doctor visits you add</td><td>To show trends, warn about readings that need attention and prepare the visit sheet for the doctor</td><td>Your consent</td></tr>
 <tr><td>Medicines: name, batch, dates, quantity, doses, notes</td><td>Expiry alerts, dose reminders and your medicine notebook</td><td>Your consent</td></tr>
 <tr><td>Reminder settings and push subscription</td><td>To send reminders when the app is closed</td><td>Your consent</td></tr>
 <tr><td>Payments: plan, amount, Razorpay order and payment IDs</td><td>To give you Premium and keep accounting records</td><td>Contract and legal obligation (tax law)</td></tr>

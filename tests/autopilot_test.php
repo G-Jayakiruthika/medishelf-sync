@@ -15,6 +15,8 @@ require 'core/support.php';
 require 'core/health.php';
 require 'core/safety.php';
 require 'core/assistant.php';
+require 'core/care.php';
+require 'core/automations.php';
 require 'core/migrate.php';
 migrate();
 
@@ -91,6 +93,39 @@ try {
 
     // ---- Assistant without AI ----
     eq(assistant_answer(['ai_opt_in' => 1, 'language' => 'en'], $uid, 'what is Telma for')['source'], 'info', 'assistant answers from the medicine database without AI');
+
+    // ---- Health diary ranges ----
+    eq([vital_flag('bp', 185, 100), vital_flag('bp', 145, 85), vital_flag('bp', 118, 76), vital_flag('bp', 85, 55)], ['urgent', 'high', 'ok', 'low'], 'blood pressure ranges');
+    eq([vital_flag('sugar', 50), vital_flag('sugar', 65), vital_flag('sugar', 130, null, 'fasting'), vital_flag('sugar', 130, null, 'after_meal'), vital_flag('sugar', 320)], ['urgent', 'low', 'high', 'ok', 'urgent'], 'sugar ranges depend on fasting');
+    eq([vital_flag('spo2', 90), vital_flag('spo2', 93), vital_flag('temp', 38.5), vital_flag('pulse', 140)], ['urgent', 'low', 'high', 'urgent'], 'oxygen, fever and pulse ranges');
+    eq(vital_save($uid, ['kind' => 'temp', 'v1' => 101.5])['v1'], 38.6, '°F is converted to °C');
+
+    // ---- Follow-up check-ins ----
+    $fi = $add('Glycomet 500', 'm,e', $amma);
+    followups_schedule($uid, $fi, null);
+    eq((int) q('SELECT COUNT(*) FROM followups WHERE item_id = ?', [$fi])->fetchColumn(), 2, 'a new daily medicine gets check-ins on day 3 and day 10');
+    $short = $add('Azithral 500', 'm', $amma);
+    followups_schedule($uid, $short, date('Y-m-d', strtotime('+4 day')));
+    eq((int) q('SELECT COUNT(*) FROM followups WHERE item_id = ?', [$short])->fetchColumn(), 1, 'a 5-day course gets only the day-3 check-in');
+    q('UPDATE followups SET due_on = CURDATE() WHERE item_id = ? AND step = 1', [$fi]);
+    $due = array_values(array_filter(followups_due($uid), fn($f) => $f['itemId'] === $fi));
+    eq(count($due), 1, 'the day-3 check-in is due today');
+    followup_answer($uid, $due[0]['id'], 'side', 'Stomach upset');
+    eq(q('SELECT due_on FROM followups WHERE item_id = ? AND step = 2', [$fi])->fetchColumn(), date('Y-m-d', strtotime('+2 day')), 'a side effect brings the next check-in closer (2 days)');
+    $sheet = visit_sheet($uid, $amma);
+    ok(count($sheet['followups']) === 1 && $sheet['followups'][0]['note'] === 'Stomach upset', 'the side effect is on the visit sheet for the doctor');
+
+    // ---- Watch-over: Amma has her own phone but no sign of life for 30 hours ----
+    q("INSERT INTO users (name, email, password_hash, consent_version, consent_at, household_id, last_seen_at) VALUES ('Amma', ?, 'x', 'v', NOW(), ?, NOW() - INTERVAL 30 HOUR)", ['amma' . bin2hex(random_bytes(3)) . '@test.in', $uid]);
+    $ammaUser = (int) db()->lastInsertId();
+    q('UPDATE members SET account_id = ?, created_at = NOW() - INTERVAL 5 DAY WHERE id = ?', [$ammaUser, $amma]);
+    q('DELETE FROM dose_logs WHERE user_id = ?', [$uid]); q('DELETE FROM vitals WHERE user_id = ?', [$uid]);
+    $owner = ['id' => $uid, 'household_id' => null, 'm_time' => '08:00'];
+    $msgs = auto_messages_for($owner, new DateTime('now'), owner_times($uid));
+    ok((bool) array_filter($msgs, fn($m) => $m['kind'] === 'watch' && str_contains($m['title'], 'Amma')), 'the family is told when Amma shows no sign of life for 24 hours');
+    eq(count(array_filter(auto_messages_for($owner, new DateTime('now'), owner_times($uid)), fn($m) => $m['kind'] === 'watch')), 0, 'the watch-over alert is sent once a day');
+    q('UPDATE users SET last_seen_at = NOW() WHERE id = ?', [$ammaUser]); q("DELETE FROM automation_log WHERE kind = 'v'");
+    eq(count(array_filter(auto_messages_for($owner, new DateTime('now'), owner_times($uid)), fn($m) => $m['kind'] === 'watch')), 0, 'no alert once she opens the app');
 
     // ---- Health and growth ----
     $h = array_column(health_checks(), 'status', 'key');

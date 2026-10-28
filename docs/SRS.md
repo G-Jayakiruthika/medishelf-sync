@@ -97,7 +97,16 @@ Out of scope: selling medicines, prescriptions, medical advice, teleconsultation
 - FR-S2 Brand names map to ingredients (200+ common Indian brands).
 - FR-S3 Optional AI helper per account (explicit consent), answers only from the family's cabinet and general facts, never changes doses, sends emergencies to 112.
 
-### 3.12 Administration
+### 3.12 Ideas from Japanese medication-notebook apps (docs/IDEAS-FROM-JAPAN.md)
+- FR-J1 Health diary: blood pressure, sugar (fasting / after a meal / any time), weight, temperature (°F converted), SpO₂, pulse; validated ranges; flags normal / low / high / urgent; urgent readings alert the family within the hour.
+- FR-J2 Follow-up check-ins on day 3 and day 10 of every new scheduled medicine (day 3 only for courses under 10 days); answers better / same / worse / side effect with a note; problems alert the family and bring the next check-in to 2 days.
+- FR-J3 Doctor visits: reminders the evening before (7 pm) and 2 hours before; visit sheet per person with medicines, tablets left and days covered, 30-day adherence, follow-up answers, skip reasons, reading summaries, safety alerts and questions; print and share.
+- FR-J4 Emergency card per person (blood group, allergies, conditions, medicines, contact) with a QR code of the same text; works offline from a copy saved on the phone; home-screen shortcut; save as image.
+- FR-J5 My pharmacy (name and WhatsApp number): send the shopping list in one tap.
+- FR-J6 Watch-over: no sign of life for 12 / 24 / 48 hours (or off) from someone with their own login or a pillbox → one alert a day to the rest of the family.
+- FR-J7 Printable weekly medicine calendar.
+
+### 3.13 Administration
 - FR-D1 Dashboard: revenue (30 days, all time), Premium families, conversion, users, sign-ups and visitors charts, top pages, sources, button clicks, devices, recent payments, contact messages, service status.
 - FR-D2 Import medicine lists (CSV) without duplicates.
 
@@ -113,7 +122,7 @@ Out of scope: selling medicines, prescriptions, medical advice, teleconsultation
 | NFR-7 Languages | All customer-facing app text and the home/pricing pages in 10 languages; legal pages in English. |
 
 ## 5. Data model (summary)
-`users` (plan, plan_until, household_id) · `members` (account_id) · `devices` · `device_events` · `system_state` · `insights` · `autopilot_log` · `ai_log` · `audit_log` · `cabinet_items` · `dose_logs` (status, reason, source) · `reminder_settings` · `push_subscriptions` · `reminder_log` · `kit_checks` · `medicine_info` · `medicine_catalog` · `invites` · `payments` · `cookie_consents` · `analytics_events` · `contact_messages` · `consent_log` · `login_attempts` · `password_resets`. Full definitions: `public_html/core/database/schema.sql`. Diagram: DESIGN.md.
+`users` (plan, plan_until, household_id) · `members` (account_id) · `devices` · `device_events` · `vitals` · `followups` · `appointments` · `system_state` · `insights` · `autopilot_log` · `ai_log` · `audit_log` · `cabinet_items` · `dose_logs` (status, reason, source) · `reminder_settings` · `push_subscriptions` · `reminder_log` · `kit_checks` · `medicine_info` · `medicine_catalog` · `invites` · `payments` · `cookie_consents` · `analytics_events` · `contact_messages` · `consent_log` · `login_attempts` · `password_resets`. Full definitions: `public_html/core/database/schema.sql`. Diagram: DESIGN.md.
 
 ## 6. Assumptions and constraints
 - The owner provides the domain, hosting, Razorpay account (KYC) and business details.

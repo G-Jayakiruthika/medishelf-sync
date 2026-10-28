@@ -83,6 +83,23 @@ async function journey(browser, label, viewport) {
   await p.click('#btnShop'); await p.waitForSelector('#shopDialog[open]');
   ok((await p.$$('#shopList li')).length >= 1, 'shopping list opens');
   await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  // Notebook: health diary, doctor visit, visit sheet, emergency card (ideas from Japanese お薬手帳 apps)
+  await p.click('#bottomnav [data-go="notebook"], #tabs [data-go="notebook"] >> visible=true'); await p.waitForTimeout(600);
+  await p.selectOption('#hdKind', 'bp'); await p.fill('#hdV1', '185'); await p.fill('#hdV2', '112'); await p.click('#hdForm button[type=submit]'); await p.waitForTimeout(800);
+  ok((await p.getAttribute('#hdFlag', 'class')).includes('urgent'), 'very high blood pressure is flagged as urgent');
+  ok((await p.$$('#hdList li .dot')).length >= 1, 'reading appears in the health diary');
+  const tomorrow = new Date(Date.now() + 864e5 + 5.5 * 36e5).toISOString().slice(0, 10) + 'T10:30';
+  await p.fill('#apDoctor', 'Dr. Rao'); await p.fill('#apAt', tomorrow); await p.fill('#apQ', 'Can I lower the dose?'); await p.click('#apForm button[type=submit]'); await p.waitForTimeout(700);
+  ok((await p.textContent('#apList')).includes('Dr. Rao'), 'doctor visit is planned');
+  await p.click('#btnSheet'); await p.waitForSelector('#sheetDialog[open]'); await p.waitForTimeout(300);
+  ok((await p.textContent('#sheetBody')).includes('Can I lower the dose?'), 'visit sheet includes the questions for the doctor');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  await p.selectOption('#pfBlood', 'B+'); await p.waitForTimeout(900);
+  await p.click('#btnEmergency'); await p.waitForSelector('#emDialog[open]');
+  ok((await p.textContent('#emBody')).includes('B+'), 'emergency card shows the blood group');
+  ok(await p.evaluate(() => { const c = document.querySelector('#emQr'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let dark = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 50) dark++; return dark > 500; }), 'emergency card has a QR code');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+
   await p.click('#bottomnav [data-go="account"], #tabs [data-go="account"] >> visible=true');
   await p.waitForTimeout(800);
   ok((await p.textContent('#planBadge')).trim().length > 0, 'plan card shows');

@@ -118,6 +118,24 @@ expect "normal user cannot open the autopilot" "$(get a admin_autopilot)" 403
 expect "normal user cannot ask the data assistant" "$(post a admin_ask '{"q":"revenue"}')" 403
 expect "normal user cannot change autopilot settings" "$(post a admin_settings '{"digest_on":false}')" 403
 
+echo "Health diary, follow-ups, doctor visits, pharmacy (ideas from Japanese medication-notebook apps)"
+expect "health reading" "$(post a vital_save '{"kind":"bp","v1":186,"v2":112}')" 200; body_has "very high BP is urgent" '"flag":"urgent"'
+VID=$(sed -E 's/.*"id":([0-9]+).*/\1/' "$T/out")
+expect "impossible reading refused" "$(post a vital_save '{"kind":"spo2","v1":140}')" 400
+expect "blood pressure needs both numbers" "$(post a vital_save '{"kind":"bp","v1":130}')" 400
+expect "diary list" "$(get a 'vitals&days=30')" 200; body_has "reading listed" '"kind":"bp"'
+post b vital_delete "{\"id\":$VID}" >/dev/null; get a 'vitals&days=30' >/dev/null; body_has "B cannot delete A's reading" "\"id\":$VID"
+WHEN=$(TZ=Asia/Kolkata date -d '+2 day' +%Y-%m-%dT10:30)
+expect "plan a doctor visit" "$(post a appointment_save "{\"doctor\":\"Dr. Rao\",\"place\":\"Clinic\",\"at\":\"$WHEN\",\"questions\":\"Lower dose?\"}")" 200
+expect "bad visit time refused" "$(post a appointment_save '{"doctor":"Dr. X","at":"tomorrow"}')" 400
+expect "visit sheet" "$(get a visit_sheet)" 200; body_has "sheet has the questions" 'Lower dose?'; body_has "sheet has the readings" '"kind":"bp"'
+get b bootstrap >/dev/null; if grep -q 'Dr. Rao' "$T/out"; then FAIL=$((FAIL+1)); echo "  ✗ B sees A's visits"; else PASS=$((PASS+1)); echo "  ✓ B cannot see A's visits"; fi
+expect "save my pharmacy" "$(post a pharmacy_save '{"name":"MedPlus","phone":"+91 98765 43210"}')" 200; body_has "phone cleaned" '"phone":"9876543210"'
+expect "bad pharmacy number refused" "$(post a pharmacy_save '{"name":"X","phone":"12345"}')" 400
+expect "new medicine on a schedule" "$(post a item_save '{"name":"Glycomet 500","times":["m","e"]}')" 200
+get a bootstrap >/dev/null; body_has "bootstrap carries visits and pharmacy" '"pharmacy":{"name":"MedPlus"'
+expect "watch-over setting" "$(post a automation_save '{"refill_on":1,"missed_on":1,"course_on":1,"cleanup_on":1,"watch_hours":12}')" 200; body_has "watch-over saved" '"watchHours":12'
+
 echo "Your data (DPDP)"
 expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'
 expect "delete needs password" "$(post a account_delete '{"password":"wrong"}')" 403

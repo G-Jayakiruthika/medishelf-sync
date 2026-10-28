@@ -12,10 +12,10 @@
 | Suite | Command | Checks | Result |
 |---|---|---|---|
 | SEO and site health | `php tests/seo_check.php <url>` | 271 | ✅ all passed |
-| API, security and automations | `bash tests/api_test.sh <url>` | 102 | ✅ all passed |
-| End-to-end browser journey | `node tests/e2e.js <url>` | 66 (33 phone + 33 desktop) | ✅ all passed |
+| API, security and automations | `bash tests/api_test.sh <url>` | 122 | ✅ all passed |
+| End-to-end browser journey | `node tests/e2e.js <url>` | 78 (39 phone + 39 desktop) | ✅ all passed |
 | Prescription and bill reader | `node tests/rx_parse_test.js` | 34 | ✅ all passed |
-| Autopilot, support sorting, safety, patterns | `php tests/autopilot_test.php` | 32 | ✅ all passed |
+| Autopilot, support sorting, safety, patterns | `php tests/autopilot_test.php` | 44 | ✅ all passed |
 
 Re-run all four against the live site after every change. `api_test.sh` and `e2e.js` create test accounts; run them on a test copy or delete the accounts afterwards.
 
@@ -44,6 +44,12 @@ Firmware: compiled on the build machine against stand-ins for the ESP32 librarie
 Unit tests (database, rolled back afterwards): refund request → billing, high; deletion request → privacy; "crashes" is a bug, not the word "rash"; overdose → medical, urgent, and the draft says call 112; a Tamil payment message → billing; happy and angry moods; ticket numbers; data questions find the right metric and period, give a 7-day chart, and explain what can be asked for anything else; without an API key the AI layer returns nothing and every feature falls back to rules; a burst of 14 support messages after 28 quiet days is flagged as a high anomaly and stored; safety finds exactly the same-medicine, allergy, bleeding-pair and take-apart alerts in a test family (brands Dolo, Crocin, Augmentin, Brufen, Clopilet, Ciplox, Shelcal, Thyronorm) and nothing else; weekend misses and late doses are noticed; the assistant answers from the medicine database; health, growth and the digest are built.
 API: safety check catches Dolo + Crocin, the assistant answers about Dolo 650, AI consent is stored, the contact form returns a ticket number, normal users get 403 from every autopilot action.
 AI path: tested against a stand-in AI server (OpenAI-compatible): routing a question to the doses metric, the written answer, the support draft and usage counting all work. The real Claude API was not called here (no key).
+
+### 1.8 Ideas from Japan
+Unit tests: blood pressure, sugar (fasting vs after a meal), oxygen, fever and pulse ranges; °F converted to °C; a new daily medicine gets day-3 and day-10 check-ins and a 5-day course only day 3; a side effect brings the next check-in to 2 days and appears on the visit sheet; watch-over alerts the family about a parent silent for 30 hours, only once a day, and not after she opens the app.
+API: urgent reading, impossible values refused, blood pressure needs both numbers, another family cannot delete your reading or see your visits, visit sheet has the questions and readings, pharmacy number cleaned (+91 removed) and bad numbers refused, watch-over setting saved.
+Browser: an urgent blood-pressure reading is flagged, a doctor visit is planned, the visit sheet shows the questions, the emergency card shows the blood group and draws a QR code.
+Clock test of the alerts: follow-up side effect, urgent blood pressure and the 2-hours-before visit reminder are each sent once.
 
 All suites also run automatically on GitHub on every push (`.github/workflows/test.yml`).
 

@@ -159,7 +159,7 @@
     const data = await api.get("bootstrap");
     state.user = data.user;
     state.members = data.members; state.items = data.items;
-    state.taken = new Set(data.taken); state.doseLog = data.doseLog || {}; state.alerts = data.alerts || []; state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing; state.today = data.today;
+    state.taken = new Set(data.taken); state.doseLog = data.doseLog || {}; state.alerts = data.alerts || []; state.followups = data.followups || []; state.appointments = data.appointments || []; state.pharmacy = data.pharmacy || {}; state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing; state.today = data.today;
     if (!state.nbMember || !state.members.some(m => m.id === state.nbMember)) state.nbMember = (state.members.find(m => m.self) || state.members[0] || {}).id;
     if (data.user.language && data.user.language !== state.lang && I18N[data.user.language]) { state.lang = data.user.language; try { localStorage.setItem("ms-lang", state.lang); } catch (e) { /* */ } }
     $("#authView").hidden = true; $("#appView").hidden = false;
@@ -174,6 +174,7 @@
     else if (h === "upgrade") openUpgrade();
     else if (h === "shared") openSharedPhoto();
     else if (/^skip-[maeb]$/.test(h)) { go("doses"); openSkip(h.slice(5), null); }
+    else if (h === "emergency") openEmergency();
     else if (!state.user.onboarded) openTour();
   }
   $("#btnConsent").addEventListener("click", async () => { await api.post("consent_renew"); state.user.consentCurrent = true; $("#consentBanner").hidden = true; });
@@ -194,6 +195,7 @@
     if (id !== "scan") stopCamera();
     if (id === "account" && state.user) { refreshBilling(); loadAutomations(); loadBoxes(); }
     if (id === "doses" && state.user) loadAdherence();
+    if (id === "notebook" && state.user) loadVitals();
     try { history.replaceState(null, "", "#" + id); } catch (e) { /* sandboxed */ }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -205,6 +207,7 @@
     if (VIEWS.some(v => v.id === h)) { if (h !== current) go(h); }
     else if (h === "upgrade") { go("account"); openUpgrade(); }
     else if (/^skip-[maeb]$/.test(h)) { go("doses"); openSkip(h.slice(5), null); }
+    else if (h === "emergency") openEmergency();
   });
 
   /* ---------------- Cabinet ---------------- */
@@ -643,7 +646,7 @@
     }).join("") : '<tr><td colspan="3" class="muted">—</td></tr>';
     $("#nbAllergy").value = member && member.allergies ? member.allergies : "";
   }
-  $("#nbMembers").addEventListener("click", (e) => { const b = e.target.closest("[data-nb]"); if (!b) return; state.nbMember = Number(b.dataset.nb); renderNotebook(); });
+  $("#nbMembers").addEventListener("click", (e) => { const b = e.target.closest("[data-nb]"); if (!b) return; state.nbMember = Number(b.dataset.nb); renderNotebook(); renderProfile(); loadVitals(); });
   const saveAllergy = debounce(async () => {
     const m = state.members.find(x => x.id === state.nbMember); if (!m) return;
     m.allergies = $("#nbAllergy").value;
@@ -1022,6 +1025,9 @@
       (x.generic ? "<small>" + esc(t("shopGeneric", { g: x.generic + " (Jan Aushadhi)" })) + "</small>" : "") + "</li>").join("") : '<li class="muted">' + esc(t("shopEmpty")) + "</li>";
     const text = t("shopTitle") + " (AushadhBox)\n" + list.map(x => "• " + x.m.name + " — " + x.why + (x.generic ? " — " + x.generic : "")).join("\n");
     $("#shopWa").href = "https://wa.me/?text=" + encodeURIComponent(text); $("#shopWa").hidden = !list.length; $("#shopCopy").dataset.text = text;
+    const ph = state.pharmacy || {};
+    $("#shopPharm").hidden = !list.length || !ph.phone;
+    if (ph.phone) $("#shopPharm").href = "https://wa.me/91" + ph.phone + "?text=" + encodeURIComponent((ph.name ? "Hello " + ph.name + ",\n" : "") + text + "\n\nPlease keep these ready. Thank you.");
     const d = $("#shopDialog"); try { d.showModal(); } catch (e) { d.setAttribute("open", ""); }
   });
   $("#shopCopy").addEventListener("click", (e) => { const tx = e.currentTarget.dataset.text || ""; const done = () => toast("✔ " + t("calCopied")); if (navigator.clipboard) navigator.clipboard.writeText(tx).then(done).catch(() => fallbackCopy(tx, done)); else fallbackCopy(tx, done); });
@@ -1070,6 +1076,199 @@
   $("#aiOptIn").addEventListener("change", async (e) => {
     try { const r = await api.post("ai_opt_in", { on: e.target.checked }); state.user.aiOptIn = r.aiOptIn; toast("✔ " + t("saved")); }
     catch (err) { e.target.checked = !e.target.checked; toast(err.message); }
+  });
+
+
+  /* ======== Ideas from Japanese medication-notebook apps (お薬手帳) ======== */
+  const slotLabel = (id) => t((SLOTS.find(x => x.id === id) || SLOTS[0]).key);
+
+  /* Follow-up check-ins after a new medicine (day 3 and day 10) */
+  function renderFollowups() {
+    const list = state.followups || [];
+    $("#fuCard").hidden = !list.length;
+    $("#fuList").innerHTML = list.map(f => '<div class="fu-item" data-fu="' + f.id + '"><b>' + esc(t("fuAsk", { who: memberName(f.memberId), med: f.name })) + '</b><div class="fu-btns">' +
+      ["better", "same", "worse", "side"].map(a => '<button type="button" class="btn btn-ghost btn-sm" data-ans="' + a + '">' + esc(t({ better: "fuBetter", same: "fuSame", worse: "fuWorse", side: "fuSide" }[a])) + "</button>").join("") +
+      '</div><input maxlength="300" placeholder="' + esc(t("fuNote")) + '" aria-label="' + esc(t("fuNote")) + '"></div>').join("");
+  }
+  $("#fuList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-ans]"); if (!b) return;
+    const box = b.closest("[data-fu]"), id = Number(box.dataset.fu), answer = b.dataset.ans;
+    try {
+      await api.post("followup_answer", { id, answer, note: box.querySelector("input").value });
+      state.followups = state.followups.filter(f => f.id !== id); renderFollowups();
+      toast(answer === "side" || answer === "worse" ? t("fuSideMsg") : "✔ " + t("fuThanks")); sound("saved");
+    } catch (err) { toast(err.message); }
+  });
+
+  /* Printable weekly medicine calendar (お薬カレンダー): cut out and keep next to the pill box */
+  $("#btnCalPrint").addEventListener("click", () => {
+    const days = []; for (let i = 0; i < 7; i++) { const d = new Date(); d.setDate(d.getDate() + i); days.push(d); }
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const cell = (slot, d) => state.items.filter(m => (m.times || []).includes(slot) && (!m.courseEnd || m.courseEnd >= iso(d))).map(m => "<div>☐ " + esc(m.name) + (m.member_id ? " <small>(" + esc(memberName(m.member_id)) + ")</small>" : "") + "</div>").join("") || "<span style='color:#999'>—</span>";
+    const html = "<!doctype html><html lang='" + esc(state.lang) + "'><head><meta charset='utf-8'><title>" + esc(t("calWeek")) + "</title><style>body{font:14px/1.4 system-ui,sans-serif;margin:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:6px;vertical-align:top}th{background:#eee}td div{margin:2px 0}small{color:#555}@media print{button{display:none}}</style></head><body>" +
+      "<h2>" + esc(t("calWeek")) + " · AushadhBox</h2><table><tr><th></th>" + days.map(d => "<th>" + esc(d.toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" })) + "</th>").join("") + "</tr>" +
+      SLOTS.map(s => "<tr><th>" + esc(t(s.key)) + "<br><small>" + esc(state.reminders[s.id] || "") + "</small></th>" + days.map(d => "<td>" + cell(s.id, d) + "</td>").join("") + "</tr>").join("") +
+      "</table><p><button onclick='print()'>🖨 " + esc(t("shPrint")) + "</button></p></body></html>";
+    openPrintable(html);
+  });
+  function openPrintable(html) {
+    const w = window.open("", "_blank");
+    if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+    else { const blob = new Blob([html], { type: "text/html" }); location.href = URL.createObjectURL(blob); }
+  }
+
+  /* Emergency details on each person, and the offline emergency card with a QR code */
+  function renderProfile() {
+    const m = state.members.find(x => x.id === state.nbMember); if (!m) return;
+    $("#pfBlood").value = m.bloodGroup || ""; $("#pfCond").value = m.conditions || ""; $("#pfContact").value = m.emergencyContact || "";
+  }
+  const saveProfile = debounce(async () => {
+    const m = state.members.find(x => x.id === state.nbMember); if (!m) return;
+    m.bloodGroup = $("#pfBlood").value || null; m.conditions = $("#pfCond").value.trim() || null; m.emergencyContact = $("#pfContact").value.trim() || null;
+    try { await api.post("member_save", { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, blood_group: m.bloodGroup || "", conditions: m.conditions || "", emergency_contact: m.emergencyContact || "" }); saveEmergencySnapshot(); }
+    catch (err) { toast(err.message); }
+  }, 700);
+  ["#pfBlood", "#pfCond", "#pfContact"].forEach(sel => $(sel).addEventListener(sel === "#pfBlood" ? "change" : "input", saveProfile));
+  function emergencyData() {
+    return { saved: new Date().toISOString().slice(0, 16).replace("T", " "), people: state.members.map(m => ({
+      name: m.name, blood: m.bloodGroup || "", conditions: m.conditions || "", allergies: m.allergies || "", contact: m.emergencyContact || "",
+      meds: state.items.filter(i => i.member_id === m.id && (i.times || []).length && courseActive(i)).map(i => i.name + " (" + i.times.map(slotLabel).join(", ") + ")")
+    })) };
+  }
+  function saveEmergencySnapshot() { if (!state.user) return; try { localStorage.setItem("ab-emergency", JSON.stringify(emergencyData())); } catch (e) { /* private window */ } }
+  function emergencyText(p) {
+    return "EMERGENCY · " + p.name + (p.blood ? " · Blood " + p.blood : "") + "\nAllergies: " + (p.allergies || "none recorded") + "\nConditions: " + (p.conditions || "-") +
+      "\nMedicines: " + (p.meds.join("; ") || "-") + (p.contact ? "\nCall: " + p.contact : "");
+  }
+  function openEmergency() {
+    let data = null;
+    if (state.user) data = emergencyData();
+    else try { data = JSON.parse(localStorage.getItem("ab-emergency") || "null"); } catch (e) { data = null; }
+    if (!data || !data.people.length) return;
+    const people = state.user && state.nbMember ? data.people.slice().sort((a, b) => (b.name === memberName(state.nbMember)) - (a.name === memberName(state.nbMember))) : data.people;
+    $("#emBody").innerHTML = '<div class="stack">' + people.map(p => '<div class="em-person"><b class="big">' + esc(p.name) + (p.blood ? ' <span class="blood">' + esc(p.blood) + "</span>" : "") + "</b>" +
+      "<span><b>" + esc(t("nbAllergy")) + ":</b> " + esc(p.allergies || t("emNone")) + "</span><span><b>" + esc(t("emCond")) + ":</b> " + esc(p.conditions || t("emNone")) + "</span>" +
+      "<span><b>" + esc(t("emMeds")) + ":</b> " + esc(p.meds.join("; ") || t("emNone")) + "</span>" + (p.contact ? "<span><b>☎</b> " + esc(p.contact) + "</span>" : "") + "</div>").join("") +
+      '</div><div class="em-qr"><canvas id="emQr" width="200" height="200" aria-label="QR"></canvas><small class="muted">' + esc(people[0].name) + "</small></div>";
+    drawQr($("#emQr"), emergencyText(people[0]));
+    $("#emDialog").dataset.text = emergencyText(people[0]);
+    const d = $("#emDialog"); if (!d.open) { try { d.showModal(); } catch (e) { d.setAttribute("open", ""); } }
+  }
+  function drawQr(cv, text) {
+    if (!window.qrcode) return;
+    try { window.qrcode.stringToBytes = window.qrcode.stringToBytesFuncs["UTF-8"]; } catch (e) { /* older library */ }
+    const q = window.qrcode(0, "M"); q.addData(text); q.make();
+    const n = q.getModuleCount(), size = cv.width, k = Math.floor(size / (n + 4)), off = Math.floor((size - k * n) / 2), c = cv.getContext("2d");
+    c.fillStyle = "#fff"; c.fillRect(0, 0, size, size); c.fillStyle = "#000";
+    for (let r = 0; r < n; r++) for (let col = 0; col < n; col++) if (q.isDark(r, col)) c.fillRect(off + col * k, off + r * k, k, k);
+  }
+  $("#btnEmergency").addEventListener("click", openEmergency);
+  $("#emImage").addEventListener("click", () => {
+    const text = $("#emDialog").dataset.text || "", lines = text.split("\n"), cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1920;
+    const c = cv.getContext("2d"); c.fillStyle = "#fff"; c.fillRect(0, 0, 1080, 1920); c.fillStyle = "#B3382A"; c.fillRect(0, 0, 1080, 160);
+    c.fillStyle = "#fff"; c.font = "bold 64px sans-serif"; c.fillText("✚ " + t("emTitle"), 60, 105);
+    c.fillStyle = "#111"; c.font = "44px sans-serif"; let y = 260;
+    lines.forEach(l => { const words = l.split(" "); let line = ""; words.forEach(w => { if (c.measureText(line + w).width > 960) { c.fillText(line, 60, y); y += 60; line = ""; } line += w + " "; }); c.fillText(line, 60, y); y += 76; });
+    const qr = document.createElement("canvas"); qr.width = 600; qr.height = 600; drawQr(qr, text); c.drawImage(qr, 240, Math.min(y + 20, 1260), 600, 600);
+    const a = document.createElement("a"); a.download = "emergency-card.png"; a.href = cv.toDataURL("image/png"); a.click();
+  });
+
+  /* Health diary (血圧・血糖 records): readings with safe-range flags and a small chart */
+  const VK = { bp: ["kBp", "mmHg"], sugar: ["kSugar", "mg/dL"], weight: ["kWeight", "kg"], temp: ["kTemp", "°C"], spo2: ["kSpo2", "%"], pulse: ["kPulse", "/min"] };
+  let vitals = [];
+  function vitalKindChanged() {
+    const k = $("#hdKind").value;
+    $("#hdV2").hidden = $("#hdSlash").hidden = k !== "bp"; $("#hdV2").required = k === "bp"; $("#hdUnit").textContent = VK[k][1]; $("#hdCtxWrap").hidden = k !== "sugar";
+    $("#hdV1").placeholder = { bp: "120", sugar: "110", weight: "62", temp: "37.0", spo2: "98", pulse: "72" }[k];
+    renderVitals();
+  }
+  async function loadVitals() {
+    if (!$("#hdKind").options.length) { $("#hdKind").innerHTML = Object.keys(VK).map(k => '<option value="' + k + '">' + esc(t(VK[k][0])) + "</option>").join(""); vitalKindChanged(); }
+    try { vitals = (await api.get("vitals", { member_id: state.nbMember || "" })).vitals; renderVitals(); } catch (e) { /* offline */ }
+  }
+  const fmtV = (v) => v.kind === "bp" ? Math.round(v.v1) + "/" + Math.round(v.v2) : String(v.v1).replace(/\.0$/, "");
+  const flagText = (f) => t({ ok: "fOk", low: "fLow", high: "fHigh", urgent: "fUrgent" }[f] || "fOk");
+  function renderVitals() {
+    const k = $("#hdKind").value, list = vitals.filter(v => v.kind === k), pts = list.slice(0, 20).reverse();
+    $("#hdList").innerHTML = list.length ? list.slice(0, 8).map(v => '<li><span><span class="dot ' + esc(v.flag) + '"></span><b>' + esc(fmtV(v)) + "</b> " + esc(VK[v.kind][1]) + (v.context ? " · " + esc(t({ fasting: "hdFasting", after_meal: "hdAfter", random: "hdRandom" }[v.context])) : "") +
+      '</span><small class="muted">' + esc(new Date(v.at.replace(" ", "T")).toLocaleString(locale(), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })) + "</small></li>").join("") : '<li class="muted">' + esc(t("hdNone")) + "</li>";
+    if (pts.length < 2) { $("#hdChart").innerHTML = ""; return; }
+    const vals = pts.flatMap(v => [v.v1].concat(v.v2 !== null ? [v.v2] : [])), lo = Math.min(...vals), hi = Math.max(...vals), span = Math.max(1, hi - lo), W = 300, H = 110;
+    const line = (key) => pts.map((v, i) => (i * W / (pts.length - 1)).toFixed(1) + "," + (H - 8 - (v[key] - lo) * (H - 16) / span).toFixed(1)).join(" ");
+    $("#hdChart").innerHTML = '<svg viewBox="0 0 300 110" preserveAspectRatio="none" role="img" aria-label="' + esc(t(VK[k][0])) + '"><polyline fill="none" stroke="var(--ai)" stroke-width="2.5" points="' + line("v1") + '"/>' +
+      (k === "bp" ? '<polyline fill="none" stroke="var(--warn)" stroke-width="2.5" points="' + line("v2") + '"/>' : "") + "</svg>";
+  }
+  $("#hdKind").addEventListener("change", vitalKindChanged);
+  $("#hdForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const k = $("#hdKind").value;
+    try {
+      const r = await api.post("vital_save", { kind: k, v1: Number($("#hdV1").value.replace(",", ".")), v2: k === "bp" ? Number($("#hdV2").value) : null, context: k === "sugar" ? $("#hdCtx").value : null, member_id: state.nbMember || null });
+      $("#hdFlag").className = "hd-flag " + r.flag; $("#hdFlag").textContent = (r.flag === "urgent" ? "⚠ " : "") + fmtV({ kind: k, v1: r.v1, v2: r.v2 }) + " " + VK[k][1] + " · " + flagText(r.flag); $("#hdFlag").hidden = false;
+      if (r.flag === "urgent") sound("expiry-alert"); else sound("saved");
+      $("#hdV1").value = ""; $("#hdV2").value = ""; loadVitals();
+    } catch (err) { toast(err.message); }
+  });
+
+  /* Doctor visits and the visit sheet (medicines, tablets left, doses, side effects, readings, questions) */
+  function renderAppointments() {
+    const list = (state.appointments || []).filter(a => a.at >= new Date(Date.now() - 864e5).toISOString().slice(0, 10));
+    $("#apList").innerHTML = list.length ? list.map(a => "<li><span><b>" + esc(new Date(a.at.replace(" ", "T")).toLocaleString(locale(), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })) + "</b> · " + esc(a.doctor) +
+      (a.place ? " · " + esc(a.place) : "") + ' <small class="muted">' + esc(memberName(a.memberId)) + '</small></span><button type="button" class="link" data-apdel="' + a.id + '" aria-label="' + esc(t("boxRemove")) + '">✕</button></li>').join("") : '<li class="muted">' + esc(t("apNone")) + "</li>";
+  }
+  $("#apForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      const r = await api.post("appointment_save", { doctor: $("#apDoctor").value, place: $("#apPlace").value, at: $("#apAt").value, questions: $("#apQ").value, member_id: state.nbMember || null });
+      state.appointments = r.appointments; e.target.reset(); renderAppointments(); toast("✔ " + t("saved"));
+    } catch (err) { toast(err.message); }
+  });
+  $("#apList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-apdel]"); if (!b) return;
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("confirmRemove"); return; }
+    try { state.appointments = (await api.post("appointment_delete", { id: Number(b.dataset.apdel) })).appointments; renderAppointments(); } catch (err) { toast(err.message); }
+  });
+  let sheetText = "", sheetHtml = "";
+  $("#btnSheet").addEventListener("click", async () => {
+    try {
+      const s = await api.get("visit_sheet", { member_id: state.nbMember || "" });
+      const P = s.person || {}, who = P.name || t("familyAll"), ansKey = { better: "fuBetter", same: "fuSame", worse: "fuWorse", side: "fuSide" };
+      const reasonKey = { fine: "skipFine", side: "skipSide", out: "skipOut", doctor: "skipDoctor", other: "skipOther" };
+      const sec = (title, body) => body ? "<section><h4>" + esc(title) + "</h4>" + body + "</section>" : "";
+      const adh = s.adherence[0];
+      sheetHtml = "<p><b>" + esc(who) + "</b>" + (P.bloodGroup ? " · " + esc(P.bloodGroup) : "") + " · " + esc(s.date) + "</p>" +
+        sec(t("nbAllergy"), "<p>" + esc(P.allergies || t("emNone")) + "</p>") + (P.conditions ? sec(t("emCond"), "<p>" + esc(P.conditions) + "</p>") : "") +
+        sec(t("shMeds"), s.medicines.length ? "<table>" + s.medicines.map(m => "<tr><td><b>" + esc(m.name) + "</b>" + (m.ingredient ? "<br><small>" + esc(m.ingredient) + "</small>" : "") + "</td><td>" + esc(m.times.map(slotLabel).join(", ")) + (m.perDose > 1 ? " ×" + m.perDose : "") +
+          "</td><td>" + (m.left !== null ? esc(t("shLeft", { n: m.left, d: m.daysLeft === null ? "—" : m.daysLeft })) : "—") + "</td></tr>").join("") + "</table>" : "<p>—</p>") +
+        (adh ? sec(t("shAdh"), "<p>" + esc(adh.taken + " / " + adh.expected + " (" + adh.percent + "%)" + (adh.worstSlot ? " · " + t("adhWorst", { slot: slotLabel(adh.worstSlot) }) : "")) + "</p>") : "") +
+        (s.followups.length ? sec(t("shFu"), "<ul>" + s.followups.map(f => "<li>" + esc(f.name + ": " + t(ansKey[f.answer]) + (f.note ? " — " + f.note : "") + " (" + f.d + ")") + "</li>").join("") + "</ul>") : "") +
+        (s.skips.length ? sec(t("shSkips"), "<ul>" + s.skips.map(k => "<li>" + esc(k.name + ": " + t(reasonKey[k.reason] || "skipOther") + " ×" + k.n) + "</li>").join("") + "</ul>") : "") +
+        (s.vitals.length ? sec(t("shVitals"), "<table>" + s.vitals.map(v => "<tr><td>" + esc(t(VK[v.kind][0])) + "</td><td>" + esc(fmtV({ kind: v.kind, v1: v.latest.v1, v2: v.latest.v2 }) + " " + VK[v.kind][1]) + "</td><td><small>avg " +
+          esc(v.kind === "bp" ? Math.round(v.avg1) + "/" + Math.round(v.avg2) : v.avg1) + " · " + v.count + "×" + (v.outOfRange ? " · ⚠ " + v.outOfRange : "") + "</small></td></tr>").join("") + "</table>") : "") +
+        (s.alerts.length ? sec(t("safetyTitle"), "<ul>" + s.alerts.map(a => "<li>" + esc(alertText(a)) + "</li>").join("") + "</ul>") : "") +
+        (s.next && s.next.questions ? sec(t("shAsk"), "<p>" + esc(s.next.questions) + "</p>") : "");
+      $("#sheetBody").innerHTML = sheetHtml;
+      sheetText = $("#sheetBody").innerText;
+      const d = $("#sheetDialog"); if (!d.open) { try { d.showModal(); } catch (e) { d.setAttribute("open", ""); } }
+    } catch (err) { toast(err.message); }
+  });
+  $("#sheetPrint").addEventListener("click", () => openPrintable("<!doctype html><html><head><meta charset='utf-8'><title>" + esc(t("shTitle")) + "</title><style>body{font:14px/1.45 system-ui,sans-serif;margin:20px}table{border-collapse:collapse;width:100%}td{border-bottom:1px solid #ccc;padding:5px;vertical-align:top}h4{margin:14px 0 4px}</style></head><body><h2>" +
+    esc(t("shTitle")) + " · AushadhBox</h2>" + sheetHtml + "<script>print()<\/script></body></html>"));
+  $("#sheetShare").addEventListener("click", async () => {
+    const text = t("shTitle") + "\n\n" + sheetText;
+    if (navigator.share) { try { await navigator.share({ title: t("shTitle"), text }); return; } catch (e) { /* cancelled */ } }
+    const done = () => toast("✔ " + t("nbCopied")); if (navigator.clipboard) navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done)); else fallbackCopy(text, done);
+  });
+
+  /* My pharmacy (処方箋送信): send the shopping list straight to the pharmacy's WhatsApp */
+  function renderPharmacy() {
+    const ph = state.pharmacy || {};
+    $("#phName").value = ph.name || ""; $("#phPhone").value = ph.phone || "";
+  }
+  $("#phForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try { const r = await api.post("pharmacy_save", { name: $("#phName").value, phone: $("#phPhone").value }); state.pharmacy = r.pharmacy; renderPharmacy(); toast("✔ " + t("saved")); }
+    catch (err) { toast(err.message); }
   });
 
   /* ---------------- Smart pillbox ---------------- */
@@ -1144,6 +1343,7 @@
     $("#auRefillDays").innerHTML = [3, 5, 7, 10].map(d => '<option value="' + d + '"' + (d === a.refillDays ? " selected" : "") + ">" + esc(t("daysBefore", { d })) + "</option>").join("");
     $("#auMissedAfter").innerHTML = [30, 60, 90, 120].map(m => '<option value="' + m + '"' + (m === a.missedAfter ? " selected" : "") + ">" + esc(t("minutesAfter", { m })) + "</option>").join("");
     $("#auRefillDays").disabled = !a.refill; $("#auMissedAfter").disabled = !a.missed;
+    $("#auWatch").innerHTML = [0, 12, 24, 48].map(h => '<option value="' + h + '"' + (h === (a.watchHours === undefined ? 24 : a.watchHours) ? " selected" : "") + ">" + esc(h ? t("hoursN", { h }) : t("offLbl")) + "</option>").join("");
   }
   function renderCalendar() {
     if (!state.calUrl) return;
@@ -1154,7 +1354,7 @@
   const saveAutomations = debounce(async () => {
     try {
       state.auto = await api.post("automation_save", { refill_on: $("#auRefill").checked, refill_days: Number($("#auRefillDays").value), missed_on: $("#auMissed").checked,
-        missed_after: Number($("#auMissedAfter").value), course_on: $("#auCourse").checked, cleanup_on: $("#auCleanup").checked, timing_on: $("#auTiming").checked });
+        missed_after: Number($("#auMissedAfter").value), course_on: $("#auCourse").checked, cleanup_on: $("#auCleanup").checked, timing_on: $("#auTiming").checked, watch_hours: Number($("#auWatch").value) });
       renderAutomations(); renderCabinet(); toast("✔ " + t("saved"));
     } catch (err) { toast(err.message); }
   }, 400);
@@ -1236,13 +1436,14 @@
   $$("[data-sound]").forEach(b => b.addEventListener("click", () => sound(b.dataset.sound)));
 
   /* ---------------- Boot ---------------- */
-  function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); renderAdherence(); renderBoxes(); renderSafety(); renderAi(); }
+  function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); renderAdherence(); renderBoxes(); renderSafety(); renderAi(); renderFollowups(); renderProfile(); renderAppointments(); renderPharmacy(); saveEmergencySnapshot(); }
   const langOptions = LANGS.map(l => '<option value="' + l.code + '">' + l.native + (l.code === "en" ? "" : " · " + l.name) + "</option>").join("");
   $$("#langSelect, #authLang").forEach(s => { s.innerHTML = langOptions; s.addEventListener("change", (e) => setLang(e.target.value)); });
   applyI18n();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
 
   (async function boot() {
+    if (location.hash === "#emergency") openEmergency();   // works before sign-in and without internet
     try {
       const s = await api.refresh();
       state.features = s.features || {};

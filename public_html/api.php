@@ -15,6 +15,7 @@ require __DIR__ . '/core/support.php';
 require __DIR__ . '/core/health.php';
 require __DIR__ . '/core/safety.php';
 require __DIR__ . '/core/assistant.php';
+require __DIR__ . '/core/care.php';
 require_once __DIR__ . '/core/migrate.php';
 // Right after an update the new columns must exist before anything reads them (cheap: compares two file dates).
 try { migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
@@ -146,11 +147,14 @@ try {
             'exported_at' => date('c'),
             'account' => q('SELECT name, email, phone, language, consent_version, consent_at, created_at, plan, plan_until, weekly_email FROM users WHERE id = ?', [$user['id']])->fetch(),
             'payments' => q("SELECT period, amount_paise/100 AS amount_rupees, status, rp_order_id, rp_payment_id, created_at, paid_at FROM payments WHERE user_id = ?", [$user['id']])->fetchAll(),
-            'members' => q('SELECT name, relation, allergies FROM members WHERE user_id = ?', [$uid])->fetchAll(),
+            'members' => q('SELECT name, relation, allergies, blood_group, conditions, emergency_contact FROM members WHERE user_id = ?', [$uid])->fetchAll(),
             'medicines' => q('SELECT c.name, m.name AS member, c.batch_no, c.mfg_month, c.exp_month, c.dose_times, c.quantity, c.notes, c.created_at FROM cabinet_items c LEFT JOIN members m ON m.id = c.member_id WHERE c.user_id = ?', [$uid])->fetchAll(),
             'doses_taken' => q('SELECT c.name, d.slot, d.taken_on, d.taken_at, d.status, d.reason, d.source FROM dose_logs d JOIN cabinet_items c ON c.id = d.item_id WHERE d.user_id = ? ORDER BY d.taken_on DESC', [$uid])->fetchAll(),
             'reminders' => q('SELECT enabled, m_time, a_time, e_time, b_time FROM reminder_settings WHERE user_id = ?', [$user['id']])->fetch(),
             'pillboxes' => q('SELECT name, compartments, firmware, battery, last_seen, created_at FROM devices WHERE user_id = ?', [$uid])->fetchAll(),
+            'health_diary' => q('SELECT m.name AS member, v.kind, v.v1, v.v2, v.context, v.flag, v.note, v.taken_at FROM vitals v LEFT JOIN members m ON m.id = v.member_id WHERE v.user_id = ? ORDER BY v.taken_at DESC', [$uid])->fetchAll(),
+            'follow_ups' => q('SELECT c.name AS medicine, f.due_on, f.answer, f.note, f.answered_at FROM followups f JOIN cabinet_items c ON c.id = f.item_id WHERE f.user_id = ?', [$uid])->fetchAll(),
+            'doctor_visits' => q('SELECT m.name AS member, a.doctor, a.place, a.at, a.questions FROM appointments a LEFT JOIN members m ON m.id = a.member_id WHERE a.user_id = ?', [$uid])->fetchAll(),
             'pillbox_openings' => q('SELECT d.name AS box, e.kind, e.compartment, e.happened_at, e.slot, e.outcome FROM device_events e JOIN devices d ON d.id = e.device_id WHERE d.user_id = ? ORDER BY e.happened_at DESC', [$uid])->fetchAll(),
         ];
         header('Content-Disposition: attachment; filename="aushadhbox-my-data.json"');
@@ -170,7 +174,7 @@ try {
     case 'bootstrap':
         $uid = $hid;
         q('UPDATE users SET last_seen_at = NOW() WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < NOW() - INTERVAL 30 MINUTE)', [$user['id']]);
-        $members = q('SELECT id, name, relation, allergies, is_self FROM members WHERE user_id = ? ORDER BY is_self DESC, id', [$uid])->fetchAll();
+        $members = q('SELECT id, name, relation, allergies, is_self, blood_group, conditions, emergency_contact FROM members WHERE user_id = ? ORDER BY is_self DESC, id', [$uid])->fetchAll();
         $items = q('SELECT id, member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end FROM cabinet_items WHERE user_id = ? ORDER BY exp_month', [$uid])->fetchAll();
         $today = date('Y-m-d');
         $doses = q('SELECT item_id, slot, status, reason, source, taken_at FROM dose_logs WHERE user_id = ? AND taken_on = ?', [$uid, $today])->fetchAll();
@@ -178,7 +182,8 @@ try {
         $kit = array_column(q('SELECT item_key FROM kit_checks WHERE user_id = ?', [$uid])->fetchAll(), 'item_key');
         json_out([
             'user' => public_user($user), 'today' => $today,
-            'members' => array_map(fn($m) => ['id' => (int) $m['id'], 'name' => $m['name'], 'relation' => $m['relation'], 'allergies' => $m['allergies'], 'self' => (bool) $m['is_self']], $members),
+            'members' => array_map(fn($m) => ['id' => (int) $m['id'], 'name' => $m['name'], 'relation' => $m['relation'], 'allergies' => $m['allergies'], 'self' => (bool) $m['is_self'],
+                                              'bloodGroup' => $m['blood_group'], 'conditions' => $m['conditions'], 'emergencyContact' => $m['emergency_contact']], $members),
             'items' => array_map('public_item', $items),
             'taken' => array_values(array_map(fn($d) => $d['item_id'] . ':' . $d['slot'], array_filter($doses, fn($d) => $d['status'] === 'taken'))),
             'doseLog' => (object) array_column(array_map(fn($d) => ['k' => $d['item_id'] . ':' . $d['slot'], 'v' => ['status' => $d['status'], 'reason' => $d['reason'], 'source' => $d['source'], 'at' => substr($d['taken_at'], 11, 5)]], $doses), 'v', 'k'),
@@ -186,6 +191,9 @@ try {
             'kit' => $kit,
             'billing' => billing_public($user),
             'alerts' => safety_alerts($uid),
+            'followups' => followups_due($uid),
+            'appointments' => appointments_list($uid),
+            'pharmacy' => ['name' => $user['pharmacy_name'] ?? null, 'phone' => $user['pharmacy_phone'] ?? null],
         ]);
 
     case 'member_save':
@@ -197,6 +205,12 @@ try {
         if ($id) {
             own('members', $id, $hid);
             q('UPDATE members SET name = ?, relation = ?, allergies = ? WHERE id = ? AND user_id = ?', [$name, $rel, $all, $id, $hid]);
+            // Emergency-card fields are only changed when sent (older screens don't send them).
+            foreach (['blood_group' => 4, 'conditions' => 300, 'emergency_contact' => 80] as $f => $max) if (array_key_exists($f, $in)) {
+                $v = str_in($in, $f, $max);
+                if ($f === 'blood_group' && $v !== null && !in_array(strtoupper($v), ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], true)) fail('bad_blood', 'Choose a blood group from the list.');
+                q("UPDATE members SET $f = ? WHERE id = ?", [$f === 'blood_group' && $v ? strtoupper($v) : $v, $id]);
+            }
         } else {
             $lim = plan_info($user)['limits']['members'];
             if ((int) q('SELECT COUNT(*) c FROM members WHERE user_id = ?', [$hid])->fetch()['c'] >= $lim) fail('limit_members', $lim < PREMIUM_LIMITS['members'] ? "The Free plan covers $lim family members. Upgrade to Family Premium to add up to " . PREMIUM_LIMITS['members'] . '.' : "A household can have up to $lim members.", 402);
@@ -559,6 +573,53 @@ try {
         log_attempt('assistant', false);   // counts towards the limit (40 questions an hour)
         json_out(assistant_answer($user, $hid, (string) (input()['q'] ?? '')));
 
+    /* ---------------- Ideas from Japanese medication-notebook apps ---------------- */
+    case 'vital_save':
+        $r = vital_save($hid, input());
+        json_out(['ok' => true] + $r);
+
+    case 'vitals':
+        json_out(['vitals' => vitals_list($hid, (int) ($_GET['member_id'] ?? 0) ?: null, max(7, min(365, (int) ($_GET['days'] ?? 90))))]);
+
+    case 'vital_delete':
+        q('DELETE FROM vitals WHERE id = ? AND user_id = ?', [(int) (input()['id'] ?? 0), $hid]);
+        json_out(['ok' => true]);
+
+    case 'followup_answer':
+        $in = input();
+        json_out(followup_answer($hid, (int) ($in['id'] ?? 0), (string) ($in['answer'] ?? ''), (string) ($in['note'] ?? '')));
+
+    case 'appointment_save':
+        $in = input();
+        $doctor = str_in($in, 'doctor', 80, true);
+        $at = (string) ($in['at'] ?? '');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', $at) || strtotime($at) === false) fail('bad_time', 'Choose the date and time of the visit.');
+        $mid = (int) ($in['member_id'] ?? 0) ?: null;
+        if ($mid) own('members', $mid, $hid);
+        $id = (int) ($in['id'] ?? 0);
+        $vals = [$mid, $doctor, str_in($in, 'place', 120), str_replace('T', ' ', $at) . ':00', str_in($in, 'questions', 500)];
+        if ($id) q('UPDATE appointments SET member_id = ?, doctor = ?, place = ?, at = ?, questions = ? WHERE id = ? AND user_id = ?', array_merge($vals, [$id, $hid]));
+        else {
+            if ((int) q('SELECT COUNT(*) FROM appointments WHERE user_id = ? AND at >= NOW()', [$hid])->fetchColumn() >= 30) fail('limit', 'You have 30 upcoming visits already.');
+            q('INSERT INTO appointments (member_id, doctor, place, at, questions, user_id) VALUES (?,?,?,?,?,?)', array_merge($vals, [$hid]));
+        }
+        json_out(['ok' => true, 'appointments' => appointments_list($hid)]);
+
+    case 'appointment_delete':
+        q('DELETE FROM appointments WHERE id = ? AND user_id = ?', [(int) (input()['id'] ?? 0), $hid]);
+        json_out(['ok' => true, 'appointments' => appointments_list($hid)]);
+
+    case 'visit_sheet':
+        json_out(visit_sheet($hid, (int) ($_GET['member_id'] ?? 0) ?: null));
+
+    case 'pharmacy_save':
+        $in = input();
+        $phone = preg_replace('/\D/', '', (string) ($in['phone'] ?? ''));
+        if (strlen($phone) === 12 && str_starts_with($phone, '91')) $phone = substr($phone, 2);
+        if ($phone !== '' && !preg_match('/^[6-9]\d{9}$/', $phone)) fail('bad_phone', 'Enter the pharmacy\'s 10-digit WhatsApp number.');
+        q('UPDATE users SET pharmacy_name = ?, pharmacy_phone = ? WHERE id = ?', [str_in($in, 'name', 80), $phone ?: null, $user['id']]);
+        json_out(['ok' => true, 'pharmacy' => ['name' => str_in($in, 'name', 80), 'phone' => $phone ?: null]]);
+
     case 'ai_opt_in':
         $on = !empty(input()['on']) ? 1 : 0;
         q('UPDATE users SET ai_opt_in = ? WHERE id = ?', [$on, $user['id']]);
@@ -722,7 +783,9 @@ function save_item(array $in, array $user, int $hid): int
     $lim = plan_info($user)['limits']['items'];
     if ((int) q('SELECT COUNT(*) c FROM cabinet_items WHERE user_id = ?', [$hid])->fetch()['c'] >= $lim) fail('limit_items', $lim < PREMIUM_LIMITS['items'] ? "The Free plan holds $lim medicines. Remove expired ones, or upgrade to Family Premium for unlimited medicines." : "Your cabinet is full ($lim medicines).", 402);
     q('INSERT INTO cabinet_items (member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end, user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', array_merge($vals, [$hid]));
-    return (int) db()->lastInsertId();
+    $newId = (int) db()->lastInsertId();
+    if ($vals[8] !== '') followups_schedule($hid, $newId, $courseEnd);   // a new medicine taken on a schedule: check in on day 3 and day 10
+    return $newId;
 }
 
 function lang_in($v): string
@@ -741,7 +804,7 @@ function public_user(array $u): array
 function automation_public(array $a): array
 {
     return ['refill' => (bool) $a['refill_on'], 'refillDays' => (int) $a['refill_days'], 'missed' => (bool) $a['missed_on'], 'missedAfter' => (int) $a['missed_after'],
-            'course' => (bool) $a['course_on'], 'cleanup' => (bool) $a['cleanup_on'], 'timing' => (bool) ($a['timing_on'] ?? 1), 'calendar' => !empty($a['ics_token'])];
+            'course' => (bool) $a['course_on'], 'cleanup' => (bool) $a['cleanup_on'], 'timing' => (bool) ($a['timing_on'] ?? 1), 'watchHours' => (int) ($a['watch_hours'] ?? 24), 'calendar' => !empty($a['ics_token'])];
 }
 
 function payments_ready(): bool { return razorpay_live() || (bool) config('payments_demo'); }

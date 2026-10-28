@@ -2,7 +2,7 @@
    Data lives only in this browser (localStorage). Loaded before every other script on preview pages. */
 (function () {
   "use strict";
-  var KEY = "ab-demo-v3", DATA = null, dataPromise = null;
+  var KEY = "ab-demo-v4", DATA = null, dataPromise = null;
   var today = new Date(), iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   var TODAY = iso(today);
   var ym = function (add) { var d = new Date(today.getFullYear(), today.getMonth() + add, 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
@@ -13,8 +13,8 @@
       { id: 1, name: "Lakshmi", email: "demo@aushadhbox.in", password: "demo1234", phone: "", language: "en", role: "admin", plan: "premium", planUntil: dayAdd(240), household: null, weekly: true, onboarded: true },
       { id: 2, name: "Ravi", email: "ravi@aushadhbox.in", password: "demo1234", phone: "", language: "ta", role: "user", plan: "free", planUntil: null, household: 1, weekly: true, onboarded: true }
     ];
-    var members = [{ id: 1, hid: 1, name: "Lakshmi", relation: "Self", allergies: "", self: true }, { id: 2, hid: 1, name: "Amma", relation: "Mother", allergies: "Penicillin", self: false },
-      { id: 3, hid: 1, name: "Appa", relation: "Father", allergies: "", self: false }, { id: 4, hid: 1, name: "Anu", relation: "Daughter", allergies: "", self: false }, { id: 5, hid: 1, name: "Ravi", relation: "Husband", allergies: "", self: false }];
+    var members = [{ id: 1, hid: 1, name: "Lakshmi", relation: "Self", allergies: "", self: true }, { id: 2, hid: 1, name: "Amma", relation: "Mother", allergies: "Penicillin", self: false, bloodGroup: "B+", conditions: "High blood pressure", emergencyContact: "Lakshmi 98765 43210" },
+      { id: 3, hid: 1, name: "Appa", relation: "Father", allergies: "", self: false, bloodGroup: "O+", conditions: "Type 2 diabetes, cholesterol", emergencyContact: "Ravi 98400 12345" }, { id: 4, hid: 1, name: "Anu", relation: "Daughter", allergies: "", self: false }, { id: 5, hid: 1, name: "Ravi", relation: "Husband", allergies: "", self: false }];
     var it = function (id, name, member, exp, times, batch, stock, courseEnd, ing) { return { id: id, hid: 1, member_id: member, name: name, exp: exp, mfg: null, batch: batch, quantity: "", notes: "", times: times, stock: stock, perDose: 1, courseEnd: courseEnd || null, ing: ing, catalog_id: null }; };
     var items = [
       it(1, "Dolo 650 (Paracetamol 650 mg)", 1, ym(1), [], "DOL4471", null, null, "paracetamol"),
@@ -45,13 +45,20 @@
     var devEvents = [{ deviceId: 1, kind: "open", lid: 1, at: dayAdd(-1) + " 08:04", slot: "m", outcome: "taken" }, { deviceId: 1, kind: "open", lid: 3, at: dayAdd(-1) + " 19:41", slot: "e", outcome: "taken" },
       { deviceId: 1, kind: "open", lid: 3, at: dayAdd(-1) + " 21:15", slot: "e", outcome: "again" }, { deviceId: 1, kind: "open", lid: 1, at: dayAdd(-2) + " 18:02", slot: null, outcome: "outside" }].reverse();
     return { users: users, members: members, items: items, taken: taken, devices: devices, devEvents: devEvents, kit: ["supply", "numbers"], session: null, nextId: 100, invites: {},
-      auto: { refill: true, refillDays: 5, missed: true, missedAfter: 60, course: true, cleanup: true, timing: true, calendar: true },
+      auto: { refill: true, refillDays: 5, missed: true, missedAfter: 60, course: true, cleanup: true, timing: true, watchHours: 24, calendar: true },
       reminders: { 1: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, 2: { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" } },
       payments: [{ created_at: TODAY + " 10:12", period: "year", amount: 399, status: "paid", order_id: "demo_order_1", name: "Lakshmi" }],
       messages: [
         triage({ id: 3, name: "Ravi Kumar", email: "ravi.k@example.in", topic: "billing", message: "Money was debited twice from my UPI but Premium is not active!! Please refund one.", handled: 0, created_at: TODAY + " 08:12" }),
         triage({ id: 2, name: "Meena", email: "meena@example.in", topic: "privacy", message: "Please delete my account and all my personal data.", handled: 0, created_at: dayAdd(-1) + " 19:05" }),
         triage({ id: 1, name: "Priya S", email: "priya@example.in", topic: "help", message: "Can my father use this on his phone in Tamil? Thank you, great app!", handled: 0, created_at: dayAdd(-2) + " 09:40" })],
+      vitals: (function () { var v = [], id = 0; for (var d = 13; d >= 0; d--) { var sys = 128 + Math.round(Math.sin(d) * 8) + (d < 3 ? 14 : 0), dia = 82 + Math.round(Math.cos(d) * 5) + (d < 3 ? 6 : 0);
+          v.push({ id: ++id, memberId: 2, kind: "bp", v1: sys, v2: dia, context: null, flag: sys >= 140 || dia >= 90 ? "high" : "ok", note: null, at: dayAdd(-d) + " 08:1" + (d % 9) });
+          v.push({ id: ++id, memberId: 3, kind: "sugar", v1: 118 + Math.round(Math.sin(d * 2) * 14), v2: null, context: "fasting", flag: 118 + Math.round(Math.sin(d * 2) * 14) >= 126 ? "high" : "ok", note: null, at: dayAdd(-d) + " 07:3" + (d % 9) }); } return v; })(),
+      followups: [{ id: 1, itemId: 6, name: "Pantoprazole 40 mg", memberId: 3, step: 1, due: TODAY }],
+      fuAnswers: [{ name: "Metformin 500 mg", answer: "side", note: "Mild stomach upset after the evening tablet", d: dayAdd(-6), memberId: 3 }],
+      appointments: [{ id: 1, memberId: 3, doctor: "Dr. S. Kumar (Diabetologist)", place: "KMCH, Coimbatore", at: dayAdd(2) + " 10:30:00", questions: "Can the evening Metformin be taken after dinner instead?" }],
+      pharmacy: { name: "MedPlus Gandhipuram", phone: "9876543210" },
       ai: false, settings: { digest_on: true, nudges_on: true, ack_on: true, ai_on: true, autoheal_on: true },
       insights: [{ id: 1, day: dayAdd(-1), kind: "anomaly", metric: "messages", severity: "high", title: "Support messages jumped to 9 on " + dayAdd(-1).slice(5), body: "Usually about 2 a day. Something may be confusing or broken; read the newest support messages." },
         { id: 2, day: TODAY, kind: "growth", metric: "upgrade", severity: "medium", title: "4 free families are close to the Free plan limits", body: "They are active and near 30 medicines or 4 people. The autopilot sends them one friendly note; consider a first-month discount." },
@@ -95,6 +102,14 @@
   function pubItem(i) {
     var info = i.info_id ? infoById(i.info_id) : (i.ing ? infoBySlug(i.ing) : null);
     return { id: i.id, member_id: i.member_id, name: i.name, catalog_id: i.catalog_id, info: info, batch: i.batch, mfg: i.mfg, exp: i.exp, quantity: i.quantity, times: i.times, notes: i.notes, stock: i.stock, perDose: i.perDose || 1, courseEnd: i.courseEnd };
+  }
+  function vflag(k, v1, v2, ctx) {
+    if (k === "bp") return v1 >= 180 || v2 >= 120 ? "urgent" : v1 < 90 || v2 < 60 ? "low" : v1 >= 140 || v2 >= 90 ? "high" : "ok";
+    if (k === "sugar") return v1 < 54 || v1 >= 300 ? "urgent" : v1 < 70 ? "low" : v1 >= (ctx === "fasting" ? 126 : 200) ? "high" : "ok";
+    if (k === "temp") return v1 >= 40 || v1 < 35 ? "urgent" : v1 >= 38 ? "high" : "ok";
+    if (k === "spo2") return v1 < 92 ? "urgent" : v1 < 95 ? "low" : "ok";
+    if (k === "pulse") return v1 < 40 || v1 > 130 ? "urgent" : v1 < 50 ? "low" : v1 > 100 ? "high" : "ok";
+    return "ok";
   }
   function admin() { var u = need(); if (u.role !== "admin") fail(403, "forbidden", "Only administrators can do this."); return u; }
   function demoAsk(q) {
@@ -178,14 +193,16 @@
     forgot: function () { fail(503, "mail_off", "Password reset e-mails are switched off in this preview. Use demo@aushadhbox.in / demo1234."); },
     bootstrap: function () {
       var u = need(), h = hid(u);
-      return { user: pubUser(u), today: TODAY, members: S.members.filter(function (m) { return m.hid === h; }).map(function (m) { return { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, self: m.self }; }),
+      return { user: pubUser(u), today: TODAY, members: S.members.filter(function (m) { return m.hid === h; }).map(function (m) { return { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, self: m.self, bloodGroup: m.bloodGroup || null, conditions: m.conditions || null, emergencyContact: m.emergencyContact || null }; }),
         items: S.items.filter(function (i) { return i.hid === h; }).map(pubItem), taken: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h && t.status !== "skipped"; }).map(function (t) { return t.item + ":" + t.slot; }),
         doseLog: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h; }).reduce(function (o, t) { o[t.item + ":" + t.slot] = { status: t.status || "taken", reason: t.reason || null, source: t.source || "app", at: t.at || "" }; return o; }, {}),
-        reminders: S.reminders[u.id] || { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, kit: S.kit, billing: billing(u), alerts: safety(h) };
+        reminders: S.reminders[u.id] || { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, kit: S.kit, billing: billing(u), alerts: safety(h),
+        followups: S.followups, appointments: S.appointments, pharmacy: S.pharmacy };
     },
     member_save: function (b) {
       var u = need(), h = hid(u);
-      if (b.id) { var m = S.members.find(function (x) { return x.id === b.id && x.hid === h; }); if (!m) fail(404, "not_found", "That record was not found."); m.name = b.name; m.relation = b.relation; m.allergies = b.allergies; return { ok: true, id: m.id }; }
+      if (b.id) { var m = S.members.find(function (x) { return x.id === b.id && x.hid === h; }); if (!m) fail(404, "not_found", "That record was not found."); m.name = b.name; m.relation = b.relation; m.allergies = b.allergies;
+        if ("blood_group" in b) m.bloodGroup = b.blood_group || null; if ("conditions" in b) m.conditions = b.conditions || null; if ("emergency_contact" in b) m.emergencyContact = b.emergency_contact || null; return { ok: true, id: m.id }; }
       if (S.members.filter(function (m) { return m.hid === h; }).length >= limits(u).members) fail(402, "limit_members", "The Free plan covers 4 family members. Upgrade to Family Premium to add up to 15.");
       var id = ++S.nextId; S.members.push({ id: id, hid: h, name: b.name, relation: b.relation || "", allergies: b.allergies || "", self: false }); return { ok: true, id: id };
     },
@@ -324,11 +341,42 @@
     household_leave: function () { need().household = null; return { ok: true }; },
     household_remove: function (b) { var u = need(); S.users.forEach(function (x) { if (x.id === b.user_id && x.household === u.id) x.household = null; }); return { ok: true }; },
     automation_get: function () { need(); return S.auto; },
-    automation_save: function (b) { need(); S.auto = { refill: !!b.refill_on, refillDays: Number(b.refill_days) || 5, missed: !!b.missed_on, missedAfter: Number(b.missed_after) || 60, course: !!b.course_on, cleanup: !!b.cleanup_on, timing: b.timing_on !== false, calendar: true }; return S.auto; },
+    automation_save: function (b) { need(); S.auto = { refill: !!b.refill_on, refillDays: Number(b.refill_days) || 5, missed: !!b.missed_on, missedAfter: Number(b.missed_after) || 60, course: !!b.course_on, cleanup: !!b.cleanup_on, timing: b.timing_on !== false, watchHours: b.watch_hours === undefined ? 24 : Number(b.watch_hours), calendar: true }; return S.auto; },
     calendar_link: function () { need(); return { url: "https://aushadhbox.in/calendar/preview-only.ics" }; },
     consent_log: function () { return { ok: true }; },
     track: function () { return { ok: true }; },
     contact_send: function (b) { if (b.website) return { ok: true }; var m = triage({ id: ++S.nextId, name: b.name, email: b.email, topic: b.topic || "other", message: b.message, handled: 0, created_at: TODAY + " " + nowHM() }); S.messages.unshift(m); return { ok: true, ticket: m.ticket }; },
+    vital_save: function (b) {
+      need(); var k = b.kind, v1 = Number(b.v1), v2 = b.v2 === null || b.v2 === undefined || b.v2 === "" ? null : Number(b.v2);
+      if (["bp", "sugar", "weight", "temp", "spo2", "pulse"].indexOf(k) < 0) fail(400, "bad_kind", "Choose what you measured.");
+      if (k === "temp" && v1 > 45) v1 = Math.round((v1 - 32) * 50 / 9) / 10;
+      if (k === "bp" && (!v2 || v2 >= v1)) fail(400, "bad_value", "Enter both blood pressure numbers, for example 130 / 85.");
+      var f = vflag(k, v1, v2, b.context), rec = { id: ++S.nextId, memberId: b.member_id || null, kind: k, v1: v1, v2: k === "bp" ? v2 : null, context: k === "sugar" ? b.context : null, flag: f, note: null, at: TODAY + " " + nowHM() };
+      S.vitals.push(rec); return { ok: true, id: rec.id, flag: f, v1: rec.v1, v2: rec.v2 };
+    },
+    vitals: function (b, q) { need(); var mid = Number(q.get("member_id")) || null; return { vitals: S.vitals.filter(function (v) { return !mid || v.memberId === mid; }).slice().sort(function (x, y) { return x.at < y.at ? 1 : -1; }) }; },
+    vital_delete: function (b) { need(); S.vitals = S.vitals.filter(function (v) { return v.id !== b.id; }); return { ok: true }; },
+    followup_answer: function (b) { need(); var f = S.followups.find(function (x) { return x.id === b.id; }); if (!f) fail(404, "not_found", "That question was not found.");
+      S.followups = S.followups.filter(function (x) { return x.id !== b.id; }); S.fuAnswers.unshift({ name: f.name, answer: b.answer, note: b.note || null, d: TODAY, memberId: f.memberId }); return { ok: true, answer: b.answer }; },
+    appointment_save: function (b) { need(); if (!b.doctor || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(b.at || "")) fail(400, "bad_time", "Choose the date and time of the visit.");
+      S.appointments.push({ id: ++S.nextId, memberId: b.member_id || null, doctor: b.doctor, place: b.place || null, at: b.at.replace("T", " ") + ":00", questions: b.questions || null });
+      S.appointments.sort(function (x, y) { return x.at < y.at ? -1 : 1; }); return { ok: true, appointments: S.appointments }; },
+    appointment_delete: function (b) { need(); S.appointments = S.appointments.filter(function (a) { return a.id !== b.id; }); return { ok: true, appointments: S.appointments }; },
+    pharmacy_save: function (b) { need(); var ph = String(b.phone || "").replace(/\D/g, "").replace(/^91(?=\d{10}$)/, ""); if (ph && !/^[6-9]\d{9}$/.test(ph)) fail(400, "bad_phone", "Enter the pharmacy's 10-digit WhatsApp number.");
+      S.pharmacy = { name: b.name || null, phone: ph || null }; return { ok: true, pharmacy: S.pharmacy }; },
+    visit_sheet: function (b, q) {
+      var h = hid(need()), mid = Number(q.get("member_id")) || null, m = S.members.find(function (x) { return x.id === mid; });
+      var meds = S.items.filter(function (i) { return i.hid === h && i.times.length && (!mid || i.member_id === mid || !i.member_id); }).map(function (i) { var inf = pubItem(i).info, perDay = i.times.length * (i.perDose || 1);
+        return { name: i.name, ingredient: inf ? inf.ingredient : null, times: i.times, perDose: i.perDose || 1, left: i.stock, daysLeft: i.stock === null ? null : Math.floor(i.stock / perDay), courseEnd: i.courseEnd, notes: i.notes }; });
+      var adh = actions.adherence({}, new URLSearchParams("days=30")).people.filter(function (p) { return !mid || p.memberId === mid; });
+      var vit = []; ["bp", "sugar", "weight", "temp", "spo2", "pulse"].forEach(function (k) { var rows = S.vitals.filter(function (v) { return v.kind === k && (!mid || v.memberId === mid) && v.at >= dayAdd(-30); }).sort(function (x, y) { return x.at < y.at ? 1 : -1; });
+        if (!rows.length) return; var a = rows.map(function (r) { return r.v1; }), c = rows.map(function (r) { return r.v2; }).filter(function (x) { return x !== null; });
+        vit.push({ kind: k, count: rows.length, latest: { v1: rows[0].v1, v2: rows[0].v2, at: rows[0].at }, avg1: Math.round(10 * a.reduce(function (x, y) { return x + y; }, 0) / a.length) / 10, avg2: c.length ? Math.round(10 * c.reduce(function (x, y) { return x + y; }, 0) / c.length) / 10 : null,
+          min1: Math.min.apply(null, a), max1: Math.max.apply(null, a), outOfRange: rows.filter(function (r) { return r.flag !== "ok"; }).length }); });
+      var next = S.appointments.filter(function (a) { return a.at >= TODAY && (!mid || !a.memberId || a.memberId === mid); })[0] || null;
+      return { person: m ? { name: m.name, relation: m.relation, allergies: m.allergies, bloodGroup: m.bloodGroup || null, conditions: m.conditions || null } : null, date: TODAY, medicines: meds, adherence: adh,
+        followups: S.fuAnswers.filter(function (f) { return !mid || f.memberId === mid; }), skips: [], vitals: vit, next: next, alerts: safety(h).filter(function (a) { return !mid || a.memberId === mid || a.memberId === null; }) };
+    },
     safety_check: function () { return { alerts: safety(hid(need())) }; },
     ai_opt_in: function (b) { var u = need(); u.aiOptIn = !!b.on; return { ok: true, aiOptIn: u.aiOptIn, available: false }; },
     assistant_ask: function (b) {

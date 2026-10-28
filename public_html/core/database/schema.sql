@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
   onboarded       TINYINT(1)   NOT NULL DEFAULT 0,
   last_seen_at    DATETIME     NULL,                 -- last time the app was opened (for activation and win-back nudges)
   ai_opt_in       TINYINT(1)   NOT NULL DEFAULT 0,   -- the person agreed to send questions to the AI assistant
+  pharmacy_name   VARCHAR(80)  NULL,                 -- "my pharmacy": prescriptions and shopping lists are sent here on WhatsApp
+  pharmacy_phone  VARCHAR(15)  NULL,
   UNIQUE KEY uq_users_email (email),
   KEY idx_users_household (household_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -34,6 +36,9 @@ CREATE TABLE IF NOT EXISTS members (
   relation   VARCHAR(30)  NULL,
   allergies  VARCHAR(500) NULL,
   is_self    TINYINT(1)   NOT NULL DEFAULT 0,
+  blood_group VARCHAR(4)  NULL,          -- emergency card
+  conditions  VARCHAR(300) NULL,         -- e.g. diabetes, high BP (emergency card, doctor report)
+  emergency_contact VARCHAR(80) NULL,    -- name and phone to call
   account_id INT UNSIGNED NULL,          -- this person's own AushadhBox login, if they have one (gets the "did you take it?" check first)
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_members_user (user_id),
@@ -268,7 +273,8 @@ CREATE TABLE IF NOT EXISTS automation_settings (
   missed_after SMALLINT UNSIGNED NOT NULL DEFAULT 60,    -- minutes after the dose time
   course_on    TINYINT(1) NOT NULL DEFAULT 1,
   cleanup_on   TINYINT(1) NOT NULL DEFAULT 1,
-  timing_on    TINYINT(1) NOT NULL DEFAULT 1,                -- move reminder times to match when doses are really ticked
+  timing_on    TINYINT(1) NOT NULL DEFAULT 1,
+  watch_hours  TINYINT UNSIGNED NOT NULL DEFAULT 24,     -- watch-over: tell the family after this many hours with no sign of life (0 = off)                -- move reminder times to match when doses are really ticked
   ics_token    CHAR(32) NULL,                            -- secret address of the calendar feed
   UNIQUE KEY uq_auto_ics (ics_token),
   CONSTRAINT fk_auto_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -374,4 +380,53 @@ CREATE TABLE IF NOT EXISTS audit_log (
   ip         VARCHAR(45)  NULL,
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_audit_time (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------- Ideas from Japanese medication-notebook apps (お薬手帳) ----------
+-- Health diary: blood pressure, sugar, weight, temperature, oxygen, pulse.
+CREATE TABLE IF NOT EXISTS vitals (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NOT NULL,
+  member_id  INT UNSIGNED NULL,
+  kind       VARCHAR(6)   NOT NULL,          -- bp, sugar, weight, temp, spo2, pulse
+  v1         DECIMAL(6,1) NOT NULL,          -- systolic / value
+  v2         DECIMAL(6,1) NULL,              -- diastolic (bp only)
+  context    VARCHAR(10)  NULL,              -- sugar: fasting, after_meal, random
+  flag       VARCHAR(8)   NULL,              -- ok, low, high, urgent
+  note       VARCHAR(200) NULL,
+  taken_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_vitals (user_id, member_id, kind, taken_at),
+  CONSTRAINT fk_vit_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vit_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Follow-up check-ins after a new medicine (like a pharmacist's 服薬フォローアップ): day 3 and day 10.
+CREATE TABLE IF NOT EXISTS followups (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED NOT NULL,
+  item_id     INT UNSIGNED NOT NULL,
+  due_on      DATE         NOT NULL,
+  step        TINYINT UNSIGNED NOT NULL,     -- 1 = day 3, 2 = day 10
+  answer      VARCHAR(8)   NULL,             -- better, same, worse, side
+  note        VARCHAR(300) NULL,
+  answered_at DATETIME     NULL,
+  UNIQUE KEY uq_fu (item_id, step),
+  KEY idx_fu_due (user_id, due_on),
+  CONSTRAINT fk_fu_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_fu_item FOREIGN KEY (item_id) REFERENCES cabinet_items(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Doctor visits: reminders the day before and 2 hours before, and a prepared visit sheet.
+CREATE TABLE IF NOT EXISTS appointments (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NOT NULL,
+  member_id  INT UNSIGNED NULL,
+  doctor     VARCHAR(80)  NOT NULL,
+  place      VARCHAR(120) NULL,
+  at         DATETIME     NOT NULL,
+  questions  VARCHAR(500) NULL,             -- what to ask the doctor
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_appt (user_id, at),
+  CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_appt_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

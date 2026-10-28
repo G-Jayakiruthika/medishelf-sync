@@ -76,6 +76,16 @@ If the box goes offline for a day or its battery runs low, you are told. If a gu
 ## 7. Notebook for the doctor
 **Notebook** shows each person's medicines, times and expiry. Tap **Copy for doctor** and paste it into WhatsApp, or show the screen. Premium families can print a full report: **Account → Printable report for doctor → Print or save as PDF**.
 
+## 7a. Health diary, doctor visits and emergency card
+Open **Notebook** and choose the person at the top.
+- **Health diary:** choose what you measured (blood pressure, sugar, weight, temperature, oxygen, pulse), type the number and tap **Add reading**. The app says whether it is in the normal range. If a reading needs attention now, it says to call the doctor and tells the family. The chart shows how it changes over time.
+- **How is it going?** On day 3 and day 10 of a new medicine, the Doses screen asks how it is going: better, same, worse or side effect. A problem is passed to the family and kept for the doctor.
+- **Doctor visits:** add the doctor, place, date and time and your questions. You get a reminder the evening before and 2 hours before. **Visit sheet** puts everything the doctor needs on one page: medicines and tablets left, doses taken, side effects, readings and your questions. Print it or share it.
+- **Emergency details:** add the blood group, health conditions and an emergency contact. **Open emergency card** shows everything a doctor or ambulance needs, with a QR code. It works without internet, opens from the app icon's shortcut (press and hold the icon), and **Save as image** makes a picture for your lock screen.
+- **My pharmacy:** save your pharmacy's WhatsApp number. The shopping list then has **Send to my pharmacy**.
+- **Watch-over (Account → Automations):** if a parent with their own phone or a pillbox shows no sign for 12, 24 or 48 hours (no tick, no lid opening, app not opened), the family is told.
+- **Print weekly calendar** (Doses) prints a week of tick boxes to keep next to the medicines.
+
 ## 8. Voice assistant
 Tap **Ask** and speak, e.g. "What is expiring?" or "Which medicines tonight?", in your language. You can also type.
 
