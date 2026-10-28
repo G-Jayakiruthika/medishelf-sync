@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediShelf-Sync Design System</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&family=Noto+Sans:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&display=swap">
+<style>
+:root { --paper:#EEF2EF; --surface:#FFFFFF; --sunk:#E3E9E5; --ink:#16202E; --muted:#566274; --line:#CDD6D0; --ai:#1F3358; --ai-2:#3A5487; --ai-ink:#FFFFFF; --ai-soft:#DFE5F0;
+  --ok:#3E7D49; --ok-soft:#DCEBDD; --warn:#A86C08; --warn-soft:#F5E6C8; --bad:#B3382A; --bad-soft:#F5DAD5; --r:16px;
+  --fd:"Zen Maru Gothic","Noto Sans",system-ui,sans-serif; --fb:"Noto Sans","Noto Sans Tamil","Noto Sans Devanagari",system-ui,sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper:#0F141B; --surface:#171E28; --sunk:#111821; --ink:#E7ECF2; --muted:#9AA6B6; --line:#2A3442; --ai:#A9BDEA; --ai-2:#C3D1F2; --ai-ink:#0F141B; --ai-soft:#222E45; --ok:#78C084; --ok-soft:#1C2E21; --warn:#E7B24E; --warn-soft:#33290F; --bad:#F08070; --bad-soft:#3A1E1A; } }
+:root[data-theme="dark"] { --paper:#0F141B; --surface:#171E28; --sunk:#111821; --ink:#E7ECF2; --muted:#9AA6B6; --line:#2A3442; --ai:#A9BDEA; --ai-2:#C3D1F2; --ai-ink:#0F141B; --ai-soft:#222E45; --ok:#78C084; --ok-soft:#1C2E21; --warn:#E7B24E; --warn-soft:#33290F; --bad:#F08070; --bad-soft:#3A1E1A; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font:400 16px/1.6 var(--fb); }
+.wrap { max-width:1080px; margin:0 auto; padding:32px 16px 80px; display:grid; gap:40px; }
+h1,h2,h3 { font-family:var(--fd); margin:0; line-height:1.2; }
+h1 { font-size:clamp(2rem,1.4rem + 2.6vw,3.2rem); font-weight:900; }
+h2 { font-size:1.6rem; font-weight:900; margin-bottom:14px; }
+p { margin:0; } .muted { color:var(--muted); }
+header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+.toggle { border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:999px; padding:8px 16px; font:inherit; font-weight:600; cursor:pointer; }
+.grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr)); }
+.sw { background:var(--surface); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+.sw i { display:block; height:72px; }
+.sw div { padding:10px 12px; font-size:.85rem; } .sw b { display:block; font-size:.95rem; } code { font-family:ui-monospace,Menlo,monospace; font-size:.85em; }
+.card { background:var(--surface); border:1px solid var(--line); border-radius:var(--r); padding:22px; display:grid; gap:12px; }
+.row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+.btn { display:inline-flex; align-items:center; gap:8px; border-radius:999px; padding:12px 22px; font:inherit; font-weight:700; border:1px solid transparent; cursor:pointer; }
+.btn-primary { background:var(--ai); color:var(--ai-ink); } .btn-ghost { background:var(--surface); border-color:var(--line); color:var(--ink); } .btn-sm { padding:7px 14px; font-size:.9rem; }
+.pill { border-radius:999px; padding:3px 12px; font-size:.82rem; font-weight:700; background:var(--ok-soft); color:var(--ok); } .pill.warn { background:var(--warn-soft); color:var(--warn); } .pill.bad { background:var(--bad-soft); color:var(--bad); } .pill.ai { background:var(--ai-soft); color:var(--ai); }
+.drawers { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr)); background:var(--sunk); border:1px solid var(--line); border-radius:22px; padding:12px; }
+.drawer { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px 18px 34px; position:relative; display:grid; gap:6px; }
+.drawer::after { content:""; position:absolute; left:50%; bottom:12px; transform:translateX(-50%); width:60px; height:7px; border-radius:6px; background:var(--h); }
+.field { display:grid; gap:6px; } .field label { font-weight:600; font-size:.9rem; } .field input { font:inherit; border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:var(--paper); color:var(--ink); }
+.type > div { display:grid; grid-template-columns:140px 1fr; gap:14px; align-items:baseline; border-bottom:1px solid var(--line); padding:12px 0; }
+.type small { color:var(--muted); }
+.scripts { display:grid; gap:8px; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr)); }
+.scripts div { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
+table { width:100%; border-collapse:collapse; background:var(--surface); border-radius:12px; overflow:hidden; }
+td, th { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; font-size:.94rem; }
+.banner { max-width:520px; background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:20px; display:grid; gap:12px; box-shadow:0 30px 70px -20px rgba(0,0,0,.35); }
+@media (max-width:560px) { .type > div { grid-template-columns:1fr; gap:4px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div style="display:grid;gap:10px"><span class="pill ai" style="justify-self:start">Design system v3</span><h1>MediShelf-Sync</h1><p class="muted" style="max-width:60ch">Built on the <i>kusuri-dansu</i>, the Japanese apothecary chest. Every medicine is a drawer; the handle colour tells you if it is safe. Use these tokens and components for every new screen, e-mail and printed item.</p></div>
+    <button class="toggle" id="theme" type="button">Switch light / dark</button>
+  </header>
+
+  <section><h2>Colour</h2>
+    <div class="grid" id="swatches"></div>
+    <p class="muted" style="margin-top:10px">Status is never shown by colour alone: always pair a handle with the words Safe, Use soon or Expired. All text pairs meet WCAG AA contrast in both themes.</p>
+  </section>
+
+  <section><h2>Status handles</h2>
+    <div class="drawers">
+      <div class="drawer" style="--h:var(--ok)"><span class="pill">Safe</span><b>Metformin 500 mg</b><span class="muted">Appa · Exp Mar 2027</span></div>
+      <div class="drawer" style="--h:var(--warn)"><span class="pill warn">Use soon</span><b>Dolo 650</b><span class="muted">Lakshmi · 33 days left</span></div>
+      <div class="drawer" style="--h:var(--bad)"><span class="pill bad">Expired</span><b>ORS sachet</b><span class="muted">Anu · Return to pharmacy</span></div>
+    </div>
+    <p class="muted" style="margin-top:10px">Rules: Safe = more than 90 days left · Use soon = 90 days or less · Expired = after the last day of the printed month.</p>
+  </section>
+
+  <section class="type"><h2>Typography</h2>
+    <div><small>Display 900<br>Zen Maru Gothic</small><span style="font-family:var(--fd);font-weight:900;font-size:2.4rem;line-height:1.1">Never miss an expiry</span></div>
+    <div><small>Heading 700</small><span style="font-family:var(--fd);font-weight:700;font-size:1.4rem">Your family cabinet</span></div>
+    <div><small>Body 16 px<br>Noto Sans</small><span>Point your camera at the strip. We read the batch number and expiry date for you.</span></div>
+    <div><small>Label 0.78 rem, caps</small><span style="font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;font-weight:700;color:var(--ai-2)">Family medicine cabinet</span></div>
+    <div><small>Mono (labels)</small><code style="font-size:1rem">B.No. AB24117 · Exp. 03/2027</code></div>
+  </section>
+
+  <section><h2>Indian scripts</h2>
+    <div class="scripts">
+      <div lang="hi">हिन्दी — अपने परिवार को कभी एक्सपायर दवा न दें</div>
+      <div lang="ta">தமிழ் — காலாவதியான மருந்தை ஒருபோதும் கொடுக்காதீர்கள்</div>
+      <div lang="en">Noto has a matching font for each of the 10 languages, loaded only for the page language.</div>
+    </div>
+  </section>
+
+  <section><h2>Buttons, pills, fields</h2>
+    <div class="card">
+      <div class="row"><button class="btn btn-primary">Start free</button><button class="btn btn-ghost">See how it works</button><button class="btn btn-primary btn-sm">Save</button><button class="btn btn-ghost btn-sm">Cancel</button></div>
+      <div class="row"><span class="pill">Safe</span><span class="pill warn">Use soon</span><span class="pill bad">Expired</span><span class="pill bad">Rx</span><span class="pill ai">Jan Aushadhi generic</span></div>
+      <div class="field" style="max-width:360px"><label for="x">Medicine name</label><input id="x" placeholder="e.g. Dolo 650"></div>
+      <p class="muted">Buttons are pills, at least 44 px tall. One primary button per area. Labels sit above inputs, never inside only.</p>
+    </div>
+  </section>
+
+  <section><h2>Cookie banner</h2>
+    <div class="banner"><h3>Cookies on MediShelf-Sync</h3><p class="muted">We use necessary cookies to keep you signed in. With your permission we also use analytics cookies. Nothing optional runs unless you accept.</p>
+      <div class="row"><button class="btn btn-ghost btn-sm">Reject optional</button><button class="btn btn-ghost btn-sm">Choose</button><button class="btn btn-primary btn-sm">Accept all</button></div></div>
+    <p class="muted" style="margin-top:10px">Reject is always as easy to reach as Accept. No pre-ticked boxes.</p>
+  </section>
+
+  <section><h2>Voice and words</h2>
+    <table><thead><tr><th>Do</th><th>Avoid</th></tr></thead><tbody>
+      <tr><td>Use soon: 33 days left</td><td>Approaching expiration threshold</td></tr>
+      <tr><td>Amma's BP tablets</td><td>Member 2 · Item 14</td></tr>
+      <tr><td>Return it to a pharmacy take-back point</td><td>Dispose appropriately</td></tr>
+      <tr><td>Ask your doctor before changing medicines</td><td>Any advice that sounds like a prescription</td></tr>
+    </tbody></table>
+  </section>
+</div>
+<script>
+const tokens = [["--paper","Paper","Page background"],["--surface","Surface","Cards"],["--ink","Ink","Text"],["--muted","Muted","Secondary text"],["--ai","Ai (indigo)","Brand, buttons"],["--ai-soft","Ai soft","Highlights"],["--ok","Safe","Green handle"],["--warn","Use soon","Amber handle"],["--bad","Expired","Red handle, Rx"],["--line","Line","Borders"]];
+function draw() { const cs = getComputedStyle(document.documentElement);
+  document.getElementById("swatches").innerHTML = tokens.map(([v, n, u]) => '<div class="sw"><i style="background:var(' + v + ')"></i><div><b>' + n + '</b><code>' + v + " " + cs.getPropertyValue(v).trim() + "</code><br><span class=\"muted\">" + u + "</span></div></div>").join(""); }
+draw();
+document.getElementById("theme").addEventListener("click", () => { const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; r.dataset.theme = dark ? "light" : "dark"; draw(); });
+</script>
+</body>
+</html>

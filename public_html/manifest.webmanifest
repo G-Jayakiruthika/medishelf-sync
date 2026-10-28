@@ -1,0 +1,16 @@
+{
+  "name": "MediShelf-Sync",
+  "short_name": "MediShelf",
+  "description": "Family medicine cabinet: scan medicines, track expiry and get dose reminders in 10 Indian languages.",
+  "start_url": "/app#cabinet",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#EEF2EF",
+  "theme_color": "#1F3358",
+  "lang": "en-IN",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

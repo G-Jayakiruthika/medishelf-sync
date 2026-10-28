@@ -1,0 +1,7 @@
+public_html/core/config.php
+public_html/core/install.lock
+public_html/core/cache/
+*.log
+.DS_Store
+Thumbs.db
+*.zip

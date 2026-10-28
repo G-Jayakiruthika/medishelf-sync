@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# API and security tests. Run against a TEST install (it creates accounts):
+#   bash tests/api_test.sh http://127.0.0.1:8080
+# Needs payments_demo => true in config.php for the payment test.
+B="${1:-http://127.0.0.1:8080}/api.php"
+T=$(mktemp -d); PASS=0; FAIL=0; S=$RANDOM$RANDOM
+csrf() { curl -s -b "$T/$1" -c "$T/$1" "$B?action=session" | sed -E 's/.*"csrf":"([a-f0-9]+)".*/\1/'; }
+post() { local c; c=$(csrf "$1"); curl -s -o "$T/out" -w "%{http_code}" -b "$T/$1" -c "$T/$1" -H "Content-Type: application/json" -H "X-CSRF-Token: $c" -X POST "$B?action=$2" -d "$3"; }
+get() { curl -s -o "$T/out" -w "%{http_code}" -b "$T/$1" -c "$T/$1" "$B?action=$2"; }
+expect() { if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "  ✓ $1"; else FAIL=$((FAIL+1)); echo "  ✗ $1 (expected $3, got $2) $(head -c 200 "$T/out")"; fi; }
+body_has() { if grep -q "$2" "$T/out"; then PASS=$((PASS+1)); echo "  ✓ $1"; else FAIL=$((FAIL+1)); echo "  ✗ $1: $(head -c 200 "$T/out")"; fi; }
+
+echo "Accounts"
+expect "sign up A" "$(post a signup "{\"name\":\"<img src=x onerror=alert(1)>\",\"email\":\"a$S@test.in\",\"password\":\"secret123\",\"consent\":true}")" 200
+expect "sign up needs consent" "$(post x signup "{\"name\":\"X\",\"email\":\"x$S@test.in\",\"password\":\"secret123\"}")" 400
+expect "duplicate e-mail rejected" "$(post x signup "{\"name\":\"X\",\"email\":\"a$S@test.in\",\"password\":\"secret123\",\"consent\":true}")" 409
+expect "sign up B" "$(post b signup "{\"name\":\"B\",\"email\":\"b$S@test.in\",\"password\":\"secret123\",\"consent\":true}")" 200
+expect "wrong password" "$(post x login "{\"email\":\"a$S@test.in\",\"password\":\"nope\"}")" 401
+
+echo "Security"
+c=$(curl -s -o /dev/null -w "%{http_code}" -b "$T/a" -H "Content-Type: application/json" -X POST "$B?action=item_save" -d '{"name":"x","exp":"2027-01"}')
+expect "POST without CSRF token is refused" "$c" 419
+expect "not signed in" "$(get nobody bootstrap)" 401
+expect "normal user cannot see admin stats" "$(get a admin_stats)" 403
+post a item_save '{"name":"A private medicine","exp":"2027-01"}' >/dev/null; AID=$(sed -E 's/.*"item":\{"id":([0-9]+).*/\1/' "$T/out")
+expect "B cannot edit A's medicine" "$(post b item_save "{\"id\":$AID,\"name\":\"hacked\",\"exp\":\"2027-01\"}")" 404
+expect "B cannot delete A's medicine" "$(post b item_delete "{\"id\":$AID}")" 404
+get a bootstrap >/dev/null; body_has "HTML in names is stored as text (escaped on display)" '"name":"<img src=x onerror=alert(1)>"'
+expect "analytics refused without consent cookie" "$(post a track '{"ref":"0123456789abcdef0123456789abcdef","event":"pageview"}')" 200; body_has "track returns ok:false" '"ok":false'
+expect "invalid consent ref rejected" "$(post a consent_log '{"ref":"xyz","analytics":1}')" 400
+
+echo "Plans and payments"
+for i in $(seq 2 30); do post a item_save "{\"name\":\"M$i\",\"exp\":\"2027-02\"}" >/dev/null; done
+expect "Free plan stops at 30 medicines" "$(post a item_save '{"name":"M31","exp":"2027-02"}')" 402
+expect "Invites need Premium" "$(post a invite_create '{}')" 402
+expect "create order" "$(post a billing_order '{"period":"month"}')" 200
+OID=$(sed -E 's/.*"order_id":"([^"]+)".*/\1/' "$T/out")
+expect "B cannot confirm A's order" "$(post b billing_verify "{\"order_id\":\"$OID\"}")" 404
+expect "A confirms (demo mode)" "$(post a billing_verify "{\"order_id\":\"$OID\"}")" 200; body_has "A is Premium" '"plan":"premium"'
+expect "Premium can add more" "$(post a item_save '{"name":"M31","exp":"2027-02"}')" 200
+
+echo "Family sharing"
+expect "A creates invite" "$(post a invite_create '{}')" 200; CODE=$(sed -E 's/.*"code":"([A-Z0-9]+)".*/\1/' "$T/out")
+expect "B joins" "$(post b invite_join "{\"code\":\"$CODE\"}")" 200
+expect "code works only once" "$(post x invite_join "{\"code\":\"$CODE\"}")" 401
+get b bootstrap >/dev/null; body_has "B sees A's medicines" 'A private medicine'
+expect "B (member) cannot pay" "$(post b billing_order '{"period":"month"}')" 403
+expect "B leaves" "$(post b household_leave '{}')" 200
+get b bootstrap >/dev/null; if grep -q 'A private medicine' "$T/out"; then FAIL=$((FAIL+1)); echo "  ✗ B still sees A's data"; else PASS=$((PASS+1)); echo "  ✓ B no longer sees A's data"; fi
+
+echo "Your data (DPDP)"
+expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'
+expect "delete needs password" "$(post a account_delete '{"password":"wrong"}')" 403
+expect "delete account" "$(post a account_delete '{"password":"secret123"}')" 200
+expect "deleted account cannot sign in" "$(post a login "{\"email\":\"a$S@test.in\",\"password\":\"secret123\"}")" 401
+post b account_delete '{"password":"secret123"}' >/dev/null
+
+echo; echo "$PASS passed, $FAIL failed"; rm -rf "$T"; [ "$FAIL" = 0 ]

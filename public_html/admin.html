@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · MediShelf-Sync</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="stylesheet" href="/styles.css?v=3">
+<style>
+  .admin-grid { display: grid; gap: 18px; grid-template-columns: 1fr; }
+  @media (min-width: 960px) { .admin-grid { grid-template-columns: 1fr 1fr; } }
+  .kpis { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: grid; gap: 2px; }
+  .kpi b { font-family: var(--f-display); font-size: 1.7rem; line-height: 1.1; }
+  .kpi span { color: var(--muted); font-size: .85rem; font-weight: 600; }
+  .kpi.money b { color: var(--ok); }
+  .bars { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; align-items: end; height: 120px; padding-top: 8px; }
+  .bars div { background: var(--ai); border-radius: 4px 4px 0 0; min-height: 2px; position: relative; }
+  .bars div:hover::after { content: attr(data-tip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); font-size: .72rem; padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
+  .bar-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: .75rem; }
+  .rank { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .rank li { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: .92rem; position: relative; padding: 6px 10px; border-radius: 8px; overflow: hidden; }
+  .rank li::before { content: ""; position: absolute; inset: 0; width: var(--w, 0%); background: var(--ai-soft); z-index: 0; }
+  .rank li > * { position: relative; z-index: 1; overflow-wrap: anywhere; }
+  table.data { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  table.data th, table.data td { text-align: left; padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .msg { border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 6px; }
+  .msg.done { opacity: .55; }
+</style>
+</head>
+<body>
+<main class="wrap" style="display:grid;gap:20px;padding-block:24px">
+  <div class="section-head"><h2>Admin dashboard</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ghost btn-sm" href="/">Website</a><a class="btn btn-ghost btn-sm" href="/app#account">App</a></div></div>
+  <p class="error" id="err" hidden></p>
+
+  <section class="stack" style="padding:0"><h3>Business (last 30 days)</h3><div class="kpis" id="kpiBiz"></div></section>
+  <section class="stack" style="padding:0"><h3>Website traffic (visitors who accepted analytics)</h3><div class="kpis" id="kpiWeb"></div></section>
+
+  <div class="admin-grid">
+    <div class="panel stack"><h3>New sign-ups, last 14 days</h3><div class="bars" id="chartSignups"></div><div class="bar-labels" id="lblSignups"></div></div>
+    <div class="panel stack"><h3>Daily visitors, last 14 days</h3><div class="bars" id="chartVisits"></div><div class="bar-labels" id="lblVisits"></div></div>
+    <div class="panel stack"><h3>Top pages</h3><ul class="rank" id="topPages"></ul></div>
+    <div class="panel stack"><h3>Where visitors come from</h3><ul class="rank" id="topRefs"></ul><p class="muted" style="font-size:.85rem">Add <code>?utm_source=whatsapp</code> to links you share to see them here.</p></div>
+    <div class="panel stack"><h3>Button clicks</h3><ul class="rank" id="ctas"></ul></div>
+    <div class="panel stack"><h3>Devices</h3><ul class="rank" id="devices"></ul></div>
+  </div>
+
+  <div class="panel stack"><h3>Recent payments</h3><div class="table-scroll"><table class="data"><thead><tr><th>Date</th><th>Customer</th><th>Plan</th><th>Amount</th><th>Status</th><th>Order</th></tr></thead><tbody id="payments"></tbody></table></div></div>
+
+  <div class="panel stack"><h3>Contact messages <span class="pill" id="msgCount"></span></h3><div id="messages" class="stack"></div></div>
+
+  <div class="admin-grid">
+    <div class="panel stack"><h3>Services</h3><ul id="features" class="kit"></ul><p class="muted">Turn services on in <code>core/config.php</code>. See docs/DEPLOY.md.</p></div>
+    <div class="panel stack"><h3>Medicine list sources</h3><div class="table-scroll"><table class="data"><thead><tr><th>Source</th><th>Medicines</th></tr></thead><tbody id="sources"></tbody></table></div></div>
+  </div>
+
+  <form class="panel stack" id="importForm">
+    <h3>Import a medicine list</h3>
+    <p class="muted">Upload a CSV with columns <code>drug_code, generic_name, unit_size</code>, or the file made by <code>tools/import_list.php --out=rows.csv</code>. Rows with the same source and drug code are updated, not duplicated.</p>
+    <div class="form">
+      <div class="field"><label for="source">Source name</label><input id="source" required value="janaushadhi-2025-12" pattern="[a-z0-9_.\-]+"></div>
+      <div class="field"><label for="file">File</label><input id="file" type="file" accept=".csv,.txt" required></div>
+    </div>
+    <div><button class="btn btn-primary" type="submit">Import</button></div>
+    <p id="importMsg" class="muted" aria-live="polite"></p>
+  </form>
+</main>
+<script src="/admin.js?v=3"></script>
+</body>
+</html>
