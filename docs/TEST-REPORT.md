@@ -2,22 +2,24 @@
 
 | | |
 |---|---|
-| Date | 28 October 2026 |
-| Build | v3.0 |
+| Date | 29 October 2026 |
+| Build | v3.1 (household extras, AushadhBox card and pharmacy portal, smartwatch) |
 | Environment | PHP 8.3, MariaDB 11.4, Chromium (Playwright), phone 390 px and desktop 1366 px |
-| Result | **All automated suites pass (355 checks).** No open defects. |
+| Result | **All automated suites pass (674 checks).** No open defects. |
 
 ## 1. Automated suites (in `tests/`)
 
 | Suite | Command | Checks | Result |
 |---|---|---|---|
 | SEO and site health | `php tests/seo_check.php <url>` | 271 | ✅ all passed |
-| API, security and automations | `bash tests/api_test.sh <url>` | 122 | ✅ all passed |
-| End-to-end browser journey | `node tests/e2e.js <url>` | 78 (39 phone + 39 desktop) | ✅ all passed |
-| Prescription and bill reader | `node tests/rx_parse_test.js` | 34 | ✅ all passed |
-| Autopilot, support sorting, safety, patterns | `php tests/autopilot_test.php` | 44 | ✅ all passed |
+| API, security and automations | `bash tests/api_test.sh <url>` | 174 | ✅ all passed |
+| End-to-end browser journey | `node tests/e2e.js <url>` | 96 (45 phone + 45 desktop + 6 portal and watch) | ✅ all passed |
+| Prescription and bill reader | `node tests/rx_parse_test.js` | 36 | ✅ all passed |
+| Bluetooth meter parsers | `node tests/ble_parse_test.js` | 12 | ✅ all passed |
+| Watch and health-app import | `node tests/health_import_test.js` | 20 | ✅ all passed |
+| Autopilot, support, safety, patterns, pharmacy card, watch | `php tests/autopilot_test.php` | 65 | ✅ all passed |
 
-Re-run all four against the live site after every change. `api_test.sh` and `e2e.js` create test accounts; run them on a test copy or delete the accounts afterwards.
+Re-run all of them against the live site after every change. `api_test.sh` and `e2e.js` create test accounts; run them on a test copy or delete the accounts afterwards.
 
 ### 1.1 SEO checks (26 pages including 8 random medicine pages)
 Every page returns 200 with a title ≤ 70 characters, a 50–320 character description, an absolute canonical URL, exactly one `<h1>`, an Open Graph image, valid JSON-LD, `html lang` and alt text on images. Home and pricing in three languages carry 11 hreflang links. robots.txt lists the sitemap and blocks `/app`; `/app` sends `noindex`; unknown pages return 404; `core/config.php` and `schema.sql` are unreachable; `/ta/about` redirects 301 to `/about`. Sitemap: 846 URLs.
@@ -50,6 +52,13 @@ Unit tests: blood pressure, sugar (fasting vs after a meal), oxygen, fever and p
 API: urgent reading, impossible values refused, blood pressure needs both numbers, another family cannot delete your reading or see your visits, visit sheet has the questions and readings, pharmacy number cleaned (+91 removed) and bad numbers refused, watch-over setting saved.
 Browser: an urgent blood-pressure reading is flagged, a doctor visit is planned, the visit sheet shows the questions, the emergency card shows the blood group and draws a QR code.
 Clock test of the alerts: follow-up side effect, urgent blood pressure and the 2-hours-before visit reminder are each sent once.
+
+### 1.9 Household extras, AushadhBox card, pharmacy portal and smartwatch
+API: a child's date of birth creates the vaccination schedule; a future date of birth is refused; earlier doses can be marked given; another family cannot touch your child's record; an expense counts in the financial-year total, a zero amount is refused, the CSV downloads, another family's total is 0; the doctor link is a full address, opens without an account and shows the medicines, and shows "expired" once sharing is stopped. Card: off by default, another family cannot switch yours on, switching on makes a code, a new card changes the code. Pharmacy portal: registration needs the terms, a new pharmacy waits for approval and cannot scan, wrong password refused, a family session cannot use the pharmacy API, no refill request to a pharmacy the card was never used at. Watch: status lists today's times; tick link is a full address; opening it does not tick; POST ticks and answers a sentence; the watch button ticks; a stopped link returns 404. Import: good readings added, duplicates and impossible values skipped. Barcodes: unknown at first, learned from one family's save, found by another family.
+Unit tests (approved pharmacy, rolled back): a code typed in lower case or read from the QR text is understood; a card with both switches off is refused; add-only consent gives a shortened name and no medicine list; view consent adds allergies and current medicines; the pre-check finds a penicillin allergy and the aspirin + clopidogrel bleeding risk and saves nothing; without view consent the other medicine's name is hidden; dispensing adds times, pack count and course end and schedules check-ins; the family's log shows who added what; view-only consent cannot add; a blocked pharmacy is refused; an old card code stops working; a blocked pharmacy is not offered for refills. Tick link finds its owner and a changed link finds nobody; ticking marks doses once; imports skip reversed blood pressure and very old readings.
+Readers: Apple Health export.xml and export.zip (deflate, streamed), Samsung Health heart rate and blood pressure CSV, Google Fit daily CSV, Fitbit JSON; one pulse per hour, % and lb and mmol/L and °F converted, blood-pressure halves paired, readings older than a year dropped. Bluetooth parsers for the five standard health services (SFLOAT, FLOAT, units, flags).
+Browser: expense total, HbA1c in the diary, Bluetooth and import buttons, card page with sharing off, switching on makes a code and QR, refills explained until a pharmacy has used the card, tap-to-tick link made; pharmacy portal sign-in and licence field; watch page asks to sign in when signed out. Scripted portal run: register → pending → approved → typed code → pasted bill (3 medicines) → safety check shows the bleeding risk and duplicate → second tap needed → 3 medicines in the family's cabinet. Watch page checked at 240 × 240 px.
+Not tested here: a real Bluetooth meter (the parsers are tested with the byte layouts from the Bluetooth specifications), a real Apple Watch / Siri Shortcut and a real NFC sticker (the link they call is tested), a camera scan of a printed card (the same QR reader as the medicine scanner).
 
 All suites also run automatically on GitHub on every push (`.github/workflows/test.yml`).
 
@@ -88,6 +97,10 @@ No framework, no render-blocking JavaScript (all scripts `defer`).
 | 7 | Going to `/app#account` from inside the app did nothing | Hash navigation handled (also powers `#upgrade` and invite links) |
 | 8 | "Printable report" button showed in link blue | Button colour fixed |
 | 9 | Home page sample query would fail on MySQL 8 strict mode | Rewritten without loose GROUP BY |
+| 10 | Doctor and tap-to-tick links were relative ("/tick/…") when `app_url` was empty, so a printed QR sticker would not open | Links now use the site address (`base_url()`, moved into bootstrap) |
+| 11 | Pharmacy saving used its own database transaction, which failed inside another one and was not rolled back on error | Nested-safe transaction (savepoint) with rollback on error |
+| 12 | Secret tick and doctor links and the pharmacy portal could be kept in the offline cache | Service worker skips `/tick/`, `/share/` and `/pharmacy` |
+| 13 | Long medicine lists pushed the Taken button off small round watch screens | At most 3 names (not yet taken first) and "+N" on screens under 320 px |
 
 ## 5. Not tested here (needs the live accounts)
 - Real Razorpay payments (test mode, then live): follow DEPLOY.md §11 and pay ₹49 once yourself.

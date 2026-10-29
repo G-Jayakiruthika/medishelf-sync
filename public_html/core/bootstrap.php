@@ -51,6 +51,17 @@ function is_https(): bool
         || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
 }
 
+/* The site's address for links that leave the browser (QR stickers, doctor links, e-mails).
+   Uses app_url from config.php, or the address this request came to when it is not set. */
+function base_url(): string
+{
+    $u = rtrim((string) config('app_url'), '/');
+    if ($u === '' || str_contains($u, 'example.com')) {
+        $u = (is_https() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    }
+    return $u;
+}
+
 function start_session(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) return;
@@ -87,6 +98,7 @@ function json_out($data, int $status = 200): void
 
 function fail(string $code, string $message, int $status = 400): void
 {
+    if (defined('FAIL_THROWS')) throw new RuntimeException($code, $status);   // unit tests check refusals without exiting
     json_out(['error' => $code, 'message' => $message], $status);
 }
 

@@ -27,6 +27,10 @@ Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hosting
 | **Autopilot (admin)** | Ask your data in plain words (with charts); anomaly detection on every daily number (robust z-score); growth tips; daily digest by e-mail and push; support autopilot (ticket numbers, category, priority, mood, reply targets, automatic acknowledgement, drafted replies, one-click send); system health with self-healing (migrations, cache, old logs, unlinked medicines, stuck Razorpay payments); family health scores and segments (likely to upgrade, at risk, not started, gone quiet) with automatic helpful reminders; IndexNow; admin audit log. Optional AI (Claude or any OpenAI-compatible API) with rule-based fallbacks everywhere. |
 | **Safety (families)** | Automatic checks every time a medicine is added: the same medicine in two brands, two of the same kind, well-known risky pairs, medicines to take hours apart, and allergies. 200+ Indian brand names recognised (Dolo, Crocin, Telma, Augmentin…). Optional AI helper (with consent) answers questions about the family's own medicines in their language. Habit patterns in the weekly report (weekend misses, late doses). |
 | **Ideas from Japan** | From Japanese medication-notebook apps (お薬手帳) and pharmacy follow-up (see docs/IDEAS-FROM-JAPAN.md): health diary with safe-range checks and charts; follow-up check-ins on day 3 and day 10 of a new medicine; doctor visits with reminders and a visit sheet (tablets left, doses, side effects, readings, questions); "My pharmacy" on WhatsApp; offline emergency card with QR code and home-screen shortcut; watch-over alerts for parents living alone; printable weekly medicine calendar. |
+| **Family extras (like EPARK)** | Children's vaccination schedule (India's UIP) made from the date of birth, with reminders; medical expenses (scanned pharmacy bills add themselves) with a CSV for the tax year; 24-hour read-only link for the doctor; Bluetooth BP / sugar / thermometer / scale / oximeter readings that save themselves; lab results (HbA1c, cholesterol, haemoglobin); dose streaks. |
+| **AushadhBox card + Pharmacy portal** (`/pharmacy`) | Like Japan's harmo: each person gets a QR card. Approved pharmacies scan it and the medicines they give go straight into the family's app with times, course length and pack count; a safety check (duplicates, risky pairs, allergies) runs before handing over; families send refill requests and get "ready" notifications; pharmacies see day-3 / day-10 check-in answers. **Off by default**: the family switches on "may add" and "may see" per person, sees every access, and can block a pharmacy or replace the card. Pharmacies are approved by the admin after a licence check. |
+| **Smartwatch (any brand)** | Reminders with the Taken button on any watch paired to the phone; a watch page (`/watch`) with one big button for round screens; a secret tap-to-tick link for Siri Shortcuts (Apple Watch), Google Assistant / Bixby routines, NFC stickers or a printed QR on the medicine box; import readings from Apple Health, Samsung Health, Google Fit and Fitbit exports (read in the browser). Setup notes for Wear OS, Galaxy, Apple, Fitbit, Garmin, Amazfit, Noise, boAt, Fire-Boltt, Mi Band. |
+| **Barcodes** | A pack scanned with its barcode (EAN / GS1) is remembered, so the next family scanning the same pack gets the name filled in. |
 | **Cookie consent** | Accept / Reject / Choose banner in 10 languages. Analytics run **only after Accept**. Choices are logged as proof. Withdrawing deletes past statistics. |
 | **Admin** (`/admin.html`) | Revenue, Premium families, conversion, sign-ups, visitors, top pages, traffic sources, button clicks, devices, payments, contact messages, medicine-list import. |
 | **Privacy & security** | DPDP Act 2023 / Rules 2025: consent at sign-up, download my data, delete account, grievance officer, retention clean-up. bcrypt, CSRF, rate limits, ownership checks, CSP, HTTPS, private `core/` folder. |
@@ -41,6 +45,12 @@ public_html/            ← upload the contents of this folder to your host
   device.php            API for the smart pillbox (token, no cookies)
   core/autopilot.php support.php health.php ai.php safety.php assistant.php   autopilot, support sorting, health, AI, safety checks
   core/care.php         health diary, follow-up check-ins, visit sheet, watch-over
+  core/household.php    vaccinations, medical expenses, doctor links, streaks
+  core/pharmacy.php     AushadhBox card: consent, pharmacy view, safety pre-check, dispensing, refills
+  core/watch.php        smartwatch page data, tap-to-tick link, watch / health-app imports
+  pharmacy.html pharmacy.js pharmacy_api.php   AushadhBox Pharmacy portal (/pharmacy, its own sign-in)
+  watch.html watch.js watch.css   watch page (/watch)
+  ble-health.js health-import.js  Bluetooth meters, Apple Health / Samsung / Google Fit / Fitbit import
   webhook.php           Razorpay webhook
   cron.php install.php  scheduled jobs, one-time installer
   admin.html admin.js   admin dashboard
@@ -53,7 +63,7 @@ public_html/            ← upload the contents of this folder to your host
     database/           schema, ingredient guides, Jan Aushadhi list
 hardware/               smart pillbox: README (build guide), wiring.svg, firmware/ (ESP32 Arduino), simulator/ (Python)
 docs/                   IDEAS-FROM-JAPAN, DEPLOY, HANDOVER, SRS, DESIGN, design-system.html, TEST-REPORT, USER-MANUAL, SEO-GROWTH
-tests/                  seo_check.php, api_test.sh, e2e.js, rx_parse_test.js, autopilot_test.php
+tests/                  seo_check.php, api_test.sh, e2e.js, rx_parse_test.js, ble_parse_test.js, health_import_test.js, autopilot_test.php
 tools/                  import_list.php, make_vapid_keys.php, build_assets.php, media generators
 ```
 

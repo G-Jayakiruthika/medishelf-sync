@@ -21,6 +21,9 @@
     ["numbers", "Emergency numbers: 108 ambulance, 112 emergency"]
   ];
 
+  const EXTRA_VIEWS = ["card"];   // reached from buttons, not the bottom bar
+  const isView = (id) => VIEWS.some(v => v.id === id) || EXTRA_VIEWS.includes(id);
+
   /* ---------------- State ---------------- */
   const state = {
     user: null, features: {}, members: [], items: [], taken: new Set(), kit: new Set(),
@@ -160,6 +163,7 @@
     state.user = data.user;
     state.members = data.members; state.items = data.items;
     state.taken = new Set(data.taken); state.doseLog = data.doseLog || {}; state.alerts = data.alerts || []; state.followups = data.followups || []; state.appointments = data.appointments || []; state.pharmacy = data.pharmacy || {}; state.kit = new Set(data.kit); state.reminders = data.reminders; state.billing = data.billing; state.today = data.today;
+    state.vaccines = data.vaccines || []; state.shares = data.shares || []; state.streaks = data.streaks || []; state.tickLink = !!data.tickLink;
     if (!state.nbMember || !state.members.some(m => m.id === state.nbMember)) state.nbMember = (state.members.find(m => m.self) || state.members[0] || {}).id;
     if (data.user.language && data.user.language !== state.lang && I18N[data.user.language]) { state.lang = data.user.language; try { localStorage.setItem("ms-lang", state.lang); } catch (e) { /* */ } }
     $("#authView").hidden = true; $("#appView").hidden = false;
@@ -167,7 +171,7 @@
     $("#adminLink").hidden = !state.user.admin;
     applyI18n();
     const h = (location.hash || "").replace("#", "");
-    go(VIEWS.some(v => v.id === h) ? h : (h === "upgrade" ? "account" : "cabinet"));
+    go(isView(h) ? h : (h === "upgrade" ? "account" : "cabinet"));
     if (state.reminders.enabled) ensurePush(false);
     let pendingJoin = null; try { pendingJoin = sessionStorage.getItem("ms-join"); } catch (e) { /* */ }
     if (pendingJoin) { try { sessionStorage.removeItem("ms-join"); } catch (e) { /* */ } go("account"); $("#joinCode").value = pendingJoin; }
@@ -188,14 +192,15 @@
   }
   let current = "cabinet";
   function go(id) {
-    if (!VIEWS.some(v => v.id === id)) id = "cabinet";
+    if (!isView(id)) id = "cabinet";
     current = id;
     $$(".view").forEach(s => { s.hidden = s.dataset.view !== id; });
     markNav();
     if (id !== "scan") stopCamera();
     if (id === "account" && state.user) { refreshBilling(); loadAutomations(); loadBoxes(); }
     if (id === "doses" && state.user) loadAdherence();
-    if (id === "notebook" && state.user) loadVitals();
+    if (id === "notebook" && state.user) { loadVitals(); loadExpenses(); }
+    if (id === "card" && state.user) loadCards();
     try { history.replaceState(null, "", "#" + id); } catch (e) { /* sandboxed */ }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -204,7 +209,7 @@
   window.addEventListener("hashchange", () => {
     const h = (location.hash || "").replace("#", "");
     if (!state.user) { if (h === "signup" || h === "signin") authMode(h === "signup" ? "signup" : "login"); return; }
-    if (VIEWS.some(v => v.id === h)) { if (h !== current) go(h); }
+    if (isView(h)) { if (h !== current) go(h); }
     else if (h === "upgrade") { go("account"); openUpgrade(); }
     else if (/^skip-[maeb]$/.test(h)) { go("doses"); openSkip(h.slice(5), null); }
     else if (h === "emergency") openEmergency();
@@ -265,7 +270,7 @@
     $("#fFor").innerHTML = '<option value="">' + esc(t("familyAll")) + "</option>" + state.members.map(m => '<option value="' + m.id + '">' + esc(m.name) + "</option>").join("");
   }
   function resetForm() {
-    state.editingId = null; $("#medForm").reset(); $("#medForm").dataset.catalogId = ""; $("#medForm").dataset.generic = "";
+    state.editingId = null; $("#medForm").reset(); $("#medForm").dataset.catalogId = ""; $("#medForm").dataset.generic = ""; $("#medForm").dataset.barcode = "";
     $("#matchBox").hidden = true; $("#matchList").hidden = true; $("#rawText").textContent = "—"; setStatus("");
     $("#btnCancelEdit").hidden = true; $("#formTitle").textContent = t("scanFound"); showErr($("#formErr"), "");
     const self = state.members.find(m => m.self); $("#fFor").value = self ? String(self.id) : "";
@@ -292,7 +297,8 @@
       member_id: $("#fFor").value ? Number($("#fFor").value) : null, catalog_id: Number($("#medForm").dataset.catalogId) || null,
       generic: $("#medForm").dataset.generic || "", quantity: $("#fQty").value.trim(), notes: $("#fNotes").value.trim(),
       times: $$("#fTimes input:checked").map(i => i.value),
-      stock: $("#fStock").value === "" ? null : Number($("#fStock").value), per_dose: Number($("#fPerDose").value) || 1, course_end: $("#fCourseEnd").value || ""
+      stock: $("#fStock").value === "" ? null : Number($("#fStock").value), per_dose: Number($("#fPerDose").value) || 1, course_end: $("#fCourseEnd").value || "",
+      barcode: $("#medForm").dataset.barcode || undefined
     };
     const btn = $("#btnSave"); btn.disabled = true;
     try {
@@ -407,6 +413,7 @@
     $("#fName").value = info.name || ""; $("#fBatch").value = info.batch || ""; $("#fMfg").value = info.mfg || ""; $("#fExp").value = info.exp || "";
     $("#rawText").textContent = raw || "—"; $("#medForm").dataset.generic = info.generic || "";
     await showMatches(raw, info);
+    await useBarcode(raw);
     if (info.exp) { setStatus("✔ " + esc(t("scanFound"))); sound(statusOf(info.exp) === "ok" ? "saved" : "expiry-alert"); }
     else setStatus('<span style="color:var(--warn)">' + esc(t("scanNotFound")) + "</span>");
   }
@@ -646,7 +653,7 @@
     }).join("") : '<tr><td colspan="3" class="muted">—</td></tr>';
     $("#nbAllergy").value = member && member.allergies ? member.allergies : "";
   }
-  $("#nbMembers").addEventListener("click", (e) => { const b = e.target.closest("[data-nb]"); if (!b) return; state.nbMember = Number(b.dataset.nb); renderNotebook(); renderProfile(); loadVitals(); });
+  $("#nbMembers").addEventListener("click", (e) => { const b = e.target.closest("[data-nb]"); if (!b) return; state.nbMember = Number(b.dataset.nb); renderNotebook(); renderProfile(); renderVaccines(); loadVitals(); });
   const saveAllergy = debounce(async () => {
     const m = state.members.find(x => x.id === state.nbMember); if (!m) return;
     m.allergies = $("#nbAllergy").value;
@@ -899,7 +906,8 @@
   let rx = { kind: "", rows: [] };
   function openReview(doc) {
     rx = { kind: doc.kind, rows: doc.items.map(i => ({ on: true, name: i.name, times: (i.times || []).slice(), days: i.days, stock: i.stock, exp: i.exp || "", batch: i.batch || "",
-      notes: i.notes || "", courseEnd: i.courseEnd || null, perDose: i.perDose || 1, catalog_id: null, usual: false, sos: !!i.sos })) };
+      notes: i.notes || "", courseEnd: i.courseEnd || null, perDose: i.perDose || 1, catalog_id: null, usual: false, sos: !!i.sos })),
+      bill: doc.kind === "bill" && doc.total ? { total: doc.total, date: doc.date || null } : null };
     $("#rxTitle").textContent = t(doc.kind === "bill" ? "rxTitleBill" : "rxTitlePres") + " (" + rx.rows.length + ")";
     $("#rxFor").innerHTML = '<option value="">' + esc(t("familyAll")) + "</option>" + state.members.map(m => '<option value="' + m.id + '">' + esc(m.name) + "</option>").join("");
     const self = state.members.find(m => m.self); $("#rxFor").value = self ? String(self.id) : "";
@@ -956,9 +964,9 @@
     if (!items.length) return;
     $("#rxSave").disabled = true; showErr($("#rxErr"), "");
     try {
-      const res = await api.post("items_bulk_save", { items });
+      const res = await api.post("items_bulk_save", { items, bill: rx.bill ? { total: rx.bill.total, date: rx.bill.date, member_id: member } : undefined });
       state.items = state.items.concat(res.items); $("#rxDialog").close(); sound("saved");
-      toast("✔ " + t("rxSave", { n: res.items.length }).replace(/^\S+\s/, "") ); renderAll(); go("cabinet"); track("rx_saved"); refreshSafety(res.items.map(x => x.id));
+      toast("✔ " + t("rxSave", { n: res.items.length }).replace(/^\S+\s/, "") + (rx.bill ? " · " + t("exBill", { n: Number(rx.bill.total).toLocaleString("en-IN") }) : "")); renderAll(); go("cabinet"); track("rx_saved"); refreshSafety(res.items.map(x => x.id));
     } catch (err) { showErr($("#rxErr"), err.message); }
     $("#rxSave").disabled = false;
   });
@@ -1028,6 +1036,7 @@
     const ph = state.pharmacy || {};
     $("#shopPharm").hidden = !list.length || !ph.phone;
     if (ph.phone) $("#shopPharm").href = "https://wa.me/91" + ph.phone + "?text=" + encodeURIComponent((ph.name ? "Hello " + ph.name + ",\n" : "") + text + "\n\nPlease keep these ready. Thank you.");
+    $("#shopRefill").hidden = !list.length; $("#shopRefill").dataset.items = list.map(x => x.m.name).join("\n");
     const d = $("#shopDialog"); try { d.showModal(); } catch (e) { d.setAttribute("open", ""); }
   });
   $("#shopCopy").addEventListener("click", (e) => { const tx = e.currentTarget.dataset.text || ""; const done = () => toast("✔ " + t("calCopied")); if (navigator.clipboard) navigator.clipboard.writeText(tx).then(done).catch(() => fallbackCopy(tx, done)); else fallbackCopy(tx, done); });
@@ -1174,12 +1183,13 @@
   });
 
   /* Health diary (血圧・血糖 records): readings with safe-range flags and a small chart */
-  const VK = { bp: ["kBp", "mmHg"], sugar: ["kSugar", "mg/dL"], weight: ["kWeight", "kg"], temp: ["kTemp", "°C"], spo2: ["kSpo2", "%"], pulse: ["kPulse", "/min"] };
+  const VK = { bp: ["kBp", "mmHg"], sugar: ["kSugar", "mg/dL"], weight: ["kWeight", "kg"], temp: ["kTemp", "°C"], spo2: ["kSpo2", "%"], pulse: ["kPulse", "/min"],
+    hba1c: ["kHba1c", "%"], chol: ["kChol", "mg/dL"], hb: ["kHb", "g/dL"] };
   let vitals = [];
   function vitalKindChanged() {
     const k = $("#hdKind").value;
     $("#hdV2").hidden = $("#hdSlash").hidden = k !== "bp"; $("#hdV2").required = k === "bp"; $("#hdUnit").textContent = VK[k][1]; $("#hdCtxWrap").hidden = k !== "sugar";
-    $("#hdV1").placeholder = { bp: "120", sugar: "110", weight: "62", temp: "37.0", spo2: "98", pulse: "72" }[k];
+    $("#hdV1").placeholder = { bp: "120", sugar: "110", weight: "62", temp: "37.0", spo2: "98", pulse: "72", hba1c: "6.1", chol: "180", hb: "13.5" }[k];
     renderVitals();
   }
   async function loadVitals() {
@@ -1277,6 +1287,7 @@
     try {
       const data = await api.get("bootstrap");
       state.items = data.items; state.taken = new Set(data.taken); state.doseLog = data.doseLog || {};
+      state.vaccines = data.vaccines || state.vaccines; state.streaks = data.streaks || state.streaks; state.members = data.members || state.members;
       renderAll();
     } catch (e) { /* offline */ }
   }
@@ -1436,7 +1447,252 @@
   $$("[data-sound]").forEach(b => b.addEventListener("click", () => sound(b.dataset.sound)));
 
   /* ---------------- Boot ---------------- */
-  function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); renderAdherence(); renderBoxes(); renderSafety(); renderAi(); renderFollowups(); renderProfile(); renderAppointments(); renderPharmacy(); saveEmergencySnapshot(); }
+
+  /* ---------------- Household extras: streaks, vaccinations, expenses, doctor links (like EPARK お薬手帳) ---------------- */
+  function renderStreak() {
+    const list = (state.streaks || []).filter(x => x.days > 0).sort((a, b) => b.days - a.days), el = $("#streakBox");
+    if (!list.length) { el.hidden = true; return; }
+    const badge = (n) => n >= 100 ? "badge100" : n >= 30 ? "badge30" : n >= 7 ? "badge7" : null, top = list[0];
+    el.innerHTML = list.slice(0, 3).map(s => esc(t("streak", { n: s.days })) + (state.members.length > 1 && s.memberId ? " <small>" + esc(memberName(s.memberId)) + "</small>" : "")).join(" · ") +
+      (badge(top.days) ? " <small>" + esc(t(badge(top.days))) + "</small>" : "");
+    el.hidden = false;
+  }
+  function renderVaccines() {
+    const m = state.members.find(x => x.id === state.nbMember), today = state.today || new Date().toISOString().slice(0, 10);
+    $("#pfBirth").value = m && m.birthDate ? m.birthDate : "";
+    const list = (state.vaccines || []).filter(v => v.memberId === state.nbMember);
+    $("#vxList").innerHTML = list.length ? list.map(v => '<li class="' + (v.given ? "done" : "") + '"><span>' + esc(v.name) + "</span><span>" +
+      (v.given ? '<small class="muted">✓ ' + esc(fmtDay(v.given)) + '</small> <button type="button" class="link" data-vx="' + v.id + '" data-on="0" aria-label="undo">↺</button>'
+        : (v.due < today ? '<span class="over">' + esc(t("vxOverdue")) + "</span> " : '<small class="muted">' + esc(t("vxDue", { d: fmtDay(v.due) })) + "</small> ") +
+          '<button type="button" class="btn btn-ghost btn-sm" data-vx="' + v.id + '" data-on="1">' + esc(t("vxGiven")) + "</button>") + "</span></li>").join("")
+      : '<li class="muted">' + esc(t("vxNone")) + "</li>";
+    const next = list.find(v => !v.given && v.due >= today);
+    $("#vxNext").hidden = !next; if (next) $("#vxNext").textContent = t("vxNext", { name: next.name, d: fmtDay(next.due) });
+    $("#vxPast").hidden = !list.some(v => !v.given && v.due < today);
+  }
+  $("#pfBirth").addEventListener("change", async () => {
+    const m = state.members.find(x => x.id === state.nbMember); if (!m) return;
+    try {
+      await api.post("member_save", { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, birth_date: $("#pfBirth").value });
+      m.birthDate = $("#pfBirth").value || null;
+      const data = await api.get("bootstrap"); state.vaccines = data.vaccines || []; renderVaccines(); toast("✔ " + t("saved"));
+    } catch (err) { toast(err.message); }
+  });
+  $("#vxList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-vx]"); if (!b) return;
+    try { state.vaccines = (await api.post("vaccine_given", { id: Number(b.dataset.vx), given: b.dataset.on === "1", date: state.today })).vaccines; renderVaccines(); if (b.dataset.on === "1") sound("saved"); }
+    catch (err) { toast(err.message); }
+  });
+  $("#vxPast").addEventListener("click", async () => {
+    try { state.vaccines = (await api.post("vaccines_mark_past", { member_id: state.nbMember })).vaccines; renderVaccines(); } catch (err) { toast(err.message); }
+  });
+
+  const CAT_KEY = { medicine: "cMed", test: "cTest", consult: "cConsult", checkup: "cCheck", other: "cOther" };
+  const rupees = (n) => "₹" + Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 });
+  let expenses = null;
+  async function loadExpenses() { try { expenses = await api.get("expenses"); renderExpenses(); } catch (e) { /* offline */ } }
+  function renderExpenses() {
+    if (!$("#exDate").value) $("#exDate").value = state.today || new Date().toISOString().slice(0, 10);
+    if (!expenses) return;
+    const cats = Object.keys(expenses.byCategory || {}).filter(k => expenses.byCategory[k] > 0);
+    $("#exSum").innerHTML = esc(t("exYear", { y: expenses.year, n: Number(expenses.total).toLocaleString("en-IN") })) +
+      (cats.length ? "<small>" + cats.map(k => esc(t(CAT_KEY[k] || "cOther") + " " + rupees(expenses.byCategory[k]))).join(" · ") + "</small>" : "");
+    $("#exList").innerHTML = (expenses.items || []).slice(0, 12).map(x => "<li><span><b>" + esc(rupees(x.amount)) + "</b> · " + esc(t(CAT_KEY[x.category] || "cOther")) +
+      (x.member ? " · " + esc(x.member) : "") + ' <small class="muted">' + esc(fmtShort(x.date)) + (x.source === "bill" ? " · 🧾" : "") + "</small></span>" +
+      '<button type="button" class="link" data-exdel="' + x.id + '" aria-label="' + esc(t("boxRemove")) + '">✕</button></li>').join("");
+  }
+  $("#exForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try {
+      expenses = await api.post("expense_add", { amount: $("#exAmount").value.replace(/[₹\s]/g, ""), category: $("#exCat").value, spent_on: $("#exDate").value, member_id: state.nbMember || null });
+      $("#exAmount").value = ""; renderExpenses(); sound("saved");
+    } catch (err) { toast(err.message); }
+  });
+  $("#exList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-exdel]"); if (!b) return;
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("confirmRemove"); return; }
+    try { expenses = await api.post("expense_delete", { id: Number(b.dataset.exdel) }); renderExpenses(); } catch (err) { toast(err.message); }
+  });
+
+  function renderShares() {
+    const list = state.shares || [];
+    $("#shWrap").hidden = !list.length;
+    $("#shList").innerHTML = list.map(s => "<li><span>" + esc(s.memberId ? memberName(s.memberId) : t("familyAll")) + ' <small class="muted">→ ' + esc(fmtSeen(s.expires)) + " · " + esc(t("shViews", { n: s.views })) + "</small></span>" +
+      '<button type="button" class="link" data-shoff="' + s.id + '">' + esc(t("shRevoke")) + "</button></li>").join("");
+  }
+  $("#btnShareDoc").addEventListener("click", async () => {
+    try {
+      const r = await api.post("share_create", { member_id: state.nbMember || null, hours: 24 });
+      state.shares = r.shares; renderShares();
+      const text = t("shTitle") + " · " + memberName(state.nbMember) + "\n" + r.url, done = () => toast("✔ " + t("shLinkMade"));
+      if (navigator.share) { try { await navigator.share({ title: t("shTitle"), text }); return; } catch (e) { /* cancelled: copy instead */ } }
+      if (navigator.clipboard) navigator.clipboard.writeText(r.url).then(done).catch(() => fallbackCopy(r.url, done)); else fallbackCopy(r.url, done);
+    } catch (err) { toast(err.message); }
+  });
+  $("#shList").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-shoff]"); if (!b) return;
+    try { state.shares = (await api.post("share_revoke", { id: Number(b.dataset.shoff) })).shares; renderShares(); } catch (err) { toast(err.message); }
+  });
+
+  /* Bluetooth meters (blood pressure, sugar, thermometer, scale, oximeter): the reading saves itself */
+  let btStop = null;
+  function btMsg(text) { $("#hdBtMsg").textContent = text; $("#hdBtMsg").hidden = !text; }
+  $("#hdBt").addEventListener("click", async () => {
+    if (!window.BleHealth || !window.BleHealth.supported()) { btMsg(t("btNone")); return; }
+    if (btStop) { btStop(); btStop = null; }
+    try {
+      btStop = await window.BleHealth.connect(async (r, dev) => {
+        try {
+          const res = await api.post("vital_save", { kind: r.kind, v1: r.v1, v2: r.kind === "bp" ? r.v2 : null, context: r.kind === "sugar" ? "random" : null, member_id: state.nbMember || null });
+          if (r.kind === "bp" && r.pulse) api.post("vital_save", { kind: "pulse", v1: r.pulse, member_id: state.nbMember || null }).catch(() => {});
+          $("#hdKind").value = r.kind; vitalKindChanged();
+          $("#hdFlag").className = "hd-flag " + res.flag; $("#hdFlag").textContent = fmtV({ kind: r.kind, v1: res.v1, v2: res.v2 }) + " " + VK[r.kind][1] + " · " + flagText(res.flag); $("#hdFlag").hidden = false;
+          btMsg(t("btGot", { dev: dev || "meter" })); sound(res.flag === "urgent" ? "expiry-alert" : "saved"); loadVitals();
+        } catch (err) { toast(err.message); }
+      }, (st) => { if (st === "ready") btMsg(t("btWaiting")); });
+      btMsg(t("btWaiting"));
+    } catch (err) { if (err && err.name !== "NotFoundError") btMsg(err.message || t("btNone")); }
+  });
+
+  /* Readings exported from a watch or health app */
+  $("#hdImport").addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0]; e.target.value = ""; if (!file || !window.HealthImport) return;
+    btMsg(t("importReading"));
+    try {
+      const rows = await window.HealthImport.readFile(file, (pc) => btMsg(t("importReading") + " " + pc + "%"));
+      if (!rows.length) { btMsg(t("importNone")); return; }
+      let added = 0, skipped = 0;
+      for (let i = 0; i < rows.length; i += 1000) {
+        const r = await api.post("vitals_import", { readings: rows.slice(i, i + 1000), member_id: state.nbMember || null });
+        added += r.added; skipped += r.skipped;
+      }
+      btMsg(t("importDone", { n: added, s: skipped })); sound("saved"); loadVitals();
+    } catch (err) { btMsg(err.message === "zip" || err.message === "noxml" ? t("importNone") : (err.message || t("importNone"))); }
+  });
+
+  /* ---------------- Barcodes: a pack another family scanned fills itself in ---------------- */
+  function gtinOk(code) {
+    if (!/^\d{8}$|^\d{12,14}$/.test(code)) return false;
+    const d = code.split("").map(Number), check = d.pop();
+    const sum = d.reverse().reduce((a, x, i) => a + x * (i % 2 ? 1 : 3), 0);
+    return (10 - sum % 10) % 10 === check;
+  }
+  function barcodeOf(raw) {
+    if (!raw) return "";
+    const gs1 = raw.match(/(?:^|\(|\x1d|\]d2|\]C1|\n)01\)?(\d{14})/);
+    if (gs1 && gtinOk(gs1[1])) return gs1[1];
+    const plain = raw.split(/\s+/).find(x => gtinOk(x));
+    return plain || "";
+  }
+  async function useBarcode(raw) {
+    const code = barcodeOf(raw); $("#medForm").dataset.barcode = code;
+    if (!code || state.editingId) return;
+    try {
+      const r = await api.get("barcode_lookup", { code });
+      if (!r.found) return;
+      if (!$("#fName").value || !$("#medForm").dataset.catalogId) { $("#fName").value = r.name; if (r.catalogId) $("#medForm").dataset.catalogId = r.catalogId; }
+      if (r.info) { showInfo(r.info, $("#fExp").value); applyUsual(r.info); }
+      toast("✔ " + t("barcodeKnown", { name: r.name }));
+    } catch (e) { /* offline */ }
+  }
+
+  /* ---------------- AushadhBox card: show the QR at a pharmacy; the family decides what it may do ---------------- */
+  let cards = { cards: [], links: [], log: [], refills: [], pharmacies: [] }, cdMember = null;
+  async function loadCards() { try { Object.assign(cards, await api.get("cards")); renderCard(); } catch (e) { /* offline */ } }
+  const AC_KEY = { scan: "acScan", view: "acView", add: "acAdd", refill: "acRefill" };
+  const RF_KEY = { sent: "rfSent", ready: "rfReady", collected: "rfCollected", cancelled: "rfCancelled" };
+  function renderCard() {
+    if (!cdMember || !state.members.some(m => m.id === cdMember)) cdMember = state.nbMember || (state.members[0] || {}).id;
+    $("#cdMembers").innerHTML = state.members.map(m => '<button class="chip" data-cd="' + m.id + '" aria-pressed="' + (cdMember === m.id) + '">' + esc(m.name) + "</button>").join("");
+    const c = cards.cards.find(x => x.memberId === cdMember) || {}, on = !!(c.shareAdd || c.shareView);
+    $("#cdName").textContent = memberName(cdMember);
+    $("#cdCode").textContent = c.code || "—";
+    $("#cdAdd").checked = !!c.shareAdd; $("#cdView").checked = !!c.shareView;
+    $("#cdOff").hidden = on; $("#cdWallet").classList.toggle("off", !on || !c.code);
+    const cv = $("#cdQr");
+    if (c.code) drawQr(cv, "AUSHADHBOX:" + c.code); else { const x = cv.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, cv.width, cv.height); }
+    $("#cdNew").hidden = !c.code; $("#cdPrint").disabled = !c.code || !on;
+    const links = cards.links.filter(l => l.memberId === cdMember);
+    $("#cdLinks").innerHTML = links.length ? links.map(l => "<li><span><b>" + esc(l.pharmacy) + "</b>" + (l.city ? " · " + esc(l.city) : "") + ' <small class="muted">' + esc(fmtSeen(l.last)) + "</small>" +
+      (l.blocked ? ' <span class="pill bad">' + esc(t("phBlock")) + "</span>" : "") + '</span><button type="button" class="link" data-blk="' + l.pharmacyId + '" data-v="' + (l.blocked ? 0 : 1) + '">' + esc(t(l.blocked ? "phUnblock" : "phBlock")) + "</button></li>").join("")
+      : '<li class="muted">' + esc(t("noAccess")) + "</li>";
+    const log = cards.log.filter(l => !l.memberId || l.memberId === cdMember);
+    $("#cdLog").innerHTML = log.length ? log.slice(0, 40).map(l => "<li><span>" + esc(l.pharmacy) + " " + esc(t(AC_KEY[l.action] || "acView")) + (l.detail ? ' <small class="muted">· ' + esc(l.detail) + "</small>" : "") +
+      '</span><small class="muted">' + esc(fmtSeen(l.at)) + "</small></li>").join("") : '<li class="muted">' + esc(t("noAccess")) + "</li>";
+    const ph = cards.pharmacies || [];
+    $("#rfNone").hidden = !!ph.length; $("#rfForm").hidden = !ph.length;
+    const keep = $("#rfPharm").value;
+    $("#rfPharm").innerHTML = ph.map(p => '<option value="' + p.id + '">' + esc(p.name + (p.city ? " · " + p.city : "")) + "</option>").join("");
+    if (keep && ph.some(p => String(p.id) === keep)) $("#rfPharm").value = keep;
+    $("#rfList").innerHTML = cards.refills.slice(0, 10).map(r => "<li><span><b>" + esc(r.pharmacy) + "</b> · " + esc(r.items.map(i => i.name + (i.qty ? " ×" + i.qty : "")).join(", ")) + ' <small class="muted">' + esc(fmtSeen(r.updated || r.at)) + "</small></span>" +
+      '<span class="pill ' + ({ sent: "sent", ready: "", collected: "ex", cancelled: "bad" }[r.status] || "") + '">' + esc(t(RF_KEY[r.status] || "rfSent")) + "</span></li>").join("");
+  }
+  $("#cdMembers").addEventListener("click", (e) => { const b = e.target.closest("[data-cd]"); if (b) { cdMember = Number(b.dataset.cd); renderCard(); } });
+  async function cardShare() {
+    try { Object.assign(cards, await api.post("card_share", { member_id: cdMember, add: $("#cdAdd").checked, view: $("#cdView").checked })); renderCard(); toast("✔ " + t("saved")); }
+    catch (err) { toast(err.message); renderCard(); }
+  }
+  $("#cdAdd").addEventListener("change", cardShare); $("#cdView").addEventListener("change", cardShare);
+  $("#cdNew").addEventListener("click", async (e) => {
+    const b = e.currentTarget;
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("tapAgain"); setTimeout(() => { b.dataset.confirm = ""; b.textContent = t("cardNew"); }, 4000); return; }
+    b.dataset.confirm = ""; b.textContent = t("cardNew");
+    try { Object.assign(cards, await api.post("card_new", { member_id: cdMember })); renderCard(); toast("✔ " + t("saved")); } catch (err) { toast(err.message); }
+  });
+  $("#cdLinks").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-blk]"); if (!b) return;
+    try { Object.assign(cards, await api.post("pharmacy_block", { member_id: cdMember, pharmacy_id: Number(b.dataset.blk), blocked: b.dataset.v === "1" })); renderCard(); } catch (err) { toast(err.message); }
+  });
+  function printPage(title, body) {
+    const html = "<!doctype html><html><head><meta charset='utf-8'><title>" + esc(title) + "</title><style>body{font:14px/1.4 system-ui,sans-serif;margin:16px;color:#111}" +
+      ".card{width:85.6mm;height:54mm;border:1px dashed #999;border-radius:4mm;padding:3mm;box-sizing:border-box;display:flex;gap:3mm;align-items:center;margin:0 0 6mm;break-inside:avoid}" +
+      ".card img{width:40mm;height:40mm;image-rendering:pixelated}.card b{display:block;font-size:13pt}.card small{display:block;color:#444;font-size:7.5pt;margin-top:1mm}.code{font:600 11pt monospace;letter-spacing:.06em}" +
+      ".stk{display:inline-flex;flex-direction:column;align-items:center;gap:2mm;width:50mm;border:1px dashed #999;border-radius:3mm;padding:3mm;margin:2mm;text-align:center;font-size:8pt}.stk img{width:40mm;height:40mm;image-rendering:pixelated}" +
+      "@media print{.noprint{display:none}}</style></head><body>" + body + "</body></html>";
+    const w = window.open("", "_blank");
+    if (!w) { openPrintable(html); return; }
+    w.document.open(); w.document.write(html); w.document.close(); setTimeout(() => { try { w.focus(); w.print(); } catch (e) { /* user prints by hand */ } }, 400);
+  }
+  function qrImage(text, size) { const cv = document.createElement("canvas"); cv.width = cv.height = size || 400; drawQr(cv, text); return cv.toDataURL("image/png"); }
+  $("#cdPrint").addEventListener("click", () => {
+    const c = cards.cards.find(x => x.memberId === cdMember); if (!c || !c.code) return;
+    const one = '<div class="card"><img alt="" src="' + qrImage("AUSHADHBOX:" + c.code) + '"><div><b>AushadhBox</b>' + esc(memberName(cdMember)) + '<div class="code">' + esc(c.code) + "</div><small>" + esc(t("cardDesc")) + "</small><small>" + esc(location.host) + "/pharmacy</small></div></div>";
+    printPage(t("cardTitle"), one + one);
+  });
+  $("#rfForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const items = $("#rfItems").value.split(/\n|;/).map(l => l.trim()).filter(Boolean).map(l => { const m = l.match(/^(.*?)(?:\s*[×x*]\s*(\d{1,3}))?$/i); return { name: m[1].trim(), qty: m[2] ? Number(m[2]) : 0 }; });
+    if (!items.length) { $("#rfItems").focus(); return; }
+    try { Object.assign(cards, await api.post("refill_request", { pharmacy_id: Number($("#rfPharm").value), member_id: cdMember, items })); $("#rfItems").value = ""; renderCard(); sound("saved"); toast("✔ " + t("rfSent")); }
+    catch (err) { toast(err.message); }
+  });
+  $("#shopRefill").addEventListener("click", (e) => { $("#shopDialog").close(); $("#rfItems").value = e.currentTarget.dataset.items || ""; go("card"); });
+
+  /* ---------------- Smartwatch and the tap-to-tick link ---------------- */
+  let tickUrl = "";
+  function renderWatch() {
+    const has = !!state.tickLink;
+    $("#tkUrl").hidden = !tickUrl; $("#tkUrl").textContent = tickUrl;
+    $("#tkMake").textContent = t(has ? "tickNew" : "tickMake");
+    $("#tkCopy").hidden = $("#tkSticker").hidden = !tickUrl; $("#tkOff").hidden = !has;
+  }
+  $("#tkMake").addEventListener("click", async (e) => {
+    const b = e.currentTarget;
+    if (state.tickLink && b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = t("tapAgain"); setTimeout(() => { b.dataset.confirm = ""; renderWatch(); }, 4000); return; }
+    b.dataset.confirm = "";
+    try { tickUrl = (await api.post("tick_link", {})).url; state.tickLink = true; renderWatch(); } catch (err) { toast(err.message); }
+  });
+  $("#tkOff").addEventListener("click", async () => {
+    try { await api.post("tick_link", { revoke: true }); tickUrl = ""; state.tickLink = false; renderWatch(); toast("✔ " + t("saved")); } catch (err) { toast(err.message); }
+  });
+  $("#tkCopy").addEventListener("click", () => { const done = () => toast("✔ " + t("calCopied")); if (navigator.clipboard) navigator.clipboard.writeText(tickUrl).then(done).catch(() => fallbackCopy(tickUrl, done)); else fallbackCopy(tickUrl, done); });
+  $("#tkSticker").addEventListener("click", () => {
+    if (!tickUrl) return;
+    const img = qrImage(tickUrl + "?auto=1"), one = '<div class="stk"><img alt="" src="' + img + '"><b>✓ ' + esc(t("tickTitle")) + "</b><span>AushadhBox</span></div>";
+    printPage(t("tickSticker"), "<p class='noprint'>" + esc(t("tickDesc")) + "</p>" + one + one + one + one);
+  });
+
+  function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); renderAdherence(); renderBoxes(); renderSafety(); renderAi(); renderFollowups(); renderProfile(); renderAppointments(); renderPharmacy(); renderStreak(); renderVaccines(); renderShares(); renderWatch(); if (current === "card") renderCard(); saveEmergencySnapshot(); }
   const langOptions = LANGS.map(l => '<option value="' + l.code + '">' + l.native + (l.code === "en" ? "" : " · " + l.name) + "</option>").join("");
   $$("#langSelect, #authLang").forEach(s => { s.innerHTML = langOptions; s.addEventListener("change", (e) => setLang(e.target.value)); });
   applyI18n();

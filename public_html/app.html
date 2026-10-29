@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=8">
+<link rel="stylesheet" href="/styles.css?v=9">
 </head>
 <body>
 
@@ -200,6 +200,7 @@
     </div>
     <p class="muted" id="pushState" hidden></p>
     <div class="panel fu-card" id="fuCard" hidden><h3 data-i18n="fuTitle">How is it going?</h3><div id="fuList" class="fu-list"></div></div>
+    <p class="streak" id="streakBox" hidden></p>
     <div class="slots" id="slots"></div>
     <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" type="button" id="btnCalPrint" data-i18n="calPrint">Print weekly calendar</button></div>
     <div class="panel stack adh-card" id="adhCard">
@@ -224,8 +225,16 @@
           <div class="field"><label for="pfBlood" data-i18n="emBlood">Blood group</label><select id="pfBlood"><option value="">—</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>O+</option><option>O-</option></select></div>
           <div class="field"><label for="pfCond" data-i18n="emCond">Health conditions</label><input id="pfCond" maxlength="300" placeholder="Diabetes, high BP"></div>
           <div class="field"><label for="pfContact" data-i18n="emContact">Emergency contact (name and phone)</label><input id="pfContact" maxlength="80" placeholder="Ravi 98765 43210"></div>
+          <div class="field"><label for="pfBirth" data-i18n="vxBirth">Date of birth</label><input id="pfBirth" type="date"></div>
         </div>
-        <div><button class="btn btn-primary btn-sm" type="button" id="btnEmergency" data-i18n="emOpen">Open emergency card</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="btnEmergency" data-i18n="emOpen">Open emergency card</button><button class="btn btn-ghost btn-sm" type="button" data-go="card" data-i18n="cardTitle">AushadhBox card</button></div>
+      </div>
+      <div class="panel stack" id="vxCard">
+        <h3 data-i18n="vxTitle">Vaccinations</h3>
+        <p class="muted" data-i18n="vxDesc">Add a child's date of birth: the schedule is made by itself.</p>
+        <p class="vx-next" id="vxNext" hidden></p>
+        <ul class="vx-list" id="vxList"></ul>
+        <div><button class="link" type="button" id="vxPast" hidden data-i18n="vxMarkPast">Mark all earlier doses as given</button></div>
       </div>
       <div class="panel stack" id="hdCard">
         <h3 data-i18n="hdTitle">Health diary</h3>
@@ -236,6 +245,9 @@
           <div class="field" id="hdCtxWrap" hidden><select id="hdCtx"><option value="fasting" data-i18n="hdFasting">Fasting</option><option value="after_meal" data-i18n="hdAfter">After a meal</option><option value="random" data-i18n="hdRandom">Any time</option></select></div>
           <button class="btn btn-primary btn-sm" type="submit" data-i18n="hdAdd">Add reading</button>
         </form>
+        <div class="hd-tools"><button class="btn btn-ghost btn-sm" type="button" id="hdBt"><span aria-hidden="true">ᛒ</span> <span data-i18n="btConnect">Connect a Bluetooth meter</span></button>
+          <label class="btn btn-ghost btn-sm" for="hdImport"><span aria-hidden="true">⌚</span> <span data-i18n="importTitle">Import readings from your watch</span></label><input type="file" id="hdImport" accept=".xml,.csv,.zip,text/xml,text/csv" hidden></div>
+        <p class="muted hd-bt-msg" id="hdBtMsg" hidden></p>
         <p class="hd-flag" id="hdFlag" hidden></p>
         <div class="hd-chart" id="hdChart"></div>
         <ul class="hd-list" id="hdList"></ul>
@@ -250,7 +262,8 @@
           <div class="field"><label for="apQ" data-i18n="apQuestions">Questions to ask</label><input id="apQ" maxlength="500"></div>
           <button class="btn btn-primary btn-sm" type="submit" data-i18n="apAdd">Add visit</button>
         </form>
-        <div><button class="btn btn-ghost btn-sm" type="button" id="btnSheet" data-i18n="apSheet">Visit sheet</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" type="button" id="btnSheet" data-i18n="apSheet">Visit sheet</button><button class="btn btn-ghost btn-sm" type="button" id="btnShareDoc" data-i18n="shLink">Share with the doctor (link for 24 hours)</button></div>
+        <div id="shWrap" hidden><h4 data-i18n="shLinks">Shared links</h4><ul class="ap-list" id="shList"></ul></div>
       </div>
       <form class="panel stack" id="phForm">
         <h3 data-i18n="phTitle">My pharmacy</h3>
@@ -258,8 +271,58 @@
         <div class="field"><label for="phPhone" data-i18n="phPhone">Pharmacy WhatsApp number</label><input id="phPhone" inputmode="tel" maxlength="16" placeholder="98765 43210"></div>
         <div><button class="btn btn-ghost btn-sm" type="submit" data-i18n="saveChanges">Save changes</button></div>
       </form>
+      <div class="panel stack" id="exCard">
+        <h3 data-i18n="exTitle">Medical expenses</h3>
+        <p class="muted" data-i18n="exDesc">Scanned pharmacy bills are added by themselves.</p>
+        <p class="ex-sum" id="exSum"></p>
+        <form class="ex-form" id="exForm">
+          <div class="field"><label for="exAmount" data-i18n="exAmount">Amount (₹)</label><input id="exAmount" inputmode="decimal" required maxlength="10"></div>
+          <div class="field"><label for="exCat" class="sr-only">Category</label><select id="exCat"><option value="medicine" data-i18n="cMed">Medicines</option><option value="test" data-i18n="cTest">Tests</option><option value="consult" data-i18n="cConsult">Doctor fees</option><option value="checkup" data-i18n="cCheck">Health check-up</option><option value="other" data-i18n="cOther">Other</option></select></div>
+          <div class="field"><label for="exDate" class="sr-only">Date</label><input id="exDate" type="date" required></div>
+          <button class="btn btn-primary btn-sm" type="submit" data-i18n="exAdd">Add expense</button>
+        </form>
+        <ul class="ap-list" id="exList"></ul>
+        <div><a class="btn btn-ghost btn-sm" id="exCsv" href="/api.php?action=expenses_csv" data-i18n="exCsv">Download the year (CSV)</a></div>
+        <p class="muted" style="font-size:.82rem" data-i18n="exNote">Keep the original bills.</p>
+      </div>
       <div class="panel"><h3 data-i18n="kitTitle">Emergency medicine kit</h3><p class="muted" data-i18n="kitDesc" style="margin-top:4px">Keep 7 days of daily medicines ready.</p><ul class="kit" id="kit"></ul></div>
     </div>
+  </section>
+
+  <!-- AUSHADHBOX CARD (pharmacy link; the family decides what is shared) -->
+  <section class="view" id="view-card" data-view="card" hidden>
+    <div class="section-head"><div><h2 data-i18n="cardTitle">AushadhBox card</h2><p class="muted" data-i18n="cardDesc" style="margin-top:6px">Show this QR at the pharmacy.</p></div><div class="chips" id="cdMembers"></div></div>
+    <div class="nb-grid">
+      <div class="panel stack card-qr-panel">
+        <div class="wallet" id="cdWallet">
+          <div class="wallet-top"><b>AushadhBox</b><span id="cdName"></span></div>
+          <canvas id="cdQr" width="220" height="220" aria-label="QR"></canvas>
+          <span class="mono wallet-code" id="cdCode">—</span>
+        </div>
+        <p class="warn-note" id="cdOff" data-i18n="cardOff">Switch on at least one option to use the card.</p>
+        <label class="switch"><input type="checkbox" id="cdAdd"><span class="track" aria-hidden="true"></span><span data-i18n="shareAdd">Pharmacies may add the medicines they give</span></label>
+        <label class="switch"><input type="checkbox" id="cdView"><span class="track" aria-hidden="true"></span><span data-i18n="shareView">Pharmacies may see medicines, allergies and check-ins</span></label>
+        <p class="muted" style="font-size:.85rem" data-i18n="sharePrivacy">Both are off until you switch them on.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="cdPrint" data-i18n="cardPrint">Print wallet card</button><button class="btn btn-ghost btn-sm" type="button" id="cdNew" data-i18n="cardNew">New card (the old one stops working)</button></div>
+      </div>
+      <div class="panel stack">
+        <h3 data-i18n="phLinked">Pharmacies that used this card</h3>
+        <ul class="ap-list" id="cdLinks"></ul>
+        <h4 data-i18n="accessLog">Who looked or added, and when</h4>
+        <ul class="ap-list cd-log" id="cdLog"></ul>
+      </div>
+      <div class="panel stack">
+        <h3 data-i18n="refillTitle">Ask a pharmacy to keep medicines ready</h3>
+        <p class="muted" id="rfNone" data-i18n="refillNone">Use your card at a pharmacy once; then you can send refill requests to it.</p>
+        <form class="stack" id="rfForm" hidden>
+          <div class="field"><label for="rfPharm" class="sr-only">Pharmacy</label><select id="rfPharm"></select></div>
+          <div class="field"><label for="rfItems" class="sr-only">Medicines</label><textarea id="rfItems" rows="4" maxlength="1500" placeholder="Metformin 500 × 30"></textarea></div>
+          <div><button class="btn btn-primary btn-sm" type="submit" data-i18n="refillSend">Send request</button></div>
+        </form>
+        <ul class="ap-list" id="rfList"></ul>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:14px;font-size:.88rem"><a href="/pharmacy" data-i18n="forPharm">For pharmacies: AushadhBox Pharmacy</a></p>
   </section>
 
   <!-- SAFETY -->
@@ -361,6 +424,25 @@
         <label class="switch"><input type="checkbox" id="aiOptIn"><span class="track" aria-hidden="true"></span><span data-i18n="aiDesc">Lets Ask answer questions about your family's medicines in your language.</span></label>
         <p class="muted" id="aiOffNote" hidden data-i18n="aiOff">Not available on this site yet.</p>
       </div>
+      <div class="panel stack" id="watchCard">
+        <h3 data-i18n="watchTitle">Smartwatch</h3>
+        <p class="muted" data-i18n="watchDesc">Reminders appear on any watch connected to your phone.</p>
+        <div><a class="btn btn-primary btn-sm" href="/watch" target="_blank" rel="noopener" data-i18n="watchPage">Open the watch page</a></div>
+        <p class="muted" style="font-size:.85rem" data-i18n="watchPageDesc">Big buttons for small screens.</p>
+        <h4 data-i18n="tickTitle">Tap-to-tick link</h4>
+        <p class="muted" style="font-size:.88rem" data-i18n="tickDesc">One secret link that ticks the medicines due now.</p>
+        <p class="mono tick-url" id="tkUrl" hidden></p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" type="button" id="tkMake" data-i18n="tickMake">Make my link</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="tkCopy" hidden data-i18n="tickCopy">Copy link</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="tkSticker" hidden data-i18n="tickSticker">Print QR sticker</button>
+          <button class="link" type="button" id="tkOff" hidden data-i18n="tickOff">Stop the link</button>
+        </div>
+        <ul class="watch-brands">
+          <li data-i18n="wWear">Wear OS and Galaxy Watch</li><li data-i18n="wApple">Apple Watch</li><li data-i18n="wFit">Fitbit, Garmin, Amazfit</li><li data-i18n="wIndia">Noise, boAt, Fire-Boltt, Mi Band</li>
+        </ul>
+        <div><button class="btn btn-ghost btn-sm" type="button" data-go="card" data-i18n="cardTitle">AushadhBox card</button></div>
+      </div>
       <div class="panel stack" id="boxCard">
         <h3 data-i18n="boxTitle">Smart pillbox</h3>
         <p class="muted" data-i18n="boxDesc">A pill organiser with a sensor in each lid. Opening the right lid at dose time ticks the dose by itself.</p>
@@ -461,7 +543,7 @@
   <form method="dialog" class="sheet-x"><button class="icon-btn" aria-label="Close">✕</button></form>
   <h2 id="shopHead" data-i18n="shopTitle">Shopping list</h2>
   <ul class="shop-list" id="shopList"></ul>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" id="shopWa" href="#" target="_blank" rel="noopener" data-i18n="shopShare">Share on WhatsApp</a><button class="btn btn-ghost btn-sm" type="button" id="shopCopy" data-i18n="shopCopy">Copy list</button><a class="btn btn-ghost btn-sm" id="shopPharm" href="#" target="_blank" rel="noopener" data-i18n="phSend">Send to my pharmacy</a></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" id="shopWa" href="#" target="_blank" rel="noopener" data-i18n="shopShare">Share on WhatsApp</a><button class="btn btn-ghost btn-sm" type="button" id="shopCopy" data-i18n="shopCopy">Copy list</button><a class="btn btn-ghost btn-sm" id="shopPharm" href="#" target="_blank" rel="noopener" data-i18n="phSend">Send to my pharmacy</a><button class="btn btn-ghost btn-sm" type="button" id="shopRefill" data-i18n="refillTitle">Ask a pharmacy to keep medicines ready</button></div>
 </dialog>
 
 <dialog class="sheet wide" id="sheetDialog" aria-labelledby="shHead">
@@ -513,8 +595,12 @@
 <script src="/i18n-care.js?v=6"></script>
 <script src="/i18n-autopilot.js?v=7"></script>
 <script src="/i18n-notebook.js?v=8"></script>
-<script src="/rx-parse.js?v=5"></script>
-<script src="/app.js?v=8"></script>
+<script src="/i18n-household.js?v=9"></script>
+<script src="/i18n-connect.js?v=9"></script>
+<script src="/rx-parse.js?v=6"></script>
+<script src="/ble-health.js?v=1"></script>
+<script src="/health-import.js?v=1"></script>
+<script src="/app.js?v=9"></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer></script>
 </body>

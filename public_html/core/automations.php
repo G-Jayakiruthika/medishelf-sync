@@ -230,6 +230,15 @@ function auto_messages_for(array $u, DateTime $now, array $owner_times): array
                   'body' => $who($ap['member_id']) . ($ap['place'] ? $ap['place'] . '. ' : '') . 'The visit sheet (medicines, tablets left, readings, side effects) is ready in the Notebook. Take the medicine strips along.',
                   'tag' => 'appt-' . $ap['id'], 'url' => '/app#notebook', 'kind' => 'appointment'];
     }
+    // i — vaccination due today or in 3 days (made automatically from a child's date of birth)
+    if ($isMorning) foreach (q("SELECT v.id, v.name, v.due_on, m.name who FROM vaccinations v JOIN members m ON m.id = v.member_id WHERE v.user_id = ? AND v.given_on IS NULL AND v.due_on IN (?, ? + INTERVAL 3 DAY)", [$hid, $today, $today])->fetchAll() as $vx) {
+        $slot = $vx['due_on'] === $today ? 't' : 'u';
+        if ($logged('i', (int) $vx['id'], $slot, date('Y-m-d', strtotime("$today -30 day")))) continue;
+        $log('i', (int) $vx['id'], $slot);
+        $out[] = ['title' => 'Vaccination ' . ($slot === 't' ? 'due today' : 'in 3 days') . ': ' . $vx['name'], 'body' => $vx['who'] . ' · ' . date('D j M', strtotime($vx['due_on'])) . '. Take the vaccination card to the health centre or your doctor, then mark it as given in the Notebook.',
+                  'tag' => 'vax-' . $vx['id'], 'url' => '/app#notebook', 'kind' => 'vaccine'];
+    }
+
     // v — watch-over: someone with their own phone or a pillbox has shown no sign of life for a while
     $watch = (int) ($s['watch_hours'] ?? 24);
     if ($watch > 0 && function_exists('last_sign_of_life')) {

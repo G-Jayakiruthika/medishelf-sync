@@ -99,6 +99,17 @@ async function journey(browser, label, viewport) {
   ok((await p.textContent('#emBody')).includes('B+'), 'emergency card shows the blood group');
   ok(await p.evaluate(() => { const c = document.querySelector('#emQr'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let dark = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 50) dark++; return dark > 500; }), 'emergency card has a QR code');
   await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  // Household extras (EPARK-style): medical expenses, doctor link, lab readings
+  await p.fill('#exAmount', '450'); await p.click('#exForm button[type=submit]'); await p.waitForTimeout(700);
+  ok((await p.textContent('#exSum')).includes('450'), 'medical expense counted in the year total');
+  ok(await p.evaluate(() => [...document.querySelectorAll('#hdKind option')].some(o => o.value === 'hba1c')), 'lab results (HbA1c) can be recorded');
+  ok(await p.isVisible('#hdBt') && await p.isVisible('label[for=hdImport]'), 'Bluetooth meter and watch import buttons shown');
+  // AushadhBox card: off until the family switches it on
+  await p.click('#profCard [data-go="card"]'); await p.waitForTimeout(800);
+  ok(await p.isVisible('#view-card') && await p.isVisible('#cdOff'), 'card page opens with sharing off');
+  await p.click('label:has(#cdAdd)'); await p.waitForTimeout(900);
+  ok(/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test((await p.textContent('#cdCode')).trim()) && !(await p.isVisible('#cdOff')), 'switching on makes a card code and QR');
+  ok(await p.isVisible('#rfNone'), 'refills explained until a pharmacy has used the card');
 
   await p.click('#bottomnav [data-go="account"], #tabs [data-go="account"] >> visible=true');
   await p.waitForTimeout(800);
@@ -115,6 +126,8 @@ async function journey(browser, label, viewport) {
   ok((await p.textContent('#planBadge')).includes('Premium'), 'demo payment makes the account Premium');
   await p.click('#btnInvite'); await p.waitForTimeout(500);
   ok(/^[A-Z0-9]{8}$/.test((await p.textContent('#inviteCode')).trim()), 'invite code created');
+  await p.click('#tkMake'); await p.waitForTimeout(700);
+  ok(/\/tick\/[A-Za-z0-9_-]{24,}$/.test((await p.textContent('#tkUrl')).trim()), 'tap-to-tick link made for Siri / NFC / QR sticker');
 
   await p.selectOption('#langSelect', 'hi'); await p.waitForTimeout(400);
   ok((await p.textContent('#planBadge')).includes('प्रीमियम'), 'app switches to Hindi');
@@ -128,6 +141,18 @@ async function journey(browser, label, viewport) {
   const browser = await chromium.launch();
   await journey(browser, 'Phone (390 px)', { width: 390, height: 844 });
   await journey(browser, 'Desktop (1366 px)', { width: 1366, height: 900 });
+  {
+    console.log('\nPharmacy portal and watch page');
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } }), p = await ctx.newPage(), errors = [];
+    p.on('pageerror', e => errors.push(e.message));
+    await p.goto(B + '/pharmacy'); await p.waitForTimeout(800);
+    ok(await p.isVisible('#inForm') && await p.isVisible('#tabUp'), 'pharmacy portal shows sign in and register');
+    await p.click('#tabUp'); ok(await p.isVisible('#upLic'), 'registration asks for the drug licence');
+    await p.goto(B + '/watch'); await p.waitForTimeout(800);
+    ok(await p.isVisible('#wSignin'), 'watch page asks to sign in when signed out');
+    ok(errors.length === 0, 'no JavaScript errors' + (errors.length ? ': ' + errors.join(' | ') : ''));
+    await ctx.close();
+  }
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

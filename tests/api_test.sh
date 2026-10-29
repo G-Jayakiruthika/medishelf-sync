@@ -2,12 +2,14 @@
 # API and security tests. Run against a TEST install (it creates accounts):
 #   bash tests/api_test.sh http://127.0.0.1:8080
 # Needs payments_demo => true in config.php for the payment test.
-B="${1:-http://127.0.0.1:8080}/api.php"
+R="${1:-http://127.0.0.1:8080}"; B="$R/api.php"
 T=$(mktemp -d); PASS=0; FAIL=0; S=$RANDOM$RANDOM
 csrf() { curl -s -b "$T/$1" -c "$T/$1" "$B?action=session" | sed -E 's/.*"csrf":"([a-f0-9]+)".*/\1/'; }
 post() { local c; c=$(csrf "$1"); curl -s -o "$T/out" -w "%{http_code}" -b "$T/$1" -c "$T/$1" -H "Content-Type: application/json" -H "X-CSRF-Token: $c" -X POST "$B?action=$2" -d "$3"; }
 get() { curl -s -o "$T/out" -w "%{http_code}" -b "$T/$1" -c "$T/$1" "$B?action=$2"; }
 expect() { if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "  ✓ $1"; else FAIL=$((FAIL+1)); echo "  ✗ $1 (expected $3, got $2) $(head -c 200 "$T/out")"; fi; }
+pcsrf() { curl -s -b "$T/$1" -c "$T/$1" "$R/pharmacy_api.php?action=session" | sed -E 's/.*"csrf":"([a-f0-9]+)".*/\1/'; }
+ppost() { local c; c=$(pcsrf "$1"); curl -s -o "$T/out" -w "%{http_code}" -b "$T/$1" -c "$T/$1" -H "Content-Type: application/json" -H "X-CSRF-Token: $c" -X POST "$R/pharmacy_api.php?action=$2" -d "$3"; }
 body_has() { if grep -q "$2" "$T/out"; then PASS=$((PASS+1)); echo "  ✓ $1"; else FAIL=$((FAIL+1)); echo "  ✗ $1: $(head -c 200 "$T/out")"; fi; }
 
 echo "Accounts"
@@ -135,6 +137,55 @@ expect "bad pharmacy number refused" "$(post a pharmacy_save '{"name":"X","phone
 expect "new medicine on a schedule" "$(post a item_save '{"name":"Glycomet 500","times":["m","e"]}')" 200
 get a bootstrap >/dev/null; body_has "bootstrap carries visits and pharmacy" '"pharmacy":{"name":"MedPlus"'
 expect "watch-over setting" "$(post a automation_save '{"refill_on":1,"missed_on":1,"course_on":1,"cleanup_on":1,"watch_hours":12}')" 200; body_has "watch-over saved" '"watchHours":12'
+
+echo "Household extras: vaccinations, expenses, doctor links (like EPARK)"
+BD=$(date -d '-70 day' +%Y-%m-%d)
+expect "add a child" "$(post a member_save '{"name":"Baby","relation":"child"}')" 200; KID=$(sed -E 's/.*"id":([0-9]+).*/\1/' "$T/out")
+expect "child's date of birth" "$(post a member_save "{\"id\":$KID,\"name\":\"Baby\",\"relation\":\"child\",\"birth_date\":\"$BD\"}")" 200
+get a bootstrap >/dev/null; body_has "vaccination schedule made by itself" '"code":"penta2"'
+expect "future date of birth refused" "$(post a member_save "{\"id\":$KID,\"name\":\"Baby\",\"birth_date\":\"2099-01-01\"}")" 400
+expect "mark earlier doses as given" "$(post a vaccines_mark_past "{\"member_id\":$KID}")" 200; body_has "earlier doses given" '"given":"20'
+expect "B cannot touch A's child" "$(post b vaccines_mark_past "{\"member_id\":$KID}")" 404
+expect "add an expense" "$(post a expense_add '{"amount":"1,250","category":"test"}')" 200; body_has "expense counted in the year" '"total":1250'
+expect "zero amount refused" "$(post a expense_add '{"amount":"0"}')" 400
+expect "expenses CSV for the tax year" "$(get a expenses_csv)" 200; body_has "CSV has a header" 'Date'
+get b expenses >/dev/null; body_has "B sees only B's expenses" '"total":0'
+expect "share link for the doctor" "$(post a share_create '{"hours":24}')" 200; STOK=$(tr -d '\\' < "$T/out" | grep -o '/share/[A-Za-z0-9_-]*' | head -1 | cut -d/ -f3); SHID=$(grep -o '"shares":\[{"id":[0-9]*' "$T/out" | grep -o '[0-9]*$')
+body_has "link is a full address" '"url":"http'
+c=$(curl -s -o "$T/out" -w "%{http_code}" "$R/share/$STOK"); expect "doctor opens it without an account" "$c" 200; body_has "shows the medicines" 'Glycomet'
+expect "stop sharing" "$(post a share_revoke "{\"id\":$SHID}")" 200
+curl -s -o "$T/out" "$R/share/$STOK"; body_has "stopped link shows expired" 'expired'
+
+echo "AushadhBox card and pharmacies (the family decides)"
+get a bootstrap >/dev/null; MID=$(grep -o '"members":\[{"id":[0-9]*' "$T/out" | grep -o '[0-9]*$')
+expect "cards list" "$(get a cards)" 200; body_has "card is off by default" '"shareAdd":false,"shareView":false'
+expect "B cannot switch on A's card" "$(post b card_share "{\"member_id\":$MID,\"add\":true}")" 404
+expect "switch on: pharmacies may add" "$(post a card_share "{\"member_id\":$MID,\"add\":true,\"view\":false}")" 200; CODE=$(grep -o '"code":"[A-Z0-9-]*"' "$T/out" | head -1 | cut -d'"' -f4)
+[ -n "$CODE" ] && { PASS=$((PASS+1)); echo "  ✓ card code made when switched on"; } || { FAIL=$((FAIL+1)); echo "  ✗ no card code"; }
+expect "pharmacy registers" "$(ppost p signup "{\"name\":\"Test Medicals\",\"license_no\":\"TN-$S\",\"city\":\"Chennai\",\"phone\":\"9876543210\",\"email\":\"ph$S@test.in\",\"password\":\"secret123\",\"agree\":true}")" 200; body_has "waits for approval" '"status":"pending"'
+expect "pharmacy must accept the terms" "$(ppost q signup "{\"name\":\"X\",\"license_no\":\"X1\",\"city\":\"X\",\"phone\":\"9876543210\",\"email\":\"q$S@test.in\",\"password\":\"secret123\"}")" 400
+expect "pending pharmacy cannot scan cards" "$(ppost p patient "{\"code\":\"$CODE\"}")" 403; body_has "says why" 'not_approved'
+expect "pharmacy wrong password" "$(ppost q login "{\"email\":\"ph$S@test.in\",\"password\":\"nope\"}")" 401
+expect "family session cannot use the pharmacy API" "$(ppost a stats '{}')" 401
+expect "no refill to a pharmacy the card was never used at" "$(post a refill_request '{"pharmacy_id":1,"items":[{"name":"Glycomet"}]}')" 403
+expect "new card replaces the old code" "$(post a card_new "{\"member_id\":$MID}")" 200; NEWCODE=$(grep -o '"code":"[A-Z0-9-]*"' "$T/out" | head -1 | cut -d'"' -f4)
+[ "$NEWCODE" != "$CODE" ] && { PASS=$((PASS+1)); echo "  ✓ new card has a new code"; } || { FAIL=$((FAIL+1)); echo "  ✗ code did not change"; }
+
+echo "Smartwatch, tap-to-tick, imports and barcodes"
+expect "watch status" "$(get a watch_status)" 200; body_has "has today's dose times" '"slots":\['
+expect "make a tap-to-tick link" "$(post a tick_link '{}')" 200; TTOK=$(tr -d '\\' < "$T/out" | grep -o '/tick/[A-Za-z0-9_-]*' | head -1 | cut -d/ -f3); body_has "link is a full address" '"url":"http'
+c=$(curl -s -o "$T/out" -w "%{http_code}" "$R/tick/$TTOK"); expect "tick page opens (does not tick on open)" "$c" 200; body_has "has the big button" 'tickBtn'
+c=$(curl -s -o "$T/out" -w "%{http_code}" -X POST "$R/tick/$TTOK?format=text"); expect "Siri / NFC tick" "$c" 200
+if grep -q 'as taken\|Nothing is due\|already ticked' "$T/out"; then PASS=$((PASS+1)); echo "  ✓ answers with a sentence to read aloud"; else FAIL=$((FAIL+1)); echo "  ✗ tick answer: $(head -c 120 "$T/out")"; fi
+expect "watch Taken button" "$(post a watch_tick '{}')" 200
+expect "stop the link" "$(post a tick_link '{"revoke":true}')" 200
+c=$(curl -s -o "$T/out" -w "%{http_code}" -X POST "$R/tick/$TTOK"); expect "stopped link no longer ticks" "$c" 404
+NOW=$(date '+%Y-%m-%d %H:%M:00')
+expect "import watch readings" "$(post a vitals_import "{\"readings\":[{\"kind\":\"pulse\",\"v1\":72,\"at\":\"$NOW\"},{\"kind\":\"pulse\",\"v1\":72,\"at\":\"$NOW\"},{\"kind\":\"spo2\",\"v1\":300,\"at\":\"$NOW\"},{\"kind\":\"bp\",\"v1\":120,\"v2\":80,\"at\":\"$NOW\"}]}")" 200
+body_has "good readings added" '"added":2'; body_has "duplicates and impossible values skipped" '"skipped":2'
+expect "unknown barcode" "$(get a 'barcode_lookup&code=8901234567894')" 200; body_has "not found yet" '"found":false'
+post a item_save '{"name":"Dolo 650","barcode":"8901234567894","exp":"2027-05"}' >/dev/null
+expect "barcode learned from a scan" "$(get b 'barcode_lookup&code=8901234567894')" 200; body_has "next family gets the name" '"name":"Dolo 650"'
 
 echo "Your data (DPDP)"
 expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'

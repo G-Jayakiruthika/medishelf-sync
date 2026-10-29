@@ -51,6 +51,12 @@ jobs:
       - name: Prescription and bill reader
         run: node tests/rx_parse_test.js
 
+      - name: Bluetooth meter parsers
+        run: node tests/ble_parse_test.js
+
+      - name: Watch and health-app import
+        run: node tests/health_import_test.js
+
       - name: Pillbox simulator syntax
         run: python3 -m py_compile hardware/simulator/pillbox_sim.py
 

@@ -145,6 +145,13 @@ The autopilot needs nothing extra: it runs with the cron job (section 8). Every 
 ```
 Families must switch on **Account → AI helper** themselves before their questions are sent to the AI; mention your AI provider in the privacy policy before turning this on.
 
+## 17. AushadhBox Pharmacy and smartwatches
+Nothing to install: both are part of the same upload.
+- **Pharmacy portal:** pharmacies register at `https://yourdomain/pharmacy`. You get an e-mail (to `support_email`) and an item in the admin dashboard. **Before approving, check the drug licence** (call the pharmacy or check your state drug control department's licence list), then open **Admin → Pharmacies → Approve**. The pharmacy gets an e-mail and can scan cards. **Suspend** stops a pharmacy at once. Tell pharmacies about it with a printed note at the counter: "Scan the customer's AushadhBox card: medicines go into their app with reminders."
+- **Before launch:** add your pharmacy terms to `/terms` (what pharmacies may do with a card, licence checks, suspension) and check that `app_url` in `core/config.php` is your real `https://` address, because tap-to-tick stickers and doctor links are printed or sent with it.
+- **Smartwatch:** reminders need phone notifications (section 10). The watch page is `/watch`; the tap-to-tick link and setup notes for every watch brand are in the app under Account → Smartwatch.
+- **Separate repository for the portal (optional):** the portal uses `pharmacy.html`, `pharmacy.js`, `pharmacy_api.php` and `core/pharmacy.php` with the same database. To run it on its own domain, create a new GitHub repository, copy those files plus `core/` (without `config.php`), and point its `config.php` at the same database.
+
 ## Troubleshooting
 
 | Problem | Fix |

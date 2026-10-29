@@ -7,6 +7,7 @@ declare(strict_types=1);
 const MIGRATION_COLUMNS = [
     // table => [column => definition]
     'cabinet_items' => [
+        'pharmacy_id' => 'INT UNSIGNED NULL AFTER course_end',
         'stock_count' => 'SMALLINT UNSIGNED NULL AFTER notes',
         'per_dose' => 'TINYINT UNSIGNED NOT NULL DEFAULT 1 AFTER stock_count',
         'course_end' => 'DATE NULL AFTER per_dose',
@@ -21,6 +22,7 @@ const MIGRATION_COLUMNS = [
         'ai_opt_in' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER last_seen_at',
         'pharmacy_name' => 'VARCHAR(80) NULL AFTER ai_opt_in',
         'pharmacy_phone' => 'VARCHAR(15) NULL AFTER pharmacy_name',
+        'tick_hash' => 'CHAR(64) NULL AFTER pharmacy_phone',
     ],
     'contact_messages' => [
         'category' => 'VARCHAR(12) NULL AFTER handled',
@@ -32,10 +34,14 @@ const MIGRATION_COLUMNS = [
         'replied_at' => 'DATETIME NULL AFTER reply',
     ],
     'members' => [
-        'blood_group' => 'VARCHAR(4) NULL AFTER is_self',
+        'birth_date' => 'DATE NULL AFTER is_self',
+        'blood_group' => 'VARCHAR(4) NULL AFTER birth_date',
         'conditions' => 'VARCHAR(300) NULL AFTER blood_group',
         'emergency_contact' => 'VARCHAR(80) NULL AFTER conditions',
-        'account_id' => 'INT UNSIGNED NULL AFTER emergency_contact',
+        'card_code' => 'VARCHAR(14) NULL AFTER emergency_contact',
+        'share_add' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER card_code',
+        'share_view' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER share_add',
+        'account_id' => 'INT UNSIGNED NULL AFTER share_view',
     ],
     'dose_logs' => [
         'status' => "VARCHAR(8) NOT NULL DEFAULT 'taken' AFTER taken_at",
@@ -50,7 +56,8 @@ const MIGRATION_COLUMNS = [
 
 /* Columns whose definition changed: table => [column => [check, new definition]] */
 const MIGRATION_CHANGES = [
-    'cabinet_items' => ['exp_month' => ['nullable', 'DATE NULL']],
+    'cabinet_items' => [
+        'pharmacy_id' => 'INT UNSIGNED NULL AFTER course_end','exp_month' => ['nullable', 'DATE NULL']],
 ];
 
 function migrate(): array
@@ -79,6 +86,12 @@ function migrate(): array
         foreach ($cols as $col => [$check, $def]) {
             $r = q('SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?', [$table, $col])->fetch();
             if ($r && $check === 'nullable' && $r['IS_NULLABLE'] === 'NO') { db()->exec("ALTER TABLE `$table` MODIFY `$col` $def"); $done[] = "made $table.$col optional"; }
+        }
+    }
+    // 3b. Indexes added in later versions
+    foreach (['members' => ['uq_members_card', 'UNIQUE KEY uq_members_card (card_code)']] as $table => [$name, $def]) {
+        if (!q('SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?', [$table, $name])->fetch()) {
+            db()->exec("ALTER TABLE `$table` ADD $def"); $done[] = "added index $name";
         }
     }
     // 4. Link each owner's own "self" member to their login (used by the "did you take it?" check).

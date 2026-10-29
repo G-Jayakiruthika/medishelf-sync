@@ -86,6 +86,35 @@ Open **Notebook** and choose the person at the top.
 - **Watch-over (Account → Automations):** if a parent with their own phone or a pillbox shows no sign for 12, 24 or 48 hours (no tick, no lid opening, app not opened), the family is told.
 - **Print weekly calendar** (Doses) prints a week of tick boxes to keep next to the medicines.
 
+## 7b. Children's vaccinations, medical expenses and the doctor link
+- **Vaccinations:** in Notebook, choose the child and enter the **Date of birth** under Emergency details. The government schedule (UIP) appears with the due dates, and you get a reminder 3 days before and on the day. Tap **Given** after each vaccine. For an older child, **Mark all earlier doses as given** ticks everything before today.
+- **Medical expenses:** when you scan a pharmacy bill, its total is added by itself. Add doctor fees, tests or check-ups with **Add expense**. **Download the year (CSV)** gives the April–March list for your records or tax adviser. Keep the original bills.
+- **Share with the doctor:** under Doctor visits, this makes a read-only link to the visit sheet that works for 24 hours, with no sign-in for the doctor. **Shared links** shows how often it was opened; **Stop sharing** ends it at once.
+- **Bluetooth meter:** in the Health diary, tap **Connect a Bluetooth meter**, choose your BP monitor, glucometer, thermometer, scale or oximeter, and measure. The reading saves itself. Works in Chrome on Android and on computers (not on iPhone).
+- **Lab results:** the Health diary also takes HbA1c, cholesterol and haemoglobin from a health check-up.
+- **Streaks:** Doses shows how many days in a row every dose was taken (or deliberately skipped).
+
+## 7c. AushadhBox card (for your pharmacy)
+Open **Notebook → AushadhBox card** (or Account → Smartwatch → AushadhBox card) and choose the person.
+1. Switch on what pharmacies may do: **add the medicines they give**, and/or **see medicines, allergies and check-ins**. Both are off until you switch them on.
+2. Show the QR at the counter (or print the wallet card). The pharmacy scans it, and the medicines appear in your app with times and reminders. You get a notification with the pharmacy's name.
+3. **Pharmacies that used this card** and **Who looked or added, and when** show every use. Tap **Block** to stop a pharmacy. Lost the card? **New card** makes a new code; the old one stops working.
+4. **Ask a pharmacy to keep medicines ready:** after the card was used at a pharmacy once, send it a list (or tap the button in the Shopping list). When it is ready, you get a notification.
+The QR holds only a code, never names or medicines. Only pharmacies whose licence was checked can scan cards.
+
+## 7d. Smartwatch
+- **Any watch that shows phone notifications** (Wear OS, Galaxy Watch, Apple Watch, Fitbit, Garmin, Amazfit, Noise, boAt, Fire-Boltt, Mi Band) shows dose reminders. Turn on reminders in Doses, and allow notifications from your browser in the watch's phone app.
+- **Watch page:** Account → Smartwatch → **Open the watch page**. It shows what is due now and one big **Taken** button. On Wear OS / Galaxy, open it in the watch's browser; on any phone, add it to the home screen.
+- **Tap-to-tick link:** **Make my link** gives one secret link that ticks the medicines due now.
+  - *Apple Watch / iPhone:* Shortcuts app → New shortcut → *Get contents of URL* → paste the link, Method **POST**, add `?format=text` at the end → *Speak text*. Name it "Medicines taken" and say "Hey Siri, medicines taken".
+  - *Android:* Google Assistant or Bixby routine that opens the link; or write it on an NFC sticker.
+  - *Paper:* **Print QR sticker** and stick it on the medicine box. Scanning it ticks the doses due now.
+  - **Stop the link** at any time; making a new one stops the old one.
+- **Import readings from your watch** (Notebook → Health diary): export from Apple Health (export.zip), Samsung Health, Google Fit (CSV) or Fitbit (JSON) and choose the file. Pulse, oxygen, weight, blood pressure, sugar and temperature from the last year are added; duplicates are skipped. The file is read on your phone; only the readings are sent.
+
+## 7e. For pharmacies
+Pharmacies register at **/pharmacy** with their drug licence number. After the licence is checked (usually one working day), they can scan cards, check safety, send medicines to the family's app, answer refill requests and see check-in answers for medicines they gave.
+
 ## 8. Voice assistant
 Tap **Ask** and speak, e.g. "What is expiring?" or "Which medicines tonight?", in your language. You can also type.
 
@@ -104,6 +133,7 @@ Refunds: write within 7 days of paying for a full refund (see /refund-policy).
 - **Account → Download my data** gives a file with everything stored.
 - **Account → Delete my account** removes it all permanently.
 - Photos you scan stay on your phone; only the text read from the label is sent.
+- Pharmacies can use your AushadhBox card only if you switch it on, and you see every use (section 7c).
 - Cookie choices: **Cookie settings** at the bottom of any page.
 
 ## 11. Problems?
@@ -113,6 +143,8 @@ Refunds: write within 7 days of paying for a full refund (see /refund-policy).
 | Scan reads nothing | More light, hold steady, tilt to avoid shine, or type instead. |
 | No notifications | Account/Doses → turn on reminders; check the phone's notification settings for the browser. |
 | Forgot password | Sign in screen → *Forgot password?* → check your e-mail (and spam). |
+| Pharmacy says "not shared" | Notebook → AushadhBox card → switch on at least one option for that person. |
+| Bluetooth meter not found | Use Chrome on Android or a computer, turn on Bluetooth and Location, and start a measurement on the meter. |
 | Paid but still Free | Close and reopen the app. Still Free after 10 minutes? Use the Contact page with your Razorpay payment ID. |
 
 > AushadhBox organises medicines. It does not give medical advice. In an emergency call 112. Report side effects to the PvPI helpline 1800-180-3024.

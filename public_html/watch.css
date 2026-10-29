@@ -1,0 +1,21 @@
+/* The watch page: one big button, readable on a 1.2" round screen and on phones. */
+:root { --bg: #0F141B; --ink: #E7ECF2; --muted: #9AA6B6; --ok: #78C084; --ai: #A9BDEA; --warn: #E7B24E; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 16px/1.3 system-ui, -apple-system, "Noto Sans", sans-serif; }
+main { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 14% 12%; }
+.w-slot { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--ai); }
+.w-meds { list-style: none; margin: 0; padding: 0; font-size: .9rem; max-width: 100%; }
+.w-meds li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.w-meds li.done { color: var(--muted); text-decoration: line-through; }
+.w-btn { font: inherit; font-size: 1.35rem; font-weight: 800; border: 0; border-radius: 999px; background: var(--ok); color: #0F141B; padding: 18px 26px; min-width: 70%; min-height: 64px; cursor: pointer; touch-action: manipulation; }
+.w-btn:active { transform: scale(.97); }
+.w-btn:disabled { opacity: .6; }
+.w-btn:focus-visible { outline: 3px solid var(--ai); outline-offset: 3px; }
+.w-msg { margin: 0; min-height: 1.3em; font-size: .9rem; color: var(--warn); }
+.w-day { list-style: none; margin: 4px 0 0; padding: 0; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; font-size: .75rem; color: var(--muted); }
+.w-day li { border: 1px solid #2A3442; border-radius: 999px; padding: 3px 8px; }
+.w-day li.done { border-color: var(--ok); color: var(--ok); }
+.w-day li.now { border-color: var(--ai); color: var(--ai); }
+.w-signin { color: var(--ai); font-size: .95rem; }
+@media (min-width: 420px) { main { padding: 24px; } .w-btn { min-width: 240px; font-size: 1.6rem; } .w-slot { font-size: 1.3rem; } .w-meds { font-size: 1.05rem; } }
+@media (prefers-reduced-motion: reduce) { .w-btn:active { transform: none; } }

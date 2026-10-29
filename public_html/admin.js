@@ -78,6 +78,23 @@
     } catch (err) { showError(err.message); }
   });
 
+  /* ---------- Pharmacies (AushadhBox Pharmacy portal) ---------- */
+  async function loadPharmacies() {
+    const list = (await call("admin_pharmacies")).pharmacies, pending = list.filter(p => p.status === "pending").length;
+    $("#phCount").textContent = pending ? pending + " waiting" : list.length + " total";
+    $("#pharmacies").innerHTML = list.length ? list.map(p => "<tr><td><b>" + esc(p.name) + "</b><br><span class=\"muted\">" + esc(p.city) + " · " + esc(p.created_at.slice(0, 10)) + "</span></td><td class=\"mono\">" + esc(p.license_no) + "</td>" +
+      "<td>" + esc(p.phone) + "<br><span class=\"muted\">" + esc(p.email) + "</span></td><td>" + num(p.patients) + "</td><td>" + num(p.dispensed) + "</td><td>" +
+      '<span class="chip ' + (p.status === "approved" ? "" : p.status === "pending" ? "high" : "overdue") + '">' + esc(p.status) + "</span> " +
+      (p.status !== "approved" ? '<button class="btn btn-primary btn-sm" data-ph="' + p.id + '" data-st="approved">Approve</button> ' : "") +
+      (p.status !== "suspended" ? '<button class="btn btn-ghost btn-sm" data-ph="' + p.id + '" data-st="suspended">Suspend</button>' : "") + "</td></tr>").join("")
+      : '<tr><td colspan="6" class="muted">No pharmacies yet.</td></tr>';
+  }
+  $("#pharmacies").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-ph]"); if (!b) return;
+    if (b.dataset.st === "suspended" && b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Sure? Suspend"; return; }
+    try { await call("admin_pharmacy_status", { id: Number(b.dataset.ph), status: b.dataset.st }); loadPharmacies(); } catch (err) { showError(err.message); }
+  });
+
   /* ---------- Autopilot ---------- */
   const SEG = { likely_upgrade: "Likely to upgrade", at_risk: "Premium at risk", not_activated: "Not started", dormant: "Gone quiet", champions: "Champions" };
   let ap = null, seg = "likely_upgrade";
@@ -136,7 +153,7 @@
     csrf = session.csrf;
     if (!session.user) { location.href = "/app#signin"; return; }
     if (!session.user.admin) { showError("This page is only for administrators."); return; }
-    await Promise.all([load(), loadAutopilot().catch(e => showError(e.message))]);
+    await Promise.all([load(), loadAutopilot().catch(e => showError(e.message)), loadPharmacies().catch(e => showError(e.message))]);
   } catch (e) { showError(e.message); }
 
   $("#importForm").addEventListener("submit", async (e) => {

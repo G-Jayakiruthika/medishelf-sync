@@ -17,6 +17,7 @@
   "shortcuts": [
     { "name": "Emergency card", "short_name": "Emergency", "url": "/app#emergency", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Today's doses", "short_name": "Doses", "url": "/app#doses", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Tick doses (watch)", "short_name": "Tick", "url": "/watch", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
     { "name": "Scan a medicine", "short_name": "Scan", "url": "/app#scan", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
   ],
   "icons": [

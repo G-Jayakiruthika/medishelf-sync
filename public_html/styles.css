@@ -437,3 +437,63 @@ dialog.sheet { grid-template-columns: minmax(0, 1fr); }
 .em-person { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 4px; }
 .em-person b.big { font-size: 1.15rem; } .em-person .blood { color: #B3382A; font-weight: 800; }
 .em-qr { display: grid; place-items: center; gap: 6px; } .em-qr canvas { width: 190px; height: 190px; image-rendering: pixelated; background: #fff; padding: 8px; border-radius: 10px; }
+
+/* Household extras, AushadhBox card, smartwatch */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.streak { margin: 0 0 10px; display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; background: var(--warn-soft); color: var(--ink); border-radius: 999px; padding: 6px 14px; font-weight: 700; font-size: .92rem; }
+.streak small { font-weight: 500; color: var(--muted); }
+.vx-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: .9rem; max-height: 320px; overflow: auto; }
+.vx-list li { display: flex; justify-content: space-between; gap: 8px; align-items: center; border-bottom: 1px dashed var(--line); padding: 5px 0; }
+.vx-list li.done span:first-child { color: var(--muted); text-decoration: line-through; }
+.vx-list .over { color: var(--bad); font-weight: 700; }
+.vx-next { margin: 0; font-weight: 700; color: var(--ai); }
+.hd-tools { display: flex; gap: 8px; flex-wrap: wrap; } .hd-tools label.btn { cursor: pointer; }
+.ex-sum { margin: 0; font-weight: 700; font-size: 1.05rem; }
+.ex-sum small { display: block; font-weight: 500; color: var(--muted); font-size: .84rem; }
+.ex-form { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); align-items: end; }
+.wallet { display: grid; justify-items: center; gap: 8px; background: linear-gradient(135deg, #1F3358, #2C4A7C); color: #fff; border-radius: 18px; padding: 16px; max-width: 300px; width: 100%; margin: 0 auto; }
+.wallet-top { display: flex; justify-content: space-between; width: 100%; gap: 8px; font-size: .92rem; }
+.wallet canvas { width: 200px; height: 200px; image-rendering: pixelated; background: #fff; border-radius: 10px; padding: 6px; }
+.wallet.off canvas { opacity: .25; }
+.wallet-code { font-size: 1.15rem; letter-spacing: .08em; }
+.warn-note { margin: 0; color: var(--warn); font-weight: 600; font-size: .9rem; }
+.card-qr-panel .switch { flex: none; }
+.cd-log { max-height: 260px; overflow: auto; }
+.cd-log li { font-size: .85rem; }
+.pill.sent { background: var(--ai-soft); color: var(--ai); }
+.tick-url { margin: 0; word-break: break-all; font-size: .8rem; background: var(--sunk); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.watch-brands { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: .86rem; color: var(--muted); }
+
+/* AushadhBox Pharmacy portal (/pharmacy) */
+.ph-wrap { padding-block: 18px 40px; display: grid; gap: 18px; }
+.ph-hero h1 { font-family: var(--f-display); font-size: clamp(1.5rem, 4vw, 2.2rem); margin: 6px 0 8px; }
+.ph-auth { max-width: 640px; }
+.ph-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.ph-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; }
+.ph-stat b { display: block; font-size: 1.6rem; font-family: var(--f-display); }
+.ph-stat.alert b { color: var(--bad); }
+.ph-stat small { color: var(--muted); font-size: .84rem; }
+.ph-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .ph-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } #addCard, #patCard { grid-column: 1 / -1; } }
+.ph-grid h2 { font-size: 1.1rem; margin: 0; }
+.ph-cam { position: relative; border-radius: 14px; overflow: hidden; background: #000; aspect-ratio: 4 / 3; max-width: 420px; }
+.ph-cam video { width: 100%; height: 100%; object-fit: cover; }
+.ph-code { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; } .ph-code .field { flex: 1 1 200px; }
+.ph-pat-head { display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.ph-pat-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.ph-pat-grid h3 { font-size: .95rem; margin: 0 0 6px; }
+.ph-allergy { background: var(--bad-soft); color: var(--bad); border-radius: 12px; padding: 8px 12px; font-weight: 700; }
+.ph-rows { display: grid; gap: 10px; }
+.ph-row { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 8px; }
+.ph-row-top { display: flex; gap: 8px; align-items: center; } .ph-row-top input { flex: 1; min-width: 0; }
+.ph-row-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: .86rem; }
+.ph-row-meta input { width: 84px; } .ph-row-meta input[type=month] { width: 150px; } .ph-row-meta input.wide { width: 160px; }
+.ph-alerts { display: grid; gap: 6px; }
+.ph-alerts p { margin: 0; border-radius: 12px; padding: 8px 12px; font-size: .9rem; }
+.ph-alerts .high { background: var(--bad-soft); color: var(--bad); font-weight: 600; }
+.ph-alerts .medium, .ph-alerts .low { background: var(--warn-soft); color: var(--ink); }
+.ph-alerts .clear { background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.ph-list li { align-items: start; }
+.ph-list .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ph-how { font-size: .94rem; } .ph-how ol { padding-left: 20px; display: grid; gap: 6px; }
+.ph-body .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }

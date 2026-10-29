@@ -169,7 +169,28 @@
       if (i.half) n.push("½ tablet each time"); if (i.food) n.push(i.food); if (i.sos) n.push("only when needed"); if (i.weekly) n.push("once a week");
       i.notes = n.join(", ");
     });
-    return { kind: kind, items: items };
+    var out = { kind: kind, items: items };
+    if (kind === "bill") { var tot = billTotal(lines); if (tot) out.total = tot; var dt = billDate(text); if (dt) out.date = dt; }
+    return out;
+  }
+
+  /* The amount paid on a pharmacy bill: the last "Net amount / Grand total / Total / Amount payable" line. */
+  function billTotal(lines) {
+    var found = null;
+    lines.forEach(function (l) {
+      var m = l.match(/\b(grand\s*total|net\s*(?:amt|amount|payable)|amount\s*payable|total\s*amount|total|net)\b[^0-9]{0,12}([0-9][0-9,]*(?:\.[0-9]{1,2})?)\s*$/i);
+      if (m && !/sub\s*total|total\s*qty|total\s*items|discount/i.test(l)) { var v = parseFloat(m[2].replace(/,/g, "")); if (v > 0 && v < 1000000) found = v; }
+    });
+    return found;
+  }
+  /* The bill date (dd/mm/yyyy, dd-mm-yy) as yyyy-mm-dd. */
+  function billDate(text) {
+    var m = String(text).match(/\bdate\b[^0-9]{0,6}(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/i);
+    if (!m) return null;
+    var y = Number(m[3]); if (y < 100) y += 2000;
+    var d = Number(m[1]), mo = Number(m[2]);
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    return y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0");
   }
 
   function addDays(today, n) {

@@ -34,9 +34,10 @@ def page_file(path):
     if m: return {"medicines": "med-", "ingredients": "ing-", "guides": "guide-"}[m.group(1)] + m.group(2) + ".html"
     if route in ("app", "report"): return "app.html" + (frag if route == "app" else "#account")
     if route == "admin.html": return "admin.html"
+    if route in ("pharmacy", "watch"): return route + ".html"
     return None
 
-STATIC = re.compile(r"^/(site\.css|site\.js|consent\.js|consent-i18n\.js|styles\.css|app\.js|admin\.js|rx-parse\.js|i18n[\w-]*\.js|manifest\.webmanifest|img/[\w.-]+|icons/[\w.-]+|lib/[\w.-]+|assets/[\w/.-]+)(\?.*)?$")
+STATIC = re.compile(r"^/(site\.css|site\.js|consent\.js|consent-i18n\.js|styles\.css|app\.js|admin\.js|rx-parse\.js|pharmacy\.js|watch\.js|watch\.css|ble-health\.js|health-import\.js|i18n[\w-]*\.js|manifest\.webmanifest|img/[\w.-]+|icons/[\w.-]+|lib/[\w.-]+|assets/[\w/.-]+)(\?.*)?$")
 
 def rewrite_url(u, have):
     if u.startswith(BASE): u = u[len(BASE):] or "/"
@@ -46,7 +47,7 @@ def rewrite_url(u, have):
     f = page_file(u)
     if f is None: return "preview-note.html"
     name = f.split("#")[0]
-    if name not in have and not name.startswith(("app.html", "admin.html")): return "preview-note.html"
+    if name not in have and not name.startswith(("app.html", "admin.html", "pharmacy.html", "watch.html")): return "preview-note.html"
     return f
 
 def rewrite_html(html, have, add_demo=True, banner=True):
@@ -96,9 +97,9 @@ def main():
         open(os.path.join(SITE, f), "w").write(rewrite_html(html, have))
 
     # 3. App and admin (static files) with the demo API in front
-    for name in ("app.html", "admin.html"):
+    for name in ("app.html", "admin.html", "pharmacy.html", "watch.html"):
         html = open(os.path.join(PUB, name)).read()
-        html = rewrite_html(html, have, banner=(name == "admin.html"))
+        html = rewrite_html(html, have, banner=(name in ("admin.html", "pharmacy.html")))
         open(os.path.join(SITE, name), "w").write(html)
 
     # 4. Assets

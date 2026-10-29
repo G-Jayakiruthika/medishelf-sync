@@ -2,7 +2,7 @@
    Data lives only in this browser (localStorage). Loaded before every other script on preview pages. */
 (function () {
   "use strict";
-  var KEY = "ab-demo-v4", DATA = null, dataPromise = null;
+  var KEY = "ab-demo-v5", DATA = null, dataPromise = null;
   var today = new Date(), iso = function (d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   var TODAY = iso(today);
   var ym = function (add) { var d = new Date(today.getFullYear(), today.getMonth() + add, 1); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
@@ -71,6 +71,36 @@
   var S;
   try { S = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { S = null; }
   if (!S || !S.users) S = seed();
+  extend(S);
+  /* Household extras, the AushadhBox card, pharmacies and the watch (added later; older saved previews get them too). */
+  function extend(st) {
+    if (st.cards) return;
+    var anu = st.members.find(function (m) { return m.id === 4; }); if (anu && !anu.birthDate) anu.birthDate = dayAdd(-300);
+    st.vaccines = []; if (anu) makeVaccines(st, anu.id, anu.birthDate);
+    st.vaccines.forEach(function (v) { if (v.due < dayAdd(-30)) v.given = v.due; });
+    st.expenses = [{ id: 1, memberId: 3, category: "medicine", amount: 1240, date: dayAdd(-20), note: "Pharmacy bill: Metformin 500 mg, Atorvastatin 10 mg", source: "bill" },
+      { id: 2, memberId: 3, category: "test", amount: 850, date: dayAdd(-35), note: "HbA1c and lipid profile", source: "manual" }, { id: 3, memberId: 2, category: "consult", amount: 500, date: dayAdd(-12), note: null, source: "manual" }];
+    st.shares = []; st.streaks = [{ memberId: 2, days: 12 }, { memberId: 3, days: 4 }];
+    st.cards = [{ memberId: 2, code: "K7QM-4TRA-9WXE", shareAdd: true, shareView: true }];
+    st.pharmacies = [{ id: 1, name: "Sri Sai Medicals", city: "Coimbatore", address: "14 Cross Cut Road, Gandhipuram", phone: "9840012345", email: "srisai@example.in", licenseNo: "TN-CBE-20B-4471", status: "approved" },
+      { id: 2, name: "Green Cross Pharmacy", city: "Salem", address: "", phone: "9840054321", email: "greencross@example.in", licenseNo: "TN-SLM-21B-118", status: "pending" }];
+    st.links = [{ memberId: 2, pharmacyId: 1, first: dayAdd(-40) + " 11:02", last: dayAdd(-3) + " 18:40", blocked: false }];
+    st.phLog = [{ action: "add", detail: "Telmisartan 40 mg", at: dayAdd(-3) + " 18:41", memberId: 2, pharmacyId: 1 }, { action: "view", detail: "Saw the medicine list", at: dayAdd(-3) + " 18:40", memberId: 2, pharmacyId: 1 },
+      { action: "refill", detail: "Refill request marked ready", at: dayAdd(-1) + " 10:05", memberId: 2, pharmacyId: 1 }];
+    st.refills = [{ id: 1, memberId: 2, pharmacyId: 1, items: [{ name: "Telmisartan 40 mg", qty: 30 }, { name: "Amlodipine 5 mg", qty: 30 }], note: "", status: "ready", at: dayAdd(-2) + " 20:15", updated: dayAdd(-1) + " 10:05" }];
+    st.tickLink = false; st.barcodes = { "8901234567894": "Dolo 650 (Paracetamol 650 mg)" }; st.ph = null;
+    st.items.forEach(function (i) { if (i.id === 2) { i.pharmacyId = 1; i.notes = "Given by Sri Sai Medicals"; } });
+  }
+  function makeVaccines(st, memberId, birth) {
+    var UIP = [["bcg","BCG",0],["hepb0","Hepatitis B (birth dose)",0],["opv0","OPV (birth dose)",0],["opv1","OPV 1",42],["penta1","Pentavalent 1",42],["rota1","Rotavirus 1",42],["fipv1","fIPV 1",42],["pcv1","PCV 1",42],["opv2","OPV 2",70],["penta2","Pentavalent 2",70],["rota2","Rotavirus 2",70],["opv3","OPV 3",98],["penta3","Pentavalent 3",98],["rota3","Rotavirus 3",98],["fipv2","fIPV 2",98],["pcv2","PCV 2",98],["mr1","MR 1 (measles-rubella) + Vitamin A",274],["pcvb","PCV booster",274],["dptb1","DPT booster 1",487],["opvb","OPV booster",487],["mr2","MR 2",487],["dptb2","DPT booster 2",1826],["td10","Td (10 years)",3652],["td16","Td (16 years)",5844]];
+    st.vaccines = st.vaccines.filter(function (v) { return v.memberId !== memberId || v.given; });
+    UIP.forEach(function (u) {
+      if (st.vaccines.some(function (v) { return v.memberId === memberId && v.code === u[0]; })) return;
+      var d = new Date(birth + "T00:00:00"); d.setDate(d.getDate() + u[2]);
+      st.vaccines.push({ id: ++st.nextId, memberId: memberId, code: u[0], name: u[1], due: iso(d), given: null });
+    });
+    st.vaccines.sort(function (a, b) { return a.due < b.due ? -1 : a.due > b.due ? 1 : a.id - b.id; });
+  }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private window: keep in memory */ } }
   window.AB_DEMO = { reset: function () { S = seed(); save(); }, signInDemo: function () { S.session = 1; save(); } };
   if (/[?&]demo=signin/.test(location.search)) { S.session = 1; save(); }
@@ -177,6 +207,57 @@
   function fail(status, code, message) { var e = new Error(message); e.status = status; e.code = code; throw e; }
   function need() { var u = me(); if (!u) fail(401, "not_signed_in", "Please sign in."); return u; }
 
+
+  /* ---- helpers for the household, card and watch actions ---- */
+  function nowHM() { var d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function expSummary() {
+    var y = today.getMonth() < 3 ? today.getFullYear() - 1 : today.getFullYear(), from = y + "-04-01", to = (y + 1) + "-03-31", by = {}, total = 0;
+    var list = S.expenses.filter(function (x) { return x.date >= from && x.date <= to; });
+    list.forEach(function (x) { by[x.category] = (by[x.category] || 0) + x.amount; total += x.amount; });
+    return { year: "FY " + y + "-" + String(y + 1).slice(2), from: from, to: to, total: total, byCategory: by,
+      items: list.map(function (x) { var m = S.members.find(function (mm) { return mm.id === x.memberId; }); return Object.assign({}, x, { member: m ? m.name : null }); }) };
+  }
+  function newCode() { var A = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", c = ""; for (var i = 0; i < 12; i++) c += A[Math.floor(Math.random() * A.length)]; return c.slice(0, 4) + "-" + c.slice(4, 8) + "-" + c.slice(8); }
+  function myCard(h, memberId, create) {
+    if (!S.members.some(function (m) { return m.id === memberId && m.hid === h; })) fail(404, "not_found", "That person was not found.");
+    var c = S.cards.find(function (x) { return x.memberId === memberId; });
+    if (!c && create) { c = { memberId: memberId, code: null, shareAdd: false, shareView: false }; S.cards.push(c); }
+    return c;
+  }
+  function phName(id) { var p = S.pharmacies.find(function (x) { return x.id === id; }); return p ? p.name : ""; }
+  function cardsPublic(h) {
+    var mine = S.members.filter(function (m) { return m.hid === h; }), ids = mine.map(function (m) { return m.id; });
+    return { cards: mine.map(function (m) { var c = S.cards.find(function (x) { return x.memberId === m.id; }) || {}; return { memberId: m.id, name: m.name, code: c.code || null, shareAdd: !!c.shareAdd, shareView: !!c.shareView }; }),
+      links: S.links.filter(function (l) { return ids.indexOf(l.memberId) >= 0; }).map(function (l) { var p = S.pharmacies.find(function (x) { return x.id === l.pharmacyId; }); return Object.assign({}, l, { pharmacy: p.name, city: p.city }); }),
+      log: S.phLog.filter(function (l) { return ids.indexOf(l.memberId) >= 0; }).map(function (l) { return Object.assign({}, l, { pharmacy: phName(l.pharmacyId) }); }),
+      refills: S.refills.filter(function (r) { return ids.indexOf(r.memberId) >= 0 || !r.memberId; }).map(function (r) { return Object.assign({}, r, { pharmacy: phName(r.pharmacyId) }); }) };
+  }
+  function linkedPh(h) {
+    var ids = S.members.filter(function (m) { return m.hid === h; }).map(function (m) { return m.id; }), out = [];
+    S.links.forEach(function (l) { var c = S.cards.find(function (x) { return x.memberId === l.memberId; });
+      if (ids.indexOf(l.memberId) >= 0 && !l.blocked && c && (c.shareAdd || c.shareView) && !out.some(function (p) { return p.id === l.pharmacyId; })) { var p = S.pharmacies.find(function (x) { return x.id === l.pharmacyId; }); out.push({ id: p.id, name: p.name, city: p.city }); } });
+    return out;
+  }
+  function watchStatus(u) {
+    var h = hid(u), rem = S.reminders[u.id] || { m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, d = new Date(), min = d.getHours() * 60 + d.getMinutes(), slots = [], best = null;
+    ["m", "a", "e", "b"].forEach(function (sl) {
+      var due = S.items.filter(function (i) { return i.hid === h && i.times.indexOf(sl) >= 0 && (!i.courseEnd || i.courseEnd >= TODAY); }); if (!due.length) return;
+      var meds = due.map(function (i) { var t = S.taken.find(function (x) { return x.item === i.id && x.slot === sl && x.day === TODAY; }); return { name: i.name, status: t ? (t.status || "taken") : null }; });
+      var done = meds.every(function (m) { return m.status; }), tm = rem[sl], diff = min - (Number(tm.slice(0, 2)) * 60 + Number(tm.slice(3)));
+      slots.push({ slot: sl, time: tm, meds: meds, done: done });
+      if (!done && diff >= -120 && diff <= 240 && (!best || Math.abs(diff) < best.d)) best = { s: sl, d: Math.abs(diff) };
+    });
+    if (!best) { var late = slots.filter(function (x) { return !x.done && (Number(x.time.slice(0, 2)) * 60 + Number(x.time.slice(3))) <= min; }).pop(); if (late) best = { s: late.slot }; }
+    return { now: best ? best.s : null, slots: slots, date: TODAY };
+  }
+  /* The preview has no server, so "Download the year (CSV)" is made here. */
+  document.addEventListener("click", function (e) {
+    var a = e.target.closest && e.target.closest("#exCsv"); if (!a) return; e.preventDefault();
+    var x = expSummary(), rows = [["Date", "Person", "Category", "Amount (INR)", "Note", "Added by"]].concat(x.items.map(function (i) { return [i.date, i.member || "Family", i.category, i.amount, i.note || "", i.source]; }));
+    var csv = "﻿" + rows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+    var l = document.createElement("a"); l.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); l.download = "medical-expenses-" + x.year.replace(/\s/g, "") + ".csv"; l.click();
+  });
+
   var actions = {
     session: function () { var u = me(); return { user: u ? pubUser(u) : null, csrf: "demo", consentVersion: "2026.2", features: { mail: false, push: false, bhashini: false } }; },
     signup: function (b) {
@@ -193,15 +274,17 @@
     forgot: function () { fail(503, "mail_off", "Password reset e-mails are switched off in this preview. Use demo@aushadhbox.in / demo1234."); },
     bootstrap: function () {
       var u = need(), h = hid(u);
-      return { user: pubUser(u), today: TODAY, members: S.members.filter(function (m) { return m.hid === h; }).map(function (m) { return { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, self: m.self, bloodGroup: m.bloodGroup || null, conditions: m.conditions || null, emergencyContact: m.emergencyContact || null }; }),
+      return { user: pubUser(u), today: TODAY, members: S.members.filter(function (m) { return m.hid === h; }).map(function (m) { return { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, self: m.self, birthDate: m.birthDate || null, bloodGroup: m.bloodGroup || null, conditions: m.conditions || null, emergencyContact: m.emergencyContact || null }; }),
         items: S.items.filter(function (i) { return i.hid === h; }).map(pubItem), taken: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h && t.status !== "skipped"; }).map(function (t) { return t.item + ":" + t.slot; }),
         doseLog: S.taken.filter(function (t) { return t.day === TODAY && t.hid === h; }).reduce(function (o, t) { o[t.item + ":" + t.slot] = { status: t.status || "taken", reason: t.reason || null, source: t.source || "app", at: t.at || "" }; return o; }, {}),
         reminders: S.reminders[u.id] || { enabled: false, m: "08:00", a: "13:30", e: "19:30", b: "22:00" }, kit: S.kit, billing: billing(u), alerts: safety(h),
-        followups: S.followups, appointments: S.appointments, pharmacy: S.pharmacy };
+        followups: S.followups, appointments: S.appointments, pharmacy: S.pharmacy,
+        vaccines: S.vaccines, shares: S.shares.filter(function (x) { return x.expires > TODAY; }), streaks: S.streaks, tickLink: S.tickLink };
     },
     member_save: function (b) {
       var u = need(), h = hid(u);
       if (b.id) { var m = S.members.find(function (x) { return x.id === b.id && x.hid === h; }); if (!m) fail(404, "not_found", "That record was not found."); m.name = b.name; m.relation = b.relation; m.allergies = b.allergies;
+        if ("birth_date" in b) { if (b.birth_date && b.birth_date > TODAY) fail(400, "bad_date", "Choose a date of birth in the past."); m.birthDate = b.birth_date || null; if (m.birthDate && m.birthDate > dayAdd(-17 * 365)) makeVaccines(S, m.id, m.birthDate); }
         if ("blood_group" in b) m.bloodGroup = b.blood_group || null; if ("conditions" in b) m.conditions = b.conditions || null; if ("emergency_contact" in b) m.emergencyContact = b.emergency_contact || null; return { ok: true, id: m.id }; }
       if (S.members.filter(function (m) { return m.hid === h; }).length >= limits(u).members) fail(402, "limit_members", "The Free plan covers 4 family members. Upgrade to Family Premium to add up to 15.");
       var id = ++S.nextId; S.members.push({ id: id, hid: h, name: b.name, relation: b.relation || "", allergies: b.allergies || "", self: false }); return { ok: true, id: id };
@@ -416,7 +499,100 @@
         consent: { accepted: 1105, rejected: 735 }, messages_open: S.messages.filter(function (m) { return !m.handled; }).length, note: "Sample numbers for the preview" }; },
     admin_messages: function () { admin(); var now = TODAY + " " + nowHM(); S.messages.forEach(function (m) { m.overdue = !m.handled && m.due_at < now; }); return { messages: S.messages, mail: true }; },
     admin_message_done: function (b) { S.messages.forEach(function (m) { if (m.id === b.id) m.handled = 1; }); return { ok: true }; },
+    /* ---- Household extras ---- */
+    vaccine_given: function (b) { need(); var v = S.vaccines.find(function (x) { return x.id === b.id; }); if (v) v.given = b.given ? (b.date || TODAY) : null; return { ok: true, vaccines: S.vaccines }; },
+    vaccines_mark_past: function (b) { need(); S.vaccines.forEach(function (v) { if (v.memberId === b.member_id && !v.given && v.due < TODAY) v.given = v.due; }); return { ok: true, vaccines: S.vaccines }; },
+    expenses: function () { need(); return expSummary(); },
+    expense_add: function (b) { need(); var a = Number(String(b.amount || "").replace(/,/g, "")); if (!(a > 0) || a > 1e6) fail(400, "bad_amount", "Enter the amount in rupees.");
+      S.expenses.unshift({ id: ++S.nextId, memberId: b.member_id || null, category: b.category || "medicine", amount: a, date: b.spent_on || TODAY, note: b.note || null, source: "manual" }); return Object.assign({ ok: true }, expSummary()); },
+    expense_delete: function (b) { need(); S.expenses = S.expenses.filter(function (x) { return x.id !== b.id; }); return Object.assign({ ok: true }, expSummary()); },
+    share_create: function (b) { need(); var tok = Math.random().toString(36).slice(2, 12); var e = new Date(Date.now() + 864e5);
+      S.shares.unshift({ id: ++S.nextId, memberId: b.member_id || null, expires: iso(e) + " " + nowHM(), views: 0 });
+      return { ok: true, url: "https://aushadhbox.in/share/" + tok + "-preview", expires: iso(e), shares: S.shares }; },
+    share_revoke: function (b) { need(); S.shares = S.shares.filter(function (x) { return x.id !== b.id; }); return { ok: true, shares: S.shares }; },
+    /* ---- AushadhBox card ---- */
+    cards: function () { var h = hid(need()); return Object.assign(cardsPublic(h), { pharmacies: linkedPh(h) }); },
+    card_new: function (b) { var h = hid(need()); var c = myCard(h, b.member_id, true); c.code = newCode(); return cardsPublic(h); },
+    card_share: function (b) { var h = hid(need()); var c = myCard(h, b.member_id, true); c.shareAdd = !!b.add; c.shareView = !!b.view; if ((c.shareAdd || c.shareView) && !c.code) c.code = newCode(); return cardsPublic(h); },
+    pharmacy_block: function (b) { var h = hid(need()); myCard(h, b.member_id, false); S.links.forEach(function (l) { if (l.memberId === b.member_id && l.pharmacyId === b.pharmacy_id) l.blocked = !!b.blocked; });
+      return Object.assign(cardsPublic(h), { pharmacies: linkedPh(h) }); },
+    refill_request: function (b) { var h = hid(need()); if (!linkedPh(h).some(function (p) { return p.id === b.pharmacy_id; })) fail(403, "not_linked", "Use your AushadhBox card at this pharmacy once first.");
+      var items = (b.items || []).filter(function (x) { return x && String(x.name || "").trim(); }).slice(0, 30); if (!items.length) fail(400, "empty", "Add at least one medicine.");
+      S.refills.unshift({ id: ++S.nextId, memberId: b.member_id || null, pharmacyId: b.pharmacy_id, items: items, note: b.note || "", status: "sent", at: TODAY + " " + nowHM(), updated: TODAY + " " + nowHM() }); return Object.assign({ ok: true }, cardsPublic(h)); },
+    /* ---- Watch and tap-to-tick ---- */
+    tick_link: function (b) { need(); if (b.revoke) { S.tickLink = false; return { ok: true, url: null }; } S.tickLink = true; return { ok: true, url: "https://aushadhbox.in/tick/" + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2) + "pv" }; },
+    watch_status: function () { var u = need(); return watchStatus(u); },
+    watch_tick: function () { var u = need(), h = hid(u), st = watchStatus(u); if (!st.now) return { ok: true, slot: null, ticked: 0, message: "Nothing is due now." };
+      var n = 0; S.items.filter(function (i) { return i.hid === h && i.times.indexOf(st.now) >= 0; }).forEach(function (i) {
+        if (!S.taken.some(function (t) { return t.item === i.id && t.slot === st.now && t.day === TODAY; })) { S.taken.push({ hid: h, item: i.id, slot: st.now, day: TODAY, status: "taken", source: "app", at: nowHM() }); n++; } });
+      return { ok: true, slot: st.now, ticked: n }; },
+    vitals_import: function (b) { need(); var added = 0, skipped = 0;
+      (b.readings || []).forEach(function (r) { var dup = S.vitals.some(function (v) { return v.kind === r.kind && v.at.slice(0, 16) === String(r.at).slice(0, 16) && (v.memberId || null) === (b.member_id || null); });
+        if (dup || !(r.v1 > 0)) { skipped++; return; } S.vitals.push({ id: ++S.nextId, memberId: b.member_id || null, kind: r.kind, v1: r.v1, v2: r.v2 || null, context: null, flag: vflag(r.kind, r.v1, r.v2, null), note: "imported", at: String(r.at).slice(0, 16) }); added++; });
+      return { ok: true, added: added, skipped: skipped }; },
+    barcode_lookup: function (b, q) { need(); var name = S.barcodes[String(q.get("code") || "")]; return { found: !!name, name: name || null, catalogId: null, info: null }; },
+    admin_pharmacies: function () { admin(); return { pharmacies: S.pharmacies.map(function (p) { return { id: p.id, name: p.name, license_no: p.licenseNo, city: p.city, phone: p.phone, email: p.email, status: p.status, created_at: dayAdd(-50) + " 10:00",
+      patients: S.links.filter(function (l) { return l.pharmacyId === p.id; }).length, dispensed: S.items.filter(function (i) { return i.pharmacyId === p.id; }).length }; }) }; },
+    admin_pharmacy_status: function (b) { admin(); S.pharmacies.forEach(function (p) { if (p.id === b.id) p.status = b.status; }); return { ok: true }; },
     admin_import: function () { fail(400, "demo", "Importing is switched off in this preview.") ; }
+  };
+
+
+  /* ---- AushadhBox Pharmacy portal (pharmacy_api.php) ---- */
+  function phMe() { return S.ph ? S.pharmacies.find(function (p) { return p.id === S.ph; }) : null; }
+  function phNeed() { var p = phMe(); if (!p) fail(401, "not_signed_in", "Please sign in."); if (p.status !== "approved") fail(403, "not_approved", "Your pharmacy is waiting for approval."); return p; }
+  function phPub(p) { return { id: p.id, name: p.name, licenseNo: p.licenseNo, city: p.city, address: p.address, phone: p.phone, email: p.email, status: p.status }; }
+  function masked(n) { return String(n).split(/\s+/).map(function (w, i) { return i ? w.charAt(0) + "." : w; }).join(" "); }
+  function cardMember(p, code) {
+    var c = String(code || "").replace(/^AUSHADHBOX:/i, "").replace(/[^A-Za-z0-9]/g, "").toUpperCase(); c = c.length === 12 ? c.slice(0, 4) + "-" + c.slice(4, 8) + "-" + c.slice(8) : "";
+    var card = S.cards.find(function (x) { return x.code === c; }); if (!card) fail(404, "bad_card", "This card was not found. In the preview, use K7QM-4TRA-9WXE (Amma's card) or switch on a card in the app.");
+    if (!card.shareAdd && !card.shareView) fail(403, "not_shared", "The family has not allowed pharmacies to use this card.");
+    var l = S.links.find(function (x) { return x.memberId === card.memberId && x.pharmacyId === p.id; });
+    if (l && l.blocked) fail(403, "blocked", "The family has stopped sharing with this pharmacy.");
+    if (!l) { l = { memberId: card.memberId, pharmacyId: p.id, first: TODAY + " " + nowHM(), last: null, blocked: false }; S.links.push(l); } l.last = TODAY + " " + nowHM();
+    return { card: card, m: S.members.find(function (m) { return m.id === card.memberId; }) };
+  }
+  function phLogAdd(p, memberId, action, detail) { S.phLog.unshift({ action: action, detail: detail, at: TODAY + " " + nowHM(), memberId: memberId, pharmacyId: p.id }); }
+  function phItems(p, m, items) {
+    return (items || []).filter(function (x) { return x && String(x.name || "").trim().length >= 2; }).slice(0, 20).map(function (x) {
+      var ids = ingredientsIn(x.name), d = Number(x.days) || 0, end = null; if (d && x.times && x.times.length) { var e = new Date(today); e.setDate(e.getDate() + d - 1); end = iso(e); }
+      return { id: ++S.nextId, hid: m.hid, member_id: m.id, name: String(x.name).trim(), exp: x.exp || null, mfg: null, batch: x.batch || "", quantity: "", notes: "Given by " + p.name + (x.notes ? ": " + x.notes : ""),
+        times: x.times || [], stock: x.qty === null || x.qty === undefined || x.qty === "" ? null : Number(x.qty), perDose: 1, courseEnd: end, info_id: ids[0] || null, catalog_id: x.catalog_id || null, pharmacyId: p.id };
+    });
+  }
+  var phActions = {
+    session: function () { var p = phMe(); return { pharmacy: p ? phPub(p) : null, csrf: "demo" }; },
+    login: function () { S.ph = 1; return { ok: true, pharmacy: phPub(phMe()) }; },
+    signup: function (b) { if (!b.agree) fail(400, "no_agree", "Please accept the pharmacy terms."); var id = ++S.nextId;
+      S.pharmacies.push({ id: id, name: b.name, city: b.city, address: b.address || "", phone: String(b.phone || "").replace(/\D/g, "").slice(-10), email: b.email, licenseNo: b.license_no, status: "pending" }); S.ph = id;
+      setTimeout(function () { var p = S.pharmacies.find(function (x) { return x.id === id; }); if (p) { p.status = "approved"; save(); } }, 4000);   // the preview approves by itself after a few seconds
+      return { ok: true, pharmacy: phPub(phMe()) }; },
+    logout: function () { S.ph = null; return { ok: true, csrf: "demo" }; },
+    stats: function () { var p = phNeed(); return { dispensed30: S.items.filter(function (i) { return i.pharmacyId === p.id; }).length, patients: S.links.filter(function (l) { return l.pharmacyId === p.id && !l.blocked; }).length,
+      openRefills: S.refills.filter(function (r) { return r.pharmacyId === p.id && r.status === "sent"; }).length, needsCall: (S.fuAnswers || []).filter(function (f) { return f.answer === "side" || f.answer === "worse"; }).length }; },
+    patient: function (b) { var p = phNeed(), x = cardMember(p, b.code), m = x.m, c = x.card;
+      var out = { code: c.code, name: masked(m.name), canAdd: c.shareAdd, canView: c.shareView };
+      if (c.shareView) { out.allergies = m.allergies; out.conditions = m.conditions || null; out.bloodGroup = m.bloodGroup || null;
+        out.medicines = S.items.filter(function (i) { return i.member_id === m.id && (!i.courseEnd || i.courseEnd >= TODAY); }).map(function (i) { var inf = pubItem(i).info; return { name: i.name, ingredient: inf ? inf.ingredient : null, times: i.times, fromYou: i.pharmacyId === p.id }; });
+        out.followups = (S.fuAnswers || []).filter(function (f) { return f.memberId === m.id; }); phLogAdd(p, m.id, "view", "Saw the medicine list"); }
+      else phLogAdd(p, m.id, "scan", "Scanned the card");
+      return out; },
+    precheck: function (b) { var p = phNeed(), x = cardMember(p, b.code), add = phItems(p, x.m, b.items), ids = add.map(function (i) { return i.id; });
+      S.items = S.items.concat(add); var alerts = safety(x.m.hid).filter(function (a) { return a.memberId === x.m.id && a.items.some(function (id) { return ids.indexOf(id) >= 0; }); });
+      S.items = S.items.filter(function (i) { return ids.indexOf(i.id) < 0; });
+      if (!x.card.shareView) alerts.forEach(function (a) { ["a", "b"].forEach(function (k, n) { if (a.p[k] && ids.indexOf(a.items[n]) < 0) a.p[k] = "a medicine they already take"; }); });
+      return { alerts: alerts }; },
+    dispense: function (b) { var p = phNeed(), x = cardMember(p, b.code); if (!x.card.shareAdd) fail(403, "not_shared", "The family allows viewing only.");
+      var add = phItems(p, x.m, b.items); if (!add.length) fail(400, "empty", "Add at least one medicine."); S.items = S.items.concat(add);
+      phLogAdd(p, x.m.id, "add", add.map(function (i) { return i.name; }).join(", ")); return { ok: true, added: add.length, alerts: 0 }; },
+    catalog: function (b, q) { phNeed(); return { results: actions.catalog_search(b, q).results.slice(0, 12).map(function (r) { return { id: r.id, name: r.name, unit: r.unit, usualTimes: r.info ? r.info.usualTimes : [], courseDays: r.info ? r.info.courseDays : null }; }) }; },
+    refills: function () { var p = phNeed(); return { refills: S.refills.filter(function (r) { return r.pharmacyId === p.id; }).map(function (r) { var m = S.members.find(function (x) { return x.id === r.memberId; });
+      return { id: r.id, for: masked(m ? m.name : "Family"), phone: "9876543210", items: r.items, note: r.note, status: r.status, at: r.at }; }) }; },
+    refill_status: function (b) { var p = phNeed(), r = S.refills.find(function (x) { return x.id === b.id && x.pharmacyId === p.id; }); if (!r) fail(404, "not_found", "Request not found.");
+      r.status = b.status; r.updated = TODAY + " " + nowHM(); phLogAdd(p, r.memberId, "refill", "Refill request marked " + b.status); return { ok: true }; },
+    followups: function () { phNeed(); return { followups: (S.fuAnswers || []).map(function (f) { var c = S.cards.find(function (x) { return x.memberId === f.memberId; }); var m = S.members.find(function (x) { return x.id === f.memberId; });
+      return { medicine: f.name, for: masked(m ? m.name : ""), code: c ? c.code : null, answer: f.answer, note: f.note, at: f.d + " 09:00", day: 3 }; }) }; },
+    profile_save: function (b) { var p = phNeed(); p.address = b.address || ""; p.city = b.city || p.city; return { ok: true, pharmacy: phPub(p) }; }
   };
 
   var realFetch = window.fetch.bind(window);
@@ -427,7 +603,8 @@
     var body = {}; try { body = init && init.body ? JSON.parse(init.body) : {}; } catch (e) { body = {}; }
     return loadData().then(function () {
       var status = 200, data;
-      try { if (!actions[action]) fail(404, "unknown_action", "This feature needs the full server."); data = actions[action](body, q); save(); }
+      var table = url.indexOf("pharmacy_api.php") >= 0 ? phActions : actions;
+      try { if (!table[action]) fail(404, "unknown_action", "This feature needs the full server."); data = table[action](body, q); save(); }
       catch (e) { status = e.status || 500; data = { error: e.code || "error", message: e.message }; }
       return new Response(JSON.stringify(data), { status: status, headers: { "Content-Type": "application/json" } });
     });

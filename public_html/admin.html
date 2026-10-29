@@ -107,6 +107,10 @@
 
   <div class="panel stack"><h3>Contact messages <span class="pill" id="msgCount"></span></h3><div id="messages" class="stack"></div></div>
 
+  <div class="panel stack"><h3>Pharmacies <span class="pill" id="phCount"></span></h3>
+    <p class="muted" style="font-size:.88rem">Pharmacies register at <a href="/pharmacy">/pharmacy</a>. Check the drug licence (state drug control website or a call) before approving. Only approved pharmacies can scan family cards.</p>
+    <div class="table-scroll"><table class="data"><thead><tr><th>Pharmacy</th><th>Licence</th><th>Contact</th><th>Families</th><th>Added</th><th>Status</th></tr></thead><tbody id="pharmacies"></tbody></table></div></div>
+
   <div class="admin-grid">
     <div class="panel stack"><h3>Services</h3><ul id="features" class="kit"></ul><p class="muted">Turn services on in <code>core/config.php</code>. See docs/DEPLOY.md.</p></div>
     <div class="panel stack"><h3>Medicine list sources</h3><div class="table-scroll"><table class="data"><thead><tr><th>Source</th><th>Medicines</th></tr></thead><tbody id="sources"></tbody></table></div></div>
@@ -123,6 +127,6 @@
     <p id="importMsg" class="muted" aria-live="polite"></p>
   </form>
 </main>
-<script src="/admin.js?v=6"></script>
+<script src="/admin.js?v=7"></script>
 </body>
 </html>

@@ -106,9 +106,36 @@ Out of scope: selling medicines, prescriptions, medical advice, teleconsultation
 - FR-J6 Watch-over: no sign of life for 12 / 24 / 48 hours (or off) from someone with their own login or a pillbox → one alert a day to the rest of the family.
 - FR-J7 Printable weekly medicine calendar.
 
-### 3.13 Administration
+### 3.13 Household extras (like EPARK お薬手帳)
+- FR-H1 A person's date of birth under 17 years creates India's Universal Immunization Programme schedule (24 doses, birth to 16 years); reminders 3 days before and on the due day; mark given (with undo) or mark all earlier doses given.
+- FR-H2 Medical expenses per person and category (medicines, tests, doctor fees, check-up, other); scanned pharmacy bills with a total add an expense by themselves; totals for the Indian financial year (April–March); CSV download with a UTF-8 BOM.
+- FR-H3 Read-only doctor link to the visit sheet (1, 24 or 72 hours; default 24), no sign-in, never indexed, view counter, up to 10 active links, revocable at once.
+- FR-H4 Bluetooth meters via Web Bluetooth using the standard health services (blood pressure 0x1810, thermometer 0x1809, weight 0x181D, glucose 0x1808, pulse oximeter 0x1822); readings save to the health diary by themselves.
+- FR-H5 Lab results in the health diary: HbA1c, cholesterol, haemoglobin, with flags.
+- FR-H6 Dose streak per person: days in a row on which every planned dose was taken or deliberately skipped; badges at 7, 30 and 100 days.
+
+### 3.14 AushadhBox card and AushadhBox Pharmacy (like harmo; docs/IDEAS-FROM-JAPAN.md)
+- FR-K1 One card code per person (12 characters from an unambiguous alphabet, shown as XXXX-XXXX-XXXX; QR text `AUSHADHBOX:<code>`). The code holds no personal data. "New card" replaces it and the old code stops working.
+- FR-K2 Two consents per person, both off by default: pharmacies may add medicines; pharmacies may see medicines, allergies, conditions, blood group and check-in answers. With both off the card is refused (`not_shared`).
+- FR-K3 Pharmacy accounts register with name, drug licence number, city, mobile, e-mail and password and must accept the pharmacy terms. They can scan only after an admin approves them; admins can suspend. Pharmacy sign-in is separate from family accounts.
+- FR-K4 A scan shows a shortened name (first name and initials) and what the family allowed. Every scan, view, addition and refill update is logged and shown to the family with the pharmacy name and time; the family can block or unblock a pharmacy per person.
+- FR-K5 Safety pre-check before dispensing: the new medicines are checked against everything the person takes (same rules as FR-S1) without saving anything; without view consent, the names of the person's other medicines are replaced by "a medicine they already take". A high-level alert needs a second confirmation in the portal.
+- FR-K6 Dispensing (needs "may add"): medicines are added with dose times, course end, pack count, batch, expiry and "Given by <pharmacy>"; follow-up check-ins are scheduled; the family's plan limits apply; the household gets a notification.
+- FR-K7 Refill requests from the family to a pharmacy the card was used at (not blocked): up to 30 medicines, 10 requests a day; the pharmacy marks Ready (family notified), Collected or Cannot prepare (family notified with the phone number).
+- FR-K8 The portal lists check-in answers for medicines it gave, only for people with view consent, worst first.
+- FR-K9 Rate limits: pharmacy sign-up 5 an hour per IP, sign-in 8 per 15 minutes per e-mail, scans 120 an hour per pharmacy.
+
+### 3.15 Smartwatch and imports
+- FR-W1 Dose reminders reach any watch that mirrors phone notifications; setup notes for Wear OS, Galaxy, Apple Watch, Fitbit, Garmin, Amazfit, Noise, boAt, Fire-Boltt and Mi Band.
+- FR-W2 Watch page `/watch`: the dose time due now (from 2 hours before to 4 hours after its time, otherwise the latest unfinished one today), its medicines, one Taken button, the day's times; refreshes every minute; 10 languages; usable at 240 × 240 px.
+- FR-W3 Tap-to-tick link `/tick/<secret>` per account (stored as a SHA-256 hash; new link replaces the old; can be stopped). GET shows a button and never ticks by itself (`?auto=1` ticks after the page loads, for NFC stickers and QR labels); POST ticks the doses due now and answers JSON or, with `?format=text`, one sentence for Siri / Google / Bixby. 30 POSTs per 10 minutes per IP.
+- FR-W4 Import from Apple Health (export.zip or export.xml, read as a stream in the browser), Samsung Health / Google Fit / Mi Fitness CSV and Fitbit JSON: pulse (at most one per hour), SpO₂, weight (lb → kg), blood pressure (paired halves), glucose (mmol/L → mg/dL) and temperature (°F → °C) from the last 365 days; the server re-checks ranges, skips duplicates and accepts up to 2,000 readings per call.
+- FR-W5 Barcodes: EAN-8/13 and GS1 GTIN-14 (with check digit) found while scanning are remembered with the medicine name after a save; later scans of the same barcode by any family get the name filled in.
+
+### 3.16 Administration
 - FR-D1 Dashboard: revenue (30 days, all time), Premium families, conversion, users, sign-ups and visitors charts, top pages, sources, button clicks, devices, recent payments, contact messages, service status.
 - FR-D2 Import medicine lists (CSV) without duplicates.
+- FR-D3 Pharmacies panel: list with licence, contact, families linked and medicines added; approve (e-mail to the pharmacy) or suspend; every change in the admin audit log. A new registration appears as an insight and an e-mail to the support address.
 
 ## 4. Non-functional requirements
 | ID | Requirement |
@@ -117,12 +144,12 @@ Out of scope: selling medicines, prescriptions, medical advice, teleconsultation
 | NFR-2 Mobile | Works from 360 px wide; no horizontal scrolling; installable as an app (PWA); offline shell. |
 | NFR-3 Accessibility | Semantic headings, labels on every input, keyboard focus styles, alt text, reduced-motion support, skip link. |
 | NFR-4 Security | bcrypt passwords; CSRF token on every change; prepared SQL; household ownership checks on every record; rate limits on sign-in, sign-up, password reset, contact, payments and invites; CSP and security headers; HTTPS only; private code folder. |
-| NFR-5 Privacy | DPDP Act 2023 and DPDP Rules 2025: notice, consent, access, erasure, grievance officer, 1-year log retention, breach notice. No ads, no sale of data; scanned photos never leave the phone. |
+| NFR-5 Privacy | DPDP Act 2023 and DPDP Rules 2025: notice, consent, access, erasure, grievance officer, 1-year log retention, breach notice. No ads, no sale of data; scanned photos and watch export files never leave the phone. Sharing with pharmacies is opt-in per person and purpose, logged and revocable. |
 | NFR-6 Hosting | Runs on shared hosting with PHP 8.1+ and MySQL 8/MariaDB 10.6+; no Node, Composer or build step. |
 | NFR-7 Languages | All customer-facing app text and the home/pricing pages in 10 languages; legal pages in English. |
 
 ## 5. Data model (summary)
-`users` (plan, plan_until, household_id) · `members` (account_id) · `devices` · `device_events` · `vitals` · `followups` · `appointments` · `system_state` · `insights` · `autopilot_log` · `ai_log` · `audit_log` · `cabinet_items` · `dose_logs` (status, reason, source) · `reminder_settings` · `push_subscriptions` · `reminder_log` · `kit_checks` · `medicine_info` · `medicine_catalog` · `invites` · `payments` · `cookie_consents` · `analytics_events` · `contact_messages` · `consent_log` · `login_attempts` · `password_resets`. Full definitions: `public_html/core/database/schema.sql`. Diagram: DESIGN.md.
+`users` (plan, plan_until, household_id, tick_hash) · `members` (account_id, birth_date, card_code, share_add, share_view) · `vaccinations` · `expenses` · `share_links` · `pharmacies` · `pharmacy_links` · `pharmacy_access` · `refill_requests` · `barcodes` · `devices` · `device_events` · `vitals` · `followups` · `appointments` · `system_state` · `insights` · `autopilot_log` · `ai_log` · `audit_log` · `cabinet_items` · `dose_logs` (status, reason, source) · `reminder_settings` · `push_subscriptions` · `reminder_log` · `kit_checks` · `medicine_info` · `medicine_catalog` · `invites` · `payments` · `cookie_consents` · `analytics_events` · `contact_messages` · `consent_log` · `login_attempts` · `password_resets`. Full definitions: `public_html/core/database/schema.sql`. Diagram: DESIGN.md.
 
 ## 6. Assumptions and constraints
 - The owner provides the domain, hosting, Razorpay account (KYC) and business details.

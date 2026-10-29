@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
   ai_opt_in       TINYINT(1)   NOT NULL DEFAULT 0,   -- the person agreed to send questions to the AI assistant
   pharmacy_name   VARCHAR(80)  NULL,                 -- "my pharmacy": prescriptions and shopping lists are sent here on WhatsApp
   pharmacy_phone  VARCHAR(15)  NULL,
+  tick_hash       CHAR(64)     NULL,                 -- secret "tap to tick" link (watch, Siri, NFC sticker): SHA-256 of the token
   UNIQUE KEY uq_users_email (email),
   KEY idx_users_household (household_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -36,12 +37,17 @@ CREATE TABLE IF NOT EXISTS members (
   relation   VARCHAR(30)  NULL,
   allergies  VARCHAR(500) NULL,
   is_self    TINYINT(1)   NOT NULL DEFAULT 0,
+  birth_date  DATE NULL,                 -- for the vaccination schedule (children)
   blood_group VARCHAR(4)  NULL,          -- emergency card
   conditions  VARCHAR(300) NULL,         -- e.g. diabetes, high BP (emergency card, doctor report)
   emergency_contact VARCHAR(80) NULL,    -- name and phone to call
+  card_code   VARCHAR(14) NULL,          -- AushadhBox card: random code in the QR (no personal data); "New card" replaces it
+  share_add   TINYINT(1)  NOT NULL DEFAULT 0,  -- pharmacies may add the medicines they give (off until the family allows it)
+  share_view  TINYINT(1)  NOT NULL DEFAULT 0,  -- pharmacies may see medicines, allergies and check-ins (for interaction checks)
   account_id INT UNSIGNED NULL,          -- this person's own AushadhBox login, if they have one (gets the "did you take it?" check first)
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_members_user (user_id),
+  UNIQUE KEY uq_members_card (card_code),
   CONSTRAINT fk_members_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -97,6 +103,7 @@ CREATE TABLE IF NOT EXISTS cabinet_items (
   stock_count SMALLINT UNSIGNED NULL,     -- tablets/doses left; NULL = not counting
   per_dose    TINYINT UNSIGNED NOT NULL DEFAULT 1,   -- how many are used per dose
   course_end  DATE         NULL,          -- last day of a short course (antibiotics); reminders stop after it
+  pharmacy_id INT UNSIGNED NULL,              -- added by a pharmacy through the AushadhBox card
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_items_user_exp (user_id, exp_month),
@@ -388,7 +395,7 @@ CREATE TABLE IF NOT EXISTS vitals (
   id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id    INT UNSIGNED NOT NULL,
   member_id  INT UNSIGNED NULL,
-  kind       VARCHAR(6)   NOT NULL,          -- bp, sugar, weight, temp, spo2, pulse
+  kind       VARCHAR(6)   NOT NULL,          -- bp, sugar, weight, temp, spo2, pulse; lab results: hba1c, chol, hb
   v1         DECIMAL(6,1) NOT NULL,          -- systolic / value
   v2         DECIMAL(6,1) NULL,              -- diastolic (bp only)
   context    VARCHAR(10)  NULL,              -- sugar: fasting, after_meal, random
@@ -429,4 +436,121 @@ CREATE TABLE IF NOT EXISTS appointments (
   KEY idx_appt (user_id, at),
   CONSTRAINT fk_appt_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_appt_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------- What household apps like EPARK お薬手帳 do automatically ----------
+-- Vaccination schedule made from a child's date of birth (India's Universal Immunisation Programme).
+CREATE TABLE IF NOT EXISTS vaccinations (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NOT NULL,
+  member_id  INT UNSIGNED NOT NULL,
+  code       VARCHAR(16)  NOT NULL,
+  name       VARCHAR(60)  NOT NULL,
+  due_on     DATE         NOT NULL,
+  given_on   DATE         NULL,
+  UNIQUE KEY uq_vax (member_id, code),
+  KEY idx_vax_due (user_id, due_on),
+  CONSTRAINT fk_vax_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_vax_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Medical expenses: pharmacy bills are added automatically when a bill is scanned; export per financial year for tax filing.
+CREATE TABLE IF NOT EXISTS expenses (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NOT NULL,
+  member_id  INT UNSIGNED NULL,
+  category   VARCHAR(10)  NOT NULL,          -- medicine, test, consult, checkup, other
+  amount     DECIMAL(10,2) NOT NULL,
+  spent_on   DATE         NOT NULL,
+  note       VARCHAR(160) NULL,
+  source     VARCHAR(8)   NOT NULL DEFAULT 'manual',   -- manual, bill
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_exp (user_id, spent_on),
+  CONSTRAINT fk_exp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_exp_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Read-only links for a doctor (like a pharmacy's one-time code): the visit sheet, for 24 or 72 hours.
+CREATE TABLE IF NOT EXISTS share_links (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NOT NULL,
+  member_id  INT UNSIGNED NULL,
+  token_hash CHAR(64)     NOT NULL,
+  expires_at DATETIME     NOT NULL,
+  views      INT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_share (token_hash),
+  KEY idx_share_user (user_id),
+  CONSTRAINT fk_share_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_share_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------- AushadhBox card and the pharmacy portal (like harmo and other Japanese pharmacy-linked notebooks) ----------
+CREATE TABLE IF NOT EXISTS pharmacies (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(100) NOT NULL,
+  license_no    VARCHAR(40)  NOT NULL,            -- drug licence number (checked by the admin before approval)
+  city          VARCHAR(60)  NOT NULL,
+  address       VARCHAR(200) NULL,
+  phone         VARCHAR(15)  NOT NULL,
+  email         VARCHAR(160) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  status        VARCHAR(10)  NOT NULL DEFAULT 'pending',   -- pending, approved, suspended
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_login_at DATETIME     NULL,
+  UNIQUE KEY uq_ph_email (email)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Which pharmacies a person's card was used at; the family can block one at any time.
+CREATE TABLE IF NOT EXISTS pharmacy_links (
+  member_id   INT UNSIGNED NOT NULL,
+  pharmacy_id INT UNSIGNED NOT NULL,
+  first_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  blocked     TINYINT(1)   NOT NULL DEFAULT 0,
+  PRIMARY KEY (member_id, pharmacy_id),
+  CONSTRAINT fk_pl_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pl_ph FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Every time a pharmacy looked at or added to a family's record. Shown to the family.
+CREATE TABLE IF NOT EXISTS pharmacy_access (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  pharmacy_id INT UNSIGNED NOT NULL,
+  user_id     INT UNSIGNED NOT NULL,
+  member_id   INT UNSIGNED NULL,
+  action      VARCHAR(10)  NOT NULL,              -- scan, view, add, refill
+  detail      VARCHAR(255) NULL,
+  at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_pa_user (user_id, at),
+  KEY idx_pa_ph (pharmacy_id, at),
+  CONSTRAINT fk_pa_ph FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE CASCADE,
+  CONSTRAINT fk_pa_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Refill requests from the shopping list to a linked pharmacy ("keep these ready").
+CREATE TABLE IF NOT EXISTS refill_requests (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED NOT NULL,
+  member_id   INT UNSIGNED NULL,
+  pharmacy_id INT UNSIGNED NOT NULL,
+  items       TEXT         NOT NULL,              -- JSON list of {name, qty}
+  note        VARCHAR(300) NULL,
+  status      VARCHAR(10)  NOT NULL DEFAULT 'sent',    -- sent, ready, collected, cancelled
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_rr_ph (pharmacy_id, status),
+  KEY idx_rr_user (user_id),
+  CONSTRAINT fk_rr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rr_ph FOREIGN KEY (pharmacy_id) REFERENCES pharmacies(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Barcodes on medicine packs learned from families' scans: the next family scanning the same pack gets it filled in.
+CREATE TABLE IF NOT EXISTS barcodes (
+  code        VARCHAR(32)  PRIMARY KEY,           -- EAN-13 / GTIN
+  name        VARCHAR(120) NOT NULL,
+  catalog_id  INT UNSIGNED NULL,
+  info_id     INT UNSIGNED NULL,
+  uses        INT UNSIGNED NOT NULL DEFAULT 1,
+  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

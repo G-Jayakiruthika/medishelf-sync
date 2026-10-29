@@ -17,12 +17,17 @@ require 'core/safety.php';
 require 'core/assistant.php';
 require 'core/care.php';
 require 'core/automations.php';
+require 'core/household.php';
+require 'core/pharmacy.php';
+require 'core/watch.php';
 require 'core/migrate.php';
+const FAIL_THROWS = true;
 migrate();
 
 $pass = 0; $fail = 0;
 function eq($got, $want, string $msg): void { global $pass, $fail; if ($got === $want) { $pass++; } else { $fail++; echo "  ✗ $msg\n      got  " . json_encode($got, JSON_UNESCAPED_UNICODE) . "\n      want " . json_encode($want, JSON_UNESCAPED_UNICODE) . "\n"; } }
 function ok(bool $c, string $msg): void { eq($c, true, $msg); }
+function refused(callable $f): string { try { $f(); return 'allowed'; } catch (RuntimeException $e) { return $e->getMessage(); } }
 
 // ---- Support sorting ----
 $t = support_triage('billing', 'I was charged twice for premium, please refund!!');
@@ -126,6 +131,62 @@ try {
     eq(count(array_filter(auto_messages_for($owner, new DateTime('now'), owner_times($uid)), fn($m) => $m['kind'] === 'watch')), 0, 'the watch-over alert is sent once a day');
     q('UPDATE users SET last_seen_at = NOW() WHERE id = ?', [$ammaUser]); q("DELETE FROM automation_log WHERE kind = 'v'");
     eq(count(array_filter(auto_messages_for($owner, new DateTime('now'), owner_times($uid)), fn($m) => $m['kind'] === 'watch')), 0, 'no alert once she opens the app');
+
+
+    // ---- AushadhBox card and the pharmacy portal (like harmo / お薬手帳 QR) ----
+    $fam = 'card' . bin2hex(random_bytes(3)) . '@test.in';
+    q("INSERT INTO users (name, email, password_hash, consent_version, consent_at, plan) VALUES ('Lakshmi', ?, 'x', 'v', NOW(), 'premium')", [$fam]);
+    $fid = (int) db()->lastInsertId();
+    q("INSERT INTO members (user_id, name, relation, is_self, allergies) VALUES (?, 'Lakshmi Narayanan', 'self', 1, 'Penicillin')", [$fid]);
+    $lm = (int) db()->lastInsertId();
+    q("INSERT INTO cabinet_items (user_id, member_id, name, dose_times, info_id) VALUES (?, ?, 'Ecosprin 75', 'a', ?)", [$fid, $lm, primary_info_id('Aspirin 75mg')]);
+    q("INSERT INTO pharmacies (name, license_no, city, phone, email, password_hash, status) VALUES ('Test Pharma', 'L1', 'Madurai', '9876543210', ?, 'x', 'approved')", ['p' . $fam]);
+    $ph = q('SELECT * FROM pharmacies WHERE id = ?', [(int) db()->lastInsertId()])->fetch();
+    $code = card_new($fid, $lm);
+    eq(card_normalize('aushadhbox:' . strtolower(str_replace('-', '', $code))), $code, 'card code read from the QR text or typed in lower case');
+    eq(refused(fn() => pharmacy_patient($ph, $code)), 'not_shared', 'card does nothing until the family switches it on');
+    q('UPDATE members SET share_add = 1 WHERE id = ?', [$lm]);
+    $pt = pharmacy_patient($ph, $code);
+    eq([$pt['name'], $pt['canAdd'], $pt['canView'], isset($pt['medicines'])], ['Lakshmi N.', true, false, false], 'add-only: shortened name, no medicine list');
+    q('UPDATE members SET share_view = 1 WHERE id = ?', [$lm]);
+    $pt = pharmacy_patient($ph, $code);
+    ok($pt['canView'] && $pt['allergies'] === 'Penicillin' && count($pt['medicines']) === 1, 'with view consent: allergies and current medicines');
+    $chk = pharmacy_precheck($ph, $code, [['name' => 'Clopidogrel 75mg', 'times' => ['m']], ['name' => 'Amoxicillin 500mg', 'times' => ['m', 'e']]]);
+    $codes = array_column($chk['alerts'], 'code');
+    ok(in_array('allergy', $codes, true), 'pre-check: penicillin allergy vs amoxicillin');
+    ok(count(array_filter($chk['alerts'], fn($a) => ($a['p']['why'] ?? '') === 'bleed')) === 1, 'pre-check: aspirin + clopidogrel bleeding risk');
+    eq((int) q('SELECT COUNT(*) FROM cabinet_items WHERE user_id = ?', [$fid])->fetchColumn(), 1, 'pre-check saves nothing');
+    q('UPDATE members SET share_view = 0 WHERE id = ?', [$lm]);
+    $chk = pharmacy_precheck($ph, $code, [['name' => 'Clopidogrel 75mg', 'times' => ['m']]]);
+    $txt = json_encode($chk['alerts']);
+    ok(!str_contains($txt, 'Ecosprin') && str_contains($txt, 'a medicine they already take'), 'without view consent the other medicine stays hidden');
+    $r = pharmacy_dispense($ph, $code, [['name' => 'Metformin 500mg', 'times' => ['m', 'e'], 'days' => 30, 'qty' => 60]]);
+    eq($r['added'], 1, 'dispense adds the medicine');
+    $it = q('SELECT * FROM cabinet_items WHERE user_id = ? AND pharmacy_id = ?', [$fid, $ph['id']])->fetch();
+    ok($it && $it['dose_times'] === 'm,e' && (int) $it['stock_count'] === 60 && $it['course_end'] === date('Y-m-d', strtotime('+29 day')), 'with times, pack count and course end');
+    ok((int) q('SELECT COUNT(*) FROM followups WHERE item_id = ?', [$it['id']])->fetchColumn() >= 1, 'day-3 / day-10 check-ins scheduled');
+    $pub = cards_public($fid);
+    ok(count(array_filter($pub['log'], fn($l) => $l['action'] === 'add')) === 1 && $pub['links'][0]['pharmacy'] === 'Test Pharma', 'family sees who added what');
+    q('UPDATE members SET share_view = 0, share_add = 0 WHERE id = ?', [$lm]);
+    q('UPDATE members SET share_view = 1 WHERE id = ?', [$lm]);
+    eq(refused(fn() => pharmacy_dispense($ph, $code, [['name' => 'X tab']])), 'not_shared', 'view-only consent cannot add medicines');
+    q('UPDATE pharmacy_links SET blocked = 1 WHERE member_id = ? AND pharmacy_id = ?', [$lm, $ph['id']]);
+    eq(refused(fn() => pharmacy_patient($ph, $code)), 'blocked', 'a blocked pharmacy is refused');
+    $old = $code; $code = card_new($fid, $lm);
+    eq(refused(fn() => pharmacy_patient($ph, $old)), 'bad_card', 'old card stops working after a new one');
+    eq(count(linked_pharmacies($fid)), 0, 'blocked pharmacy is not offered for refills');
+
+    // ---- Watch and tap-to-tick ----
+    q("INSERT INTO cabinet_items (user_id, member_id, name, dose_times) VALUES (?, ?, 'Thyronorm 50', 'm,a,e,b')", [$fid, $lm]);
+    $url = tick_link_new($fid);
+    ok((bool) preg_match('#/tick/([A-Za-z0-9_-]{24,64})$#', $url, $mm) && (int) tick_user($mm[1])['id'] === $fid, 'tick link finds its owner');
+    eq(tick_user('x' . $mm[1]), null, 'a wrong tick link finds nobody');
+    $slot = current_slot($fid);
+    ok($slot !== null, 'some dose time is due now (4 times a day)');
+    $t1 = tick_now($fid, 'tick'); $t2 = tick_now($fid, 'tick');
+    ok($t1['ticked'] >= 1 && ($t2['ticked'] === 0 || $t2['slot'] !== $t1['slot']), 'tick marks doses once');
+    $imp = vitals_import($fid, $lm, [['kind' => 'pulse', 'v1' => 70, 'at' => date('Y-m-d H:i:00')], ['kind' => 'bp', 'v1' => 80, 'v2' => 120, 'at' => date('Y-m-d H:i:00')], ['kind' => 'spo2', 'v1' => 97, 'at' => '2001-01-01 10:00']]);
+    eq([$imp['added'], $imp['skipped']], [1, 2], 'import skips reversed blood pressure and very old readings');
 
     // ---- Health and growth ----
     $h = array_column(health_checks(), 'status', 'key');

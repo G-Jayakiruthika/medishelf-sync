@@ -21,15 +21,6 @@ function st(string $key, array $vars = []): string
     return $s;
 }
 
-function base_url(): string
-{
-    $u = rtrim((string) config('app_url'), '/');
-    if ($u === '' || str_contains($u, 'example.com')) {
-        $u = (is_https() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost');
-    }
-    return $u;
-}
-
 /* Link to a page in the current language when that page is localized. */
 function url(string $path = '', ?string $lang = null): string
 {
@@ -129,6 +120,10 @@ function route_site(string $path): void
             not_found(); return;
         case preg_match('#^calendar/([a-f0-9]{32})\.ics$#', $page, $m) === 1: calendar_out($m[1]); return;
         case $page === 'app':            serve_app(); return;
+        case $page === 'watch':          header('Content-Type: text/html; charset=utf-8'); readfile(dirname(__DIR__) . '/watch.html'); return;
+        case $page === 'pharmacy':       header('Content-Type: text/html; charset=utf-8'); readfile(dirname(__DIR__) . '/pharmacy.html'); return;
+        case preg_match('#^tick/([A-Za-z0-9_-]{24,64})$#', $page, $m) === 1: require APP_DIR . '/pages/tick.php'; tick_page($m[1]); return;
+        case preg_match('#^share/([A-Za-z0-9_-]{20,64})$#', $page, $m) === 1: require APP_DIR . '/pages/share.php'; share_page($m[1]); return;
         // Share target when the service worker isn't running yet: just open the scanner.
         case $page === 'app/share':      header('Location: /app#scan', true, 303); return;
         case $page === 'report':         require APP_DIR . '/pages/report.php'; return;
@@ -139,7 +134,7 @@ function route_site(string $path): void
 function robots(): void
 {
     header('Content-Type: text/plain; charset=utf-8');
-    echo "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api.php\nDisallow: /admin.html\nDisallow: /core/\nDisallow: /install.php\nDisallow: /cron.php\nDisallow: /webhook.php\nDisallow: /report\nDisallow: /calendar/\n\nSitemap: " . base_url() . "/sitemap.xml\n";
+    echo "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api.php\nDisallow: /admin.html\nDisallow: /core/\nDisallow: /install.php\nDisallow: /cron.php\nDisallow: /webhook.php\nDisallow: /report\nDisallow: /calendar/\nDisallow: /share/\nDisallow: /device.php\nDisallow: /tick/\nDisallow: /watch\nDisallow: /pharmacy_api.php\n\nSitemap: " . base_url() . "/sitemap.xml\n";
 }
 
 /* Private calendar feed of a family's dose times (subscribed from Google Calendar or the iPhone Calendar app). */

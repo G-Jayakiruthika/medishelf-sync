@@ -57,6 +57,9 @@ Total 297.10`, T);
 eq(r.kind, "bill", "detects a pharmacy bill");
 eq(r.items.map(i => [i.name, i.batch, i.exp, i.stock]), [["DOLO 650", "DOL4471", "2027-05", 15], ["TELMA 40", "TLM2210", "2027-08", 30], ["CETIRIZINE 10MG", "CTZ1180", "2026-09", 10]], "bill rows: name, batch, expiry, quantity");
 
+eq([r.total, r.date], [297.1, "2026-10-20"], "bill total and date (for medical expenses)");
+eq(Rx.parse("APOLLO PHARMACY Bill\nDate: 05-11-26\n1 PAN 40 TAB PN123 06/27 15 180.00\n2 TELMA 40 TAB TL22 09/27 30 240.00\nSub Total 420.00\nDiscount 21.00\nNet Amount Rs. 399.00", T).total, 399, "net amount after discount, not the sub-total");
+
 // Sentences typed or spoken
 const fam = [{ id: 2, name: "Amma" }, { id: 3, name: "Appa" }];
 let s = Rx.sentence("Add Dolo 650 twice a day for 3 days for Amma", fam, T);

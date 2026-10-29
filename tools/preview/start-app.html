@@ -10,7 +10,7 @@
 <body>
 <p>Opening the app as the demo family…</p>
 <script>
-  var target = /admin/.test(location.hash) ? "admin.html" : "app.html#cabinet";
+  var h = location.hash, target = /admin/.test(h) ? "admin.html" : /card/.test(h) ? "app.html#card" : /watch/.test(h) ? "watch.html" : "app.html#cabinet";
   window.AB_DEMO.signInDemo();
   location.replace(target);
 </script>

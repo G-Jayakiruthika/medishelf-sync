@@ -1,6 +1,6 @@
 /* AushadhBox service worker: offline app shell + push reminders. */
-const CACHE = "aushadhbox-v8";
-const SHELL = ["/app", "/styles.css?v=8", "/app.js?v=8", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/i18n-auto.js?v=4", "/i18n-smart.js?v=5", "/i18n-care.js?v=6", "/i18n-autopilot.js?v=7", "/i18n-notebook.js?v=8", "/rx-parse.js?v=5", "/consent.js?v=3", "/consent-i18n.js?v=3",
+const CACHE = "aushadhbox-v9";
+const SHELL = ["/app", "/styles.css?v=9", "/app.js?v=9", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/i18n-auto.js?v=4", "/i18n-smart.js?v=5", "/i18n-care.js?v=6", "/i18n-autopilot.js?v=7", "/i18n-notebook.js?v=8", "/i18n-household.js?v=9", "/i18n-connect.js?v=9", "/rx-parse.js?v=6", "/ble-health.js?v=1", "/health-import.js?v=1", "/consent.js?v=3", "/consent-i18n.js?v=3",
   "/lib/qrcode.js", "/lib/jsQR.js", "/icons/icon-192.png", "/icons/icon-512.png",
   "/assets/audio/dose-reminder.mp3", "/assets/audio/expiry-alert.mp3", "/assets/audio/saved.mp3"];
 
@@ -23,7 +23,8 @@ self.addEventListener("fetch", (e) => {
     })());
     return;
   }
-  if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.endsWith(".php") || url.pathname === "/report" || url.pathname === "/admin.html") return;
+  if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.endsWith(".php") || url.pathname === "/report" || url.pathname === "/admin.html" ||
+      /^\/(tick|share)\//.test(url.pathname) || url.pathname.startsWith("/pharmacy")) return;   // secret links and the pharmacy portal are never kept offline
   // Network first for the page and code (so updates arrive), cache as fallback when offline.
   e.respondWith(fetch(e.request).then(res => {
     if (res.ok && !url.pathname.includes("/assets/video/")) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
