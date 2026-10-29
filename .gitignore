@@ -6,3 +6,10 @@ public_html/core/cache/
 Thumbs.db
 *.zip
 hardware/simulator/.pillbox-sim.json
+pharmacy-platform/core/config.php
+sync-agent-state/
+pharmacy-platform/sync-agent/build/
+pharmacy-platform/sync-agent/*.properties
+!pharmacy-platform/sync-agent/agent.example.properties
+pharmacy-platform/analytics/__pycache__/
+pharmacy-platform/iot/coldchain/secrets.py

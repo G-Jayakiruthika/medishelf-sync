@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pharmacy portal · AushadhBox</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1F3358">
+<link rel="manifest" href="/portal.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/ph.css?v=1">
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="/app"><svg width="36" height="36" viewBox="0 0 112 112" aria-hidden="true"><rect x="4" y="10" width="104" height="96" rx="24" fill="#1F3358"/><rect x="20" y="4" width="72" height="14" rx="7" fill="#1F3358"/><rect x="51" y="34" width="10" height="44" rx="3" fill="#78C084"/><rect x="34" y="51" width="44" height="10" rx="3" fill="#78C084"/></svg>
+    <div><b>AushadhBox Pharmacy</b><small id="who">Pharmacy portal</small></div></a>
+  <select id="branchSel" aria-label="Shop" hidden style="max-width:220px"></select>
+  <button class="btn sm" type="button" id="btnOut" hidden>Sign out</button>
+</div></header>
+
+<!-- Sign in / register -->
+<section id="auth" class="wrap pad" hidden>
+  <div class="card stack" style="max-width:560px">
+    <div class="tabs" role="tablist"><button type="button" id="tIn" aria-pressed="true">Sign in</button><button type="button" id="tUp" aria-pressed="false">Register your pharmacy</button></div>
+    <form id="fIn" class="stack">
+      <label class="field">E-mail or mobile number<input id="inId" autocomplete="username" required></label>
+      <label class="field">Password<input id="inPw" type="password" autocomplete="current-password" required></label>
+      <button class="btn primary" type="submit">Sign in</button>
+    </form>
+    <form id="f2fa" class="stack" hidden>
+      <label class="field">6-digit code from your authenticator app<input id="in2fa" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>
+      <button class="btn primary" type="submit">Continue</button>
+    </form>
+    <form id="fUp" class="stack" hidden>
+      <div class="grid two">
+        <label class="field">Pharmacy name<input id="upName" maxlength="120" required></label>
+        <label class="field">Retail drug licence (Form 20/21)<input id="upLic" maxlength="60" required></label>
+        <label class="field">Village / town<input id="upVillage" maxlength="80"></label>
+        <label class="field">District<input id="upDistrict" maxlength="60" required></label>
+        <label class="field">State<input id="upState" maxlength="40" value="Tamil Nadu"></label>
+        <label class="field">PIN code<input id="upPin" inputmode="numeric" maxlength="6"></label>
+        <label class="field">Area<select id="upArea"><option value="urban">City</option><option value="semiurban" selected>Town (semi-urban)</option><option value="rural">Village (rural)</option></select></label>
+        <label class="field">Kind<select id="upKind"><option value="retail">Retail pharmacy</option><option value="janaushadhi">Jan Aushadhi Kendra</option></select></label>
+        <label class="field">Owner's name<input id="upOwner" maxlength="80" required></label>
+        <label class="field">Mobile number<input id="upPhone" inputmode="tel" maxlength="13" required></label>
+        <label class="field">E-mail<input id="upEmail" type="email" required></label>
+        <label class="field">Password (8+ characters)<input id="upPw" type="password" minlength="8" autocomplete="new-password" required></label>
+        <label class="field">UPI ID or UPI phone (optional)<input id="upUpi" maxlength="80" placeholder="9876543210@upi"></label>
+        <label class="field">GSTIN (optional)<input id="upGst" maxlength="15"></label>
+      </div>
+      <button class="btn sm" type="button" id="upLoc">Use this shop's location</button><span class="muted small" id="upLocMsg"></span>
+      <label class="check"><input type="checkbox" id="upAgree" required><span>We hold a valid retail drug licence. We will scan a customer's AushadhBox card only when they show it, use what we see only for their care, never sell above MRP, and follow the rules for prescriptions and home delivery.</span></label>
+      <button class="btn primary" type="submit">Register</button>
+      <p class="muted small">AushadhBox checks the drug licence before your pharmacy can take orders, usually within one working day.</p>
+    </form>
+    <p class="error" id="authErr" hidden></p>
+  </div>
+</section>
+
+<div class="wrap shell" id="shell" hidden>
+  <nav class="side" id="side" aria-label="Sections"></nav>
+  <main class="view" id="main" tabindex="-1"></main>
+</div>
+<nav class="bottom" id="bottom" hidden aria-label="Sections"></nav>
+
+<dialog id="dlg"><button class="btn sm x" type="button" data-close aria-label="Close">✕</button><div class="dlg" id="dlgBody"></div></dialog>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<script src="/lib/qrcode.js"></script>
+<script src="/lib/jsQR.js"></script>
+<script src="/portal.js?v=1"></script>
+</body>
+</html>

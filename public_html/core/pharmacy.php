@@ -48,7 +48,7 @@ function cards_public(int $hid): array
 /* Pharmacies the family can send a refill request to: used with any card in the household and not blocked. */
 function linked_pharmacies(int $hid): array
 {
-    return q('SELECT DISTINCT p.id, p.name, p.city FROM pharmacy_links l JOIN pharmacies p ON p.id = l.pharmacy_id JOIN members m ON m.id = l.member_id
+    return q('SELECT DISTINCT p.id, p.name, p.city, p.code FROM pharmacy_links l JOIN pharmacies p ON p.id = l.pharmacy_id JOIN members m ON m.id = l.member_id
               WHERE m.user_id = ? AND l.blocked = 0 AND p.status = \'approved\' ORDER BY p.name', [$hid])->fetchAll();
 }
 
@@ -146,6 +146,8 @@ function pharmacy_precheck(array $ph, string $code, array $items): array
         $alerts = array_values(array_filter(safety_alerts((int) $m['user_id']), fn($a) => array_intersect($a['items'], $new) && ($a['memberId'] === (int) $m['id'])));
     } finally { ph_tx_end($nested, false); }
     if (!$m['share_view']) foreach ($alerts as &$a) foreach (['a', 'b'] as $k) if (isset($a['p'][$k]) && !in_array($a['items'][$k === 'a' ? 0 : 1] ?? 0, $new, true)) $a['p'][$k] = 'a medicine they already take';
+    unset($a);
+    foreach ($alerts as &$a) if (isset($a['p']['who'])) $a['p']['who'] = masked_name((string) $m['name']);   // the pharmacy sees the shortened name only
     unset($a);
     return ['alerts' => $alerts];
 }

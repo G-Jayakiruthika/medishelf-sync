@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Network admin · AushadhBox Pharmacy</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/ph.css?v=1">
+</head>
+<body>
+<header class="top"><div class="wrap"><a class="brand" href="/admin"><img src="/icon.svg" width="34" height="34" alt=""><div><b>Network admin</b><small>AushadhBox Pharmacy Network</small></div></a><button class="btn sm" id="out" hidden>Sign out</button></div></header>
+<main class="wrap pad" id="main">
+  <form class="card stack" id="login" hidden style="max-width:460px">
+    <h1>Sign in</h1>
+    <label class="field">E-mail<input id="em" type="email" autocomplete="username" required></label>
+    <label class="field">Password<input id="pw" type="password" autocomplete="current-password" required></label>
+    <div id="setup" hidden class="stack"><p>First sign-in: two-step sign-in is required for admins. Scan this in an authenticator app, then enter the code.</p><div class="qrbox"><canvas id="sq" width="440" height="440"></canvas><span class="mono small" id="sec"></span></div></div>
+    <label class="field">6-digit code<input id="code" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></label>
+    <button class="btn primary">Sign in</button><p class="error" id="err" hidden></p>
+  </form>
+  <div id="app" hidden class="stack"></div>
+</main>
+<div class="toast" id="toast" hidden></div>
+<script src="/lib/qrcode.js"></script>
+<script src="/admin.js?v=1"></script>
+</body>
+</html>

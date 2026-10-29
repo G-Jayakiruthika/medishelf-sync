@@ -19,6 +19,7 @@ require __DIR__ . '/core/care.php';
 require __DIR__ . '/core/household.php';
 require __DIR__ . '/core/pharmacy.php';
 require __DIR__ . '/core/watch.php';
+require __DIR__ . '/core/network_link.php';
 require_once __DIR__ . '/core/migrate.php';
 // Right after an update the new columns must exist before anything reads them (cheap: compares two file dates).
 try { migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
@@ -173,6 +174,8 @@ try {
         if (!password_verify((string) (input()['password'] ?? ''), $row['password_hash'])) fail('bad_password', 'Your password is not correct.', 403);
         q("INSERT INTO consent_log (user_ref, version, action) VALUES (?,?,'withdrawn')", [hash('sha256', $user['email']), $user['consent_version']]);
         q('UPDATE users SET household_id = NULL WHERE household_id = ?', [$user['id']]);   // people you shared with keep their own accounts
+        // The pharmacy network forgets this household too (pharmacies keep only the anonymous sale records the drug laws require).
+        if (network_on() && !$user['household_id']) { $r = network_call('forget', ['customer_ref' => customer_ref((int) $user['id'])]); if (($r['_status'] ?? 0) >= 300) error_log('network forget failed: ' . ($r['message'] ?? '')); }
         q('DELETE FROM users WHERE id = ?', [$user['id']]);
         $_SESSION = [];
         session_regenerate_id(true);
@@ -704,16 +707,69 @@ try {
         q('UPDATE pharmacy_links SET blocked = ? WHERE member_id = ? AND pharmacy_id = ?', [!empty($in['blocked']) ? 1 : 0, $mid, (int) ($in['pharmacy_id'] ?? 0)]);
         json_out(cards_public($hid) + ['pharmacies' => linked_pharmacies($hid)]);
 
-    case 'refill_request':   // "keep these ready" to a pharmacy the family's card was used at
+    case 'refill_request':   // "keep these ready" to a pharmacy the family's card was used at: becomes a real order at that pharmacy
         $in = input();
         $phId = (int) ($in['pharmacy_id'] ?? 0);
-        if (!in_array($phId, array_map(fn($r) => (int) $r['id'], linked_pharmacies($hid)), true)) fail('not_linked', 'Use your AushadhBox card at this pharmacy once first.', 403);
+        $ph = array_values(array_filter(linked_pharmacies($hid), fn($r) => (int) $r['id'] === $phId))[0] ?? null;
+        if (!$ph) fail('not_linked', 'Use your AushadhBox card at this pharmacy once first.', 403);
         $items = array_values(array_filter(array_map(fn($x) => is_array($x) ? ['name' => mb_substr(trim((string) ($x['name'] ?? '')), 0, 120), 'qty' => max(0, min(999, (int) ($x['qty'] ?? 0)))] : null, array_slice((array) ($in['items'] ?? []), 0, 30)), fn($x) => $x && $x['name'] !== ''));
         if (!$items) fail('empty', 'Add at least one medicine.');
         if ((int) q("SELECT COUNT(*) FROM refill_requests WHERE user_id = ? AND created_at >= NOW() - INTERVAL 1 DAY", [$hid])->fetchColumn() >= 10) fail('limit', 'You sent many requests today. Please call the pharmacy.');
         $mid = (int) ($in['member_id'] ?? 0) ?: null; if ($mid) own('members', $mid, $hid);
-        q('INSERT INTO refill_requests (user_id, member_id, pharmacy_id, items, note) VALUES (?,?,?,?,?)', [$hid, $mid, $phId, json_encode($items, JSON_UNESCAPED_UNICODE), str_in($in, 'note', 300)]);
-        json_out(['ok' => true] + cards_public($hid));
+        $number = null;
+        if (network_on() && $ph['code']) {
+            $o = network_or_fail(network_call('order_create', ['customer_ref' => customer_ref($hid), 'code' => $ph['code'], 'source' => 'refill', 'kind' => 'pickup',
+                'items' => array_map(fn($x) => ['name' => $x['name'], 'qty' => max(1, $x['qty'])], $items), 'note' => str_in($in, 'note', 300),
+                'customer' => ['name' => (string) $user['name'], 'district' => $user['district'] ?? null]]));
+            $number = $o['number'] ?? null;
+        }
+        q('INSERT INTO refill_requests (user_id, member_id, pharmacy_id, items, note, network_order) VALUES (?,?,?,?,?,?)', [$hid, $mid, $phId, json_encode($items, JSON_UNESCAPED_UNICODE), str_in($in, 'note', 300), $number]);
+        json_out(['ok' => true, 'order' => $number] + cards_public($hid));
+
+    /* ---------------- Pharmacy network: shops, nearby stock, orders, payments, khata, points ---------------- */
+    case 'net_status':
+        json_out(['on' => network_on(), 'portal' => network_on() ? network_url() . '/app' : null,
+                  'mine' => q('SELECT code, name, village FROM my_pharmacies WHERE user_id = ? ORDER BY added_at DESC', [$hid])->fetchAll(),
+                  'district' => $user['district'] ?? null, 'village' => $user['village'] ?? null]);
+    case 'net_store':   // after scanning a shop's QR
+        $in = input(); $code = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', preg_replace('#^.*/s/#', '', (string) ($in['code'] ?? ''))));
+        $r = network_or_fail(network_call('store', ['code' => $code, 'customer_ref' => customer_ref($hid), 'lat' => $in['lat'] ?? null, 'lng' => $in['lng'] ?? null]));
+        q('INSERT INTO my_pharmacies (user_id, code, name, village) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE name = VALUES(name), village = VALUES(village)', [$hid, $r['code'], mb_substr((string) $r['name'], 0, 120), $r['village'] ?? null]);
+        json_out($r);
+    case 'net_forget_store':
+        q('DELETE FROM my_pharmacies WHERE user_id = ? AND code = ?', [$hid, (string) (input()['code'] ?? '')]); json_out(['ok' => true]);
+    case 'net_find':   // which pharmacies near me have these medicines
+        $in = input();
+        if (!empty($in['district'])) q('UPDATE users SET district = ? WHERE id = ?', [mb_substr((string) $in['district'], 0, 60), $user['id']]);
+        json_out(network_or_fail(network_call('availability', ['customer_ref' => customer_ref($hid), 'items' => (array) ($in['items'] ?? []), 'lat' => $in['lat'] ?? null, 'lng' => $in['lng'] ?? null,
+                                                               'district' => $in['district'] ?? ($user['district'] ?? null), 'radius_km' => $in['radius_km'] ?? 25])));
+    case 'net_quote':
+        $in = input(); json_out(network_or_fail(network_call('quote', ['code' => $in['code'] ?? '', 'lat' => $in['lat'] ?? null, 'lng' => $in['lng'] ?? null, 'items' => (array) ($in['items'] ?? []), 'customer_pays_full' => !empty($in['customer_pays_full'])])));
+    case 'net_order':   // the user agreed to share name, phone and (for delivery) address with this pharmacy for this order
+        $in = input();
+        if (empty($in['share_ok'])) fail('need_consent', 'Agree to share your name and phone with the pharmacy for this order.');
+        $who = (array) ($in['customer'] ?? []);
+        $who['name'] = mb_substr(trim((string) ($who['name'] ?? $user['name'])), 0, 80); $who['district'] = $who['district'] ?? ($user['district'] ?? null);
+        $r = network_or_fail(network_call('order_create', ['customer_ref' => customer_ref($hid), 'code' => $in['code'] ?? '', 'items' => (array) ($in['items'] ?? []), 'kind' => $in['kind'] ?? 'pickup',
+            'pickup_point_id' => $in['pickup_point_id'] ?? null, 'note' => $in['note'] ?? null, 'customer' => $who, 'referral_code' => $in['referral_code'] ?? null,
+            'customer_pays_full' => !empty($in['customer_pays_full']), 'source' => !empty($in['for_household']) ? 'asha' : 'app']));
+        audit($user, 'network_order', ($r['number'] ?? '') . ' at ' . ($in['code'] ?? ''));
+        if (!empty($r['number'])) q('INSERT IGNORE INTO network_orders (user_id, number, pharmacy, otp) VALUES (?,?,?,?)', [$hid, $r['number'], mb_substr((string) ($r['pharmacy']['name'] ?? ''), 0, 120), $r['otp'] ?? null]);
+        json_out($r);
+    case 'net_orders':
+        $r = network_or_fail(network_call('orders', ['customer_ref' => customer_ref($hid)]));
+        $otps = array_column(q('SELECT number, otp FROM network_orders WHERE user_id = ?', [$hid])->fetchAll(), 'otp', 'number');
+        foreach ($r['orders'] as &$o) $o['otp'] = in_array($o['kind'], ['delivery', 'point'], true) && !in_array($o['status'], ['delivered', 'collected', 'cancelled'], true) ? ($otps[$o['number']] ?? null) : null;
+        unset($o);
+        json_out($r);
+    case 'net_cancel':    json_out(network_or_fail(network_call('order_cancel', ['customer_ref' => customer_ref($hid), 'number' => input()['number'] ?? ''])));
+    case 'net_pay_claim': $in = input(); json_out(network_or_fail(network_call('pay_claim', ['customer_ref' => customer_ref($hid)] + array_intersect_key($in, array_flip(['number', 'method', 'utr', 'amount', 'note'])))));
+    case 'net_khata_pay': $in = input(); json_out(network_or_fail(network_call('khata_pay_claim', ['customer_ref' => customer_ref($hid)] + array_intersect_key($in, array_flip(['code', 'method', 'utr', 'amount'])))));
+    case 'net_wallet':    json_out(network_or_fail(network_call('wallet', ['customer_ref' => customer_ref($hid)])));
+    case 'net_link_start':   json_out(network_or_fail(network_call('link_start', ['customer_ref' => customer_ref($hid), 'phone' => input()['phone'] ?? ''])));
+    case 'net_link_confirm': $in = input(); json_out(network_or_fail(network_call('link_confirm', ['customer_ref' => customer_ref($hid), 'phone' => $in['phone'] ?? '', 'code' => $in['code'] ?? ''])));
+    case 'net_referral':  $in = input(); json_out(network_or_fail(network_call('referral_join', ['customer_ref' => customer_ref($hid), 'code' => $in['code'] ?? '', 'referral_code' => $in['referral_code'] ?? '', 'payout' => $in['payout'] ?? 'points'])));
+    case 'net_complaint': $in = input(); json_out(network_or_fail(network_call('complaint', ['customer_ref' => customer_ref($hid)] + array_intersect_key($in, array_flip(['code', 'number', 'topic', 'body'])))));
 
     /* ---------------- Smartwatch and "tap to tick" ---------------- */
     case 'tick_link':   // a secret link that ticks the doses due now: Siri / Google / Bixby shortcuts, NFC tag, QR sticker, watch
@@ -840,22 +896,20 @@ try {
         require_admin($user);
         json_out(build_digest());
 
-    case 'admin_pharmacies':
+    case 'admin_pharmacies':   // pharmacies from the network that have used family cards on this site
         require_admin($user);
-        json_out(['pharmacies' => q("SELECT p.id, p.name, p.license_no, p.city, p.phone, p.email, p.status, p.created_at,
+        json_out(['network' => network_on() ? network_url() : null, 'pharmacies' => q("SELECT p.id, p.code, p.name, p.license_no, p.city, p.district, p.phone, p.status, p.local_block, p.created_at,
                                        (SELECT COUNT(*) FROM pharmacy_links l WHERE l.pharmacy_id = p.id) patients,
                                        (SELECT COUNT(*) FROM cabinet_items c WHERE c.pharmacy_id = p.id) dispensed
-                                     FROM pharmacies p ORDER BY FIELD(p.status, 'pending', 'approved', 'suspended'), p.id DESC LIMIT 200")->fetchAll()]);
+                                     FROM pharmacies p ORDER BY p.local_block DESC, p.id DESC LIMIT 200")->fetchAll()]);
 
-    case 'admin_pharmacy_status':
+    case 'admin_pharmacy_status':   // local kill switch: stop a pharmacy using family cards on this site (approval itself happens on the network)
         require_admin($user);
-        $in = input(); $st = (string) ($in['status'] ?? '');
-        if (!in_array($st, ['approved', 'suspended', 'pending'], true)) fail('bad_status', 'Unknown status.');
+        $in = input(); $block = ($in['status'] ?? '') === 'suspended';
         $ph = q('SELECT * FROM pharmacies WHERE id = ?', [(int) ($in['id'] ?? 0)])->fetch();
         if (!$ph) fail('not_found', 'Pharmacy not found.', 404);
-        q('UPDATE pharmacies SET status = ? WHERE id = ?', [$st, $ph['id']]);
-        audit($user, 'pharmacy_' . $st, $ph['name'] . ' (' . $ph['license_no'] . ')');
-        if ($st === 'approved' && mail_enabled()) send_mail($ph['email'], site_title() . ' Pharmacy: you are approved', "Hello {$ph['name']},\n\nYour pharmacy account is approved. Sign in at " . base_url() . "/pharmacy to scan AushadhBox cards.\n\n" . site_title());
+        q("UPDATE pharmacies SET local_block = ?, status = ? WHERE id = ?", [$block ? 1 : 0, $block ? 'suspended' : 'approved', $ph['id']]);
+        audit($user, 'pharmacy_' . ($block ? 'blocked' : 'unblocked'), $ph['name'] . ' (' . $ph['license_no'] . ')');
         json_out(['ok' => true]);
 
     case 'admin_indexnow':
@@ -938,7 +992,8 @@ function public_user(array $u): array
     $pi = plan_info($u);
     return ['id' => (int) $u['id'], 'name' => $u['name'], 'email' => $u['email'], 'phone' => $u['phone'], 'language' => $u['language'],
             'admin' => $u['role'] === 'admin', 'consentCurrent' => $u['consent_version'] === config('consent_version'),
-            'plan' => $pi['plan'], 'planUntil' => $pi['until'], 'owner' => $pi['owner'], 'weeklyEmail' => (bool) $u['weekly_email'], 'onboarded' => (bool) $u['onboarded'], 'aiOptIn' => (bool) ($u['ai_opt_in'] ?? 0)];
+            'plan' => $pi['plan'], 'planUntil' => $pi['until'], 'owner' => $pi['owner'], 'weeklyEmail' => (bool) $u['weekly_email'], 'onboarded' => (bool) $u['onboarded'], 'aiOptIn' => (bool) ($u['ai_opt_in'] ?? 0),
+            'lowData' => (bool) ($u['low_data'] ?? 0), 'district' => $u['district'] ?? null, 'village' => $u['village'] ?? null, 'healthWorker' => (bool) ($u['health_worker'] ?? 0)];
 }
 
 function automation_public(array $a): array

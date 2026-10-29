@@ -21,7 +21,7 @@
     ["numbers", "Emergency numbers: 108 ambulance, 112 emergency"]
   ];
 
-  const EXTRA_VIEWS = ["card"];   // reached from buttons, not the bottom bar
+  const EXTRA_VIEWS = ["card", "shops"];   // reached from buttons, not the bottom bar
   const isView = (id) => VIEWS.some(v => v.id === id) || EXTRA_VIEWS.includes(id);
 
   /* ---------------- State ---------------- */
@@ -171,7 +171,7 @@
     $("#adminLink").hidden = !state.user.admin;
     applyI18n();
     const h = (location.hash || "").replace("#", "");
-    go(isView(h) ? h : (h === "upgrade" ? "account" : "cabinet"));
+    go(isView(h) ? h : (h === "upgrade" ? "account" : /^store-/.test(h) ? "shops" : "cabinet"));
     if (state.reminders.enabled) ensurePush(false);
     let pendingJoin = null; try { pendingJoin = sessionStorage.getItem("ms-join"); } catch (e) { /* */ }
     if (pendingJoin) { try { sessionStorage.removeItem("ms-join"); } catch (e) { /* */ } go("account"); $("#joinCode").value = pendingJoin; }
@@ -179,6 +179,7 @@
     else if (h === "shared") openSharedPhoto();
     else if (/^skip-[maeb]$/.test(h)) { go("doses"); openSkip(h.slice(5), null); }
     else if (h === "emergency") openEmergency();
+    else if (/^store-[A-Za-z0-9]{8}$/.test(h) && window.ABHooks && ABHooks.store) { go("shops"); ABHooks.store(h.slice(6)); }
     else if (!state.user.onboarded) openTour();
   }
   $("#btnConsent").addEventListener("click", async () => { await api.post("consent_renew"); state.user.consentCurrent = true; $("#consentBanner").hidden = true; });
@@ -201,6 +202,7 @@
     if (id === "doses" && state.user) loadAdherence();
     if (id === "notebook" && state.user) { loadVitals(); loadExpenses(); }
     if (id === "card" && state.user) loadCards();
+    if (window.ABHooks && ABHooks[id] && state.user) ABHooks[id]();
     try { history.replaceState(null, "", "#" + id); } catch (e) { /* sandboxed */ }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -213,6 +215,7 @@
     else if (h === "upgrade") { go("account"); openUpgrade(); }
     else if (/^skip-[maeb]$/.test(h)) { go("doses"); openSkip(h.slice(5), null); }
     else if (h === "emergency") openEmergency();
+    else if (/^store-[A-Za-z0-9]{8}$/.test(h) && window.ABHooks && ABHooks.store) { go("shops"); ABHooks.store(h.slice(6)); }
   });
 
   /* ---------------- Cabinet ---------------- */
@@ -399,6 +402,8 @@
     showCanvas(); $("#scanBeam").hidden = false;
     setStatus('<span class="spinner"></span>' + esc(t("scanReading")));
     let raw = preDecoded || await decodeCodes(cv);
+    const shop = (raw || "").match(/\/s\/([A-Za-z0-9]{8})\b|^AUSHADHBOX-PH:([A-Za-z0-9]{8})$/i);   // a pharmacy's QR poster
+    if (shop && window.ABHooks && ABHooks.store) { $("#scanBeam").hidden = true; setStatus(""); go("shops"); ABHooks.store((shop[1] || shop[2]).toUpperCase()); return; }
     let info = parseLabel(raw);
     if (!info.exp || !raw) { const ocr = await tryOCR(cv); if (ocr) { raw = (raw ? raw + "\n" : "") + ocr; info = Object.assign(parseLabel(ocr), info); } }
     $("#scanBeam").hidden = true;
@@ -1691,6 +1696,9 @@
     const img = qrImage(tickUrl + "?auto=1"), one = '<div class="stk"><img alt="" src="' + img + '"><b>✓ ' + esc(t("tickTitle")) + "</b><span>AushadhBox</span></div>";
     printPage(t("tickSticker"), "<p class='noprint'>" + esc(t("tickDesc")) + "</p>" + one + one + one + one);
   });
+
+  /* Bridge for feature files (network.js): shared helpers and state */
+  window.AB = { api, t, esc, toast, go, state, drawQr, sound, fallbackCopy, fmtShort, fmtSeen, memberName, shoppingList, openPrintable, get current() { return current; } };
 
   function renderAll() { renderSummary(); renderFilter(); renderCabinet(); fillMemberSelect(); renderDoses(); renderNotebook(); renderKit(); renderAccount(); renderPlan(); renderShare(); renderAdherence(); renderBoxes(); renderSafety(); renderAi(); renderFollowups(); renderProfile(); renderAppointments(); renderPharmacy(); renderStreak(); renderVaccines(); renderShares(); renderWatch(); if (current === "card") renderCard(); saveEmergencySnapshot(); }
   const langOptions = LANGS.map(l => '<option value="' + l.code + '">' + l.native + (l.code === "en" ? "" : " · " + l.name) + "</option>").join("");

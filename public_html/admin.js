@@ -80,18 +80,18 @@
 
   /* ---------- Pharmacies (AushadhBox Pharmacy portal) ---------- */
   async function loadPharmacies() {
-    const list = (await call("admin_pharmacies")).pharmacies, pending = list.filter(p => p.status === "pending").length;
-    $("#phCount").textContent = pending ? pending + " waiting" : list.length + " total";
-    $("#pharmacies").innerHTML = list.length ? list.map(p => "<tr><td><b>" + esc(p.name) + "</b><br><span class=\"muted\">" + esc(p.city) + " · " + esc(p.created_at.slice(0, 10)) + "</span></td><td class=\"mono\">" + esc(p.license_no) + "</td>" +
-      "<td>" + esc(p.phone) + "<br><span class=\"muted\">" + esc(p.email) + "</span></td><td>" + num(p.patients) + "</td><td>" + num(p.dispensed) + "</td><td>" +
-      '<span class="chip ' + (p.status === "approved" ? "" : p.status === "pending" ? "high" : "overdue") + '">' + esc(p.status) + "</span> " +
-      (p.status !== "approved" ? '<button class="btn btn-primary btn-sm" data-ph="' + p.id + '" data-st="approved">Approve</button> ' : "") +
-      (p.status !== "suspended" ? '<button class="btn btn-ghost btn-sm" data-ph="' + p.id + '" data-st="suspended">Suspend</button>' : "") + "</td></tr>").join("")
-      : '<tr><td colspan="6" class="muted">No pharmacies yet.</td></tr>';
+    const r = await call("admin_pharmacies"), list = r.pharmacies, blocked = list.filter(p => Number(p.local_block)).length;
+    $("#phCount").textContent = list.length + " used cards" + (blocked ? " · " + blocked + " blocked" : "");
+    $("#phNote").innerHTML = r.network ? 'Pharmacies join and are approved (licence check) on the <a href="' + esc(r.network) + '/admin" target="_blank" rel="noopener">AushadhBox Pharmacy Network admin</a>. Here you can stop one from using family cards on this site.' : "The pharmacy network is not connected yet (set pharmacy_network in core/config.php).";
+    $("#pharmacies").innerHTML = list.length ? list.map(p => "<tr><td><b>" + esc(p.name) + "</b><br><span class=\"muted\">" + esc((p.city || "") + (p.district ? ", " + p.district : "")) + (p.code ? " · " + esc(p.code) : "") + "</span></td><td class=\"mono\">" + esc(p.license_no) + "</td>" +
+      "<td>" + esc(p.phone) + "</td><td>" + num(p.patients) + "</td><td>" + num(p.dispensed) + "</td><td>" +
+      (Number(p.local_block) ? '<span class="chip overdue">blocked here</span> <button class="btn btn-ghost btn-sm" data-ph="' + p.id + '" data-st="approved">Allow again</button>'
+        : '<span class="chip">active</span> <button class="btn btn-ghost btn-sm" data-ph="' + p.id + '" data-st="suspended">Block</button>') + "</td></tr>").join("")
+      : '<tr><td colspan="6" class="muted">No pharmacy has used a family card yet.</td></tr>';
   }
   $("#pharmacies").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-ph]"); if (!b) return;
-    if (b.dataset.st === "suspended" && b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Sure? Suspend"; return; }
+    if (b.dataset.st === "suspended" && b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "Sure? Block"; return; }
     try { await call("admin_pharmacy_status", { id: Number(b.dataset.ph), status: b.dataset.st }); loadPharmacies(); } catch (err) { showError(err.message); }
   });
 

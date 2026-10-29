@@ -1,0 +1,16 @@
+{
+  "name": "AushadhBox Pharmacy",
+  "short_name": "AB Pharmacy",
+  "description": "Pharmacy portal: orders, stock, khata, delivery and the AushadhBox card.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#EEF2EF",
+  "theme_color": "#1F3358",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }],
+  "shortcuts": [
+    { "name": "Counter (scan a card)", "url": "/app#counter" },
+    { "name": "Orders", "url": "/app#orders" },
+    { "name": "My deliveries", "url": "/rider#rides" }
+  ]
+}

@@ -121,7 +121,12 @@ function route_site(string $path): void
         case preg_match('#^calendar/([a-f0-9]{32})\.ics$#', $page, $m) === 1: calendar_out($m[1]); return;
         case $page === 'app':            serve_app(); return;
         case $page === 'watch':          header('Content-Type: text/html; charset=utf-8'); readfile(dirname(__DIR__) . '/watch.html'); return;
-        case $page === 'pharmacy':       header('Content-Type: text/html; charset=utf-8'); readfile(dirname(__DIR__) . '/pharmacy.html'); return;
+        case $page === 'pharmacy':       // pharmacies use the separate AushadhBox Pharmacy Network portal
+            $net = rtrim((string) (config('pharmacy_network')['url'] ?? ''), '/');
+            if ($net !== '') { header('Location: ' . $net . '/app', true, 302); return; }
+            header('Content-Type: text/html; charset=utf-8');
+            echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>For pharmacies</title><link rel="stylesheet" href="/site.css"><main class="wrap" style="padding:40px 16px"><h1>For pharmacies</h1><p>The AushadhBox Pharmacy Network is opening soon in your area. Write to us from the Contact page to join.</p></main>';
+            return;
         case preg_match('#^tick/([A-Za-z0-9_-]{24,64})$#', $page, $m) === 1: require APP_DIR . '/pages/tick.php'; tick_page($m[1]); return;
         case preg_match('#^share/([A-Za-z0-9_-]{20,64})$#', $page, $m) === 1: require APP_DIR . '/pages/share.php'; share_page($m[1]); return;
         // Share target when the service worker isn't running yet: just open the scanner.
@@ -134,7 +139,7 @@ function route_site(string $path): void
 function robots(): void
 {
     header('Content-Type: text/plain; charset=utf-8');
-    echo "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api.php\nDisallow: /admin.html\nDisallow: /core/\nDisallow: /install.php\nDisallow: /cron.php\nDisallow: /webhook.php\nDisallow: /report\nDisallow: /calendar/\nDisallow: /share/\nDisallow: /device.php\nDisallow: /tick/\nDisallow: /watch\nDisallow: /pharmacy_api.php\n\nSitemap: " . base_url() . "/sitemap.xml\n";
+    echo "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api.php\nDisallow: /admin.html\nDisallow: /core/\nDisallow: /install.php\nDisallow: /cron.php\nDisallow: /webhook.php\nDisallow: /report\nDisallow: /calendar/\nDisallow: /share/\nDisallow: /device.php\nDisallow: /tick/\nDisallow: /watch\nDisallow: /partner_api.php\n\nSitemap: " . base_url() . "/sitemap.xml\n";
 }
 
 /* Private calendar feed of a family's dose times (subscribed from Google Calendar or the iPhone Calendar app). */

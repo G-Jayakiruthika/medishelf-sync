@@ -554,3 +554,54 @@ CREATE TABLE IF NOT EXISTS barcodes (
   uses        INT UNSIGNED NOT NULL DEFAULT 1,
   updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Pharmacies saved by the family (scanned a shop's QR or ordered there). The shop itself lives in the pharmacy network.
+CREATE TABLE IF NOT EXISTS my_pharmacies (
+  user_id     INT UNSIGNED NOT NULL,
+  code        CHAR(8)      NOT NULL,
+  name        VARCHAR(120) NOT NULL,
+  village     VARCHAR(80)  NULL,
+  added_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, code),
+  CONSTRAINT fk_myph_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Health workers (ASHA, ANM, village health volunteers) who look after families with the family's permission.
+CREATE TABLE IF NOT EXISTS caregivers (
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  household_id  INT UNSIGNED NOT NULL,
+  worker_id     INT UNSIGNED NULL,
+  code_hash     CHAR(64)     NULL,                 -- one-time code the family gives the worker (7 days)
+  code_until    DATETIME     NULL,
+  can_order     TINYINT(1)   NOT NULL DEFAULT 1,   -- may order refills for the family
+  status        VARCHAR(10)  NOT NULL DEFAULT 'pending',   -- pending, active, ended
+  created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_cg_worker (worker_id, status),
+  KEY idx_cg_house (household_id),
+  CONSTRAINT fk_cg_house FOREIGN KEY (household_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cg_worker FOREIGN KEY (worker_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- SMS reminders to family members without a smartphone (feature phones), through the SMS provider. Phone numbers stay in members.phone.
+CREATE TABLE IF NOT EXISTS sms_outbox (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED NOT NULL,
+  member_id   INT UNSIGNED NULL,
+  template    VARCHAR(30)  NOT NULL,
+  body        VARCHAR(400) NOT NULL,
+  status      VARCHAR(10)  NOT NULL DEFAULT 'queued',
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_sms_user (user_id, created_at),
+  CONSTRAINT fk_smso_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Orders this family placed through the pharmacy network: keeps the 4-digit delivery code (the network stores only a hash).
+CREATE TABLE IF NOT EXISTS network_orders (
+  user_id     INT UNSIGNED NOT NULL,
+  number      VARCHAR(16)  NOT NULL,
+  pharmacy    VARCHAR(120) NOT NULL,
+  otp         CHAR(4)      NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, number),
+  CONSTRAINT fk_neto_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

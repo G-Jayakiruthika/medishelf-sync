@@ -497,3 +497,23 @@ dialog.sheet { grid-template-columns: minmax(0, 1fr); }
 .ph-list .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .ph-how { font-size: .94rem; } .ph-how ol { padding-left: 20px; display: grid; gap: 6px; }
 .ph-body .toast { bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+
+/* Pharmacies (AushadhBox Pharmacy Network) */
+.small { font-size: .84rem; }
+.sh-results { display: grid; gap: 10px; }
+.sh-res { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 6px; }
+.sh-res-top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sh-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: .88rem; }
+.sh-items li { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.sh-orders li { align-items: start; } .sh-orders .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.sh-otp { display: inline-block; margin-top: 4px; font-weight: 800; color: var(--ai); background: var(--ai-soft); border-radius: 8px; padding: 2px 8px; }
+.sh-owe { margin: 0; font-weight: 700; color: var(--warn); }
+.sh-kh { display: grid; gap: 6px; border-bottom: 1px dashed var(--line); padding-bottom: 10px; margin-bottom: 8px; }
+.sh-box { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-top: 10px; }
+.sh-box summary { cursor: pointer; }
+.sh-box canvas { width: 200px; height: 200px; image-rendering: pixelated; background: #fff; border-radius: 10px; padding: 6px; margin-top: 8px; }
+.sh-claim { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
+.sh-ref { margin: 8px 0 0; }
+.sh-link summary { cursor: pointer; font-size: .9rem; color: var(--muted); }
+.chips label.chip { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.ph-code { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; } .ph-code .field { flex: 1 1 160px; }

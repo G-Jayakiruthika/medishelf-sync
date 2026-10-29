@@ -23,6 +23,20 @@ const MIGRATION_COLUMNS = [
         'pharmacy_name' => 'VARCHAR(80) NULL AFTER ai_opt_in',
         'pharmacy_phone' => 'VARCHAR(15) NULL AFTER pharmacy_name',
         'tick_hash' => 'CHAR(64) NULL AFTER pharmacy_phone',
+        'network_ref' => 'CHAR(32) NULL AFTER tick_hash',
+        'low_data' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER network_ref',
+        'district' => 'VARCHAR(60) NULL AFTER low_data',
+        'village' => 'VARCHAR(80) NULL AFTER district',
+        'health_worker' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER village',
+    ],
+    'pharmacies' => [
+        'network_branch_id' => 'INT UNSIGNED NULL AFTER id',
+        'code' => 'CHAR(8) NULL AFTER network_branch_id',
+        'district' => 'VARCHAR(60) NULL AFTER city',
+        'local_block' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status',
+    ],
+    'refill_requests' => [
+        'network_order' => 'VARCHAR(16) NULL AFTER status',
     ],
     'contact_messages' => [
         'category' => 'VARCHAR(12) NULL AFTER handled',
@@ -42,6 +56,8 @@ const MIGRATION_COLUMNS = [
         'share_add' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER card_code',
         'share_view' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER share_add',
         'account_id' => 'INT UNSIGNED NULL AFTER share_view',
+        'phone' => 'VARCHAR(15) NULL AFTER account_id',
+        'sms_remind' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER phone',
     ],
     'dose_logs' => [
         'status' => "VARCHAR(8) NOT NULL DEFAULT 'taken' AFTER taken_at",
@@ -89,7 +105,8 @@ function migrate(): array
         }
     }
     // 3b. Indexes added in later versions
-    foreach (['members' => ['uq_members_card', 'UNIQUE KEY uq_members_card (card_code)']] as $table => [$name, $def]) {
+    foreach ([['members', 'uq_members_card', 'UNIQUE KEY uq_members_card (card_code)'], ['pharmacies', 'uq_ph_network', 'UNIQUE KEY uq_ph_network (network_branch_id)'],
+              ['users', 'idx_users_netref', 'KEY idx_users_netref (network_ref)']] as [$table, $name, $def]) {
         if (!q('SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?', [$table, $name])->fetch()) {
             db()->exec("ALTER TABLE `$table` ADD $def"); $done[] = "added index $name";
         }

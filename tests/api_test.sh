@@ -162,11 +162,19 @@ expect "cards list" "$(get a cards)" 200; body_has "card is off by default" '"sh
 expect "B cannot switch on A's card" "$(post b card_share "{\"member_id\":$MID,\"add\":true}")" 404
 expect "switch on: pharmacies may add" "$(post a card_share "{\"member_id\":$MID,\"add\":true,\"view\":false}")" 200; CODE=$(grep -o '"code":"[A-Z0-9-]*"' "$T/out" | head -1 | cut -d'"' -f4)
 [ -n "$CODE" ] && { PASS=$((PASS+1)); echo "  ✓ card code made when switched on"; } || { FAIL=$((FAIL+1)); echo "  ✗ no card code"; }
-expect "pharmacy registers" "$(ppost p signup "{\"name\":\"Test Medicals\",\"license_no\":\"TN-$S\",\"city\":\"Chennai\",\"phone\":\"9876543210\",\"email\":\"ph$S@test.in\",\"password\":\"secret123\",\"agree\":true}")" 200; body_has "waits for approval" '"status":"pending"'
-expect "pharmacy must accept the terms" "$(ppost q signup "{\"name\":\"X\",\"license_no\":\"X1\",\"city\":\"X\",\"phone\":\"9876543210\",\"email\":\"q$S@test.in\",\"password\":\"secret123\"}")" 400
-expect "pending pharmacy cannot scan cards" "$(ppost p patient "{\"code\":\"$CODE\"}")" 403; body_has "says why" 'not_approved'
-expect "pharmacy wrong password" "$(ppost q login "{\"email\":\"ph$S@test.in\",\"password\":\"nope\"}")" 401
-expect "family session cannot use the pharmacy API" "$(ppost a stats '{}')" 401
+pcall() { php "$(dirname "$0")/partner_call.php" "$R" "$@" > "$T/raw"; cut -d' ' -f2- "$T/raw" > "$T/out"; cut -d' ' -f1 "$T/raw"; }
+BR='{"id":990001,"code":"TESTPH01","name":"Test Pharmacy","city":"Erode","district":"Erode","licence":"TN-T-1","phone":"9876543210","approved":true}'
+expect "pharmacy network call without a signature refused" "$(curl -s -o "$T/out" -w "%{http_code}" -X POST "$R/partner_api.php?action=card_patient" -d '{}')" 401
+expect "wrong signature refused" "$(pcall card_patient "{\"branch\":$BR,\"code\":\"$CODE\"}" --bad-sig)" 401
+expect "replayed call refused" "$(pcall card_patient "{\"branch\":$BR,\"code\":\"$CODE\"}" --replay)" 401
+expect "signed card scan (add-only consent)" "$(pcall card_patient "{\"branch\":$BR,\"code\":\"$CODE\"}")" 200; body_has "pharmacy sees a shortened name" '"canView":false'
+if grep -q '"medicines"' "$T/out"; then FAIL=$((FAIL+1)); echo "  ✗ medicine list hidden without view consent"; else PASS=$((PASS+1)); echo "  ✓ medicine list hidden without view consent"; fi
+expect "unknown card" "$(pcall card_patient "{\"branch\":$BR,\"code\":\"AAAA-BBBB-CCCC\"}")" 404
+expect "safety pre-check through the network" "$(pcall card_precheck "{\"branch\":$BR,\"code\":\"$CODE\",\"items\":[{\"name\":\"Dolo 650\",\"times\":[\"m\"]}]}")" 200
+expect "notify for an unknown household does nothing" "$(pcall notify '{"customer_ref":"00000000000000000000000000000000","title":"x","body":"y"}')" 200; body_has "nothing sent" '"sent":0'
+get a cards >/dev/null; body_has "family sees the pharmacy that scanned" 'Test Pharmacy'
+expect "network status for the app" "$(get a net_status)" 200; body_has "status answered" '"on":'
+expect "order needs consent to share contact details" "$(post a net_order '{"code":"AMPR4N9X","items":[{"name":"Dolo"}]}')" 400
 expect "no refill to a pharmacy the card was never used at" "$(post a refill_request '{"pharmacy_id":1,"items":[{"name":"Glycomet"}]}')" 403
 expect "new card replaces the old code" "$(post a card_new "{\"member_id\":$MID}")" 200; NEWCODE=$(grep -o '"code":"[A-Z0-9-]*"' "$T/out" | head -1 | cut -d'"' -f4)
 [ "$NEWCODE" != "$CODE" ] && { PASS=$((PASS+1)); echo "  ✓ new card has a new code"; } || { FAIL=$((FAIL+1)); echo "  ✗ code did not change"; }

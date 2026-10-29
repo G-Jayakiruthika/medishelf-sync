@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=9">
+<link rel="stylesheet" href="/styles.css?v=10">
 </head>
 <body>
 
@@ -113,7 +113,7 @@
       <div><h3 id="safetyHead" data-i18n="safetyTitle">Safety check</h3><p class="muted" data-i18n="safetyDesc">Checked automatically every time a medicine is added.</p></div>
       <ul class="safety-list" id="safetyList"></ul>
     </div>
-    <div class="section-head"><h2 data-i18n="cabinetTitle">Your cabinet</h2><button class="btn btn-ghost btn-sm" type="button" id="btnShop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 4h2l2.4 11h11L21 7H6.2M9 20a1 1 0 1 0 0-.01M18 20a1 1 0 1 0 0-.01"/></svg><span data-i18n="shopTitle">Shopping list</span></button></div>
+    <div class="section-head"><h2 data-i18n="cabinetTitle">Your cabinet</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" type="button" id="btnShop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 4h2l2.4 11h11L21 7H6.2M9 20a1 1 0 1 0 0-.01M18 20a1 1 0 1 0 0-.01"/></svg><span data-i18n="shopTitle">Shopping list</span></button><button class="btn btn-ghost btn-sm" type="button" data-go="shops"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h16v10H4zM3 10l2-6h14l2 6M10 14h4M12 12v4"/></svg><span data-i18n="shopsTitle">Pharmacies</span></button></div></div>
     <div class="chips" id="memberFilter" style="margin-bottom:14px"></div>
     <div class="cabinet" id="cabinet"></div>
   </section>
@@ -227,7 +227,7 @@
           <div class="field"><label for="pfContact" data-i18n="emContact">Emergency contact (name and phone)</label><input id="pfContact" maxlength="80" placeholder="Ravi 98765 43210"></div>
           <div class="field"><label for="pfBirth" data-i18n="vxBirth">Date of birth</label><input id="pfBirth" type="date"></div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="btnEmergency" data-i18n="emOpen">Open emergency card</button><button class="btn btn-ghost btn-sm" type="button" data-go="card" data-i18n="cardTitle">AushadhBox card</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="btnEmergency" data-i18n="emOpen">Open emergency card</button><button class="btn btn-ghost btn-sm" type="button" data-go="card" data-i18n="cardTitle">AushadhBox card</button><button class="btn btn-ghost btn-sm" type="button" data-go="shops" data-i18n="shopsTitle">Pharmacies</button></div>
       </div>
       <div class="panel stack" id="vxCard">
         <h3 data-i18n="vxTitle">Vaccinations</h3>
@@ -323,6 +323,36 @@
       </div>
     </div>
     <p class="muted" style="margin-top:14px;font-size:.88rem"><a href="/pharmacy" data-i18n="forPharm">For pharmacies: AushadhBox Pharmacy</a></p>
+  </section>
+
+  <!-- PHARMACIES (AushadhBox Pharmacy Network) -->
+  <section class="view" id="view-shops" data-view="shops" hidden>
+    <div class="section-head"><div><h2 data-i18n="shopsTitle">Pharmacies</h2><p class="muted" data-i18n="shopsDesc" style="margin-top:6px">Find medicines in stock near you.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="shScanBtn" data-i18n="shScan">Scan a pharmacy's QR</button></div></div>
+    <p class="warn-note" id="shOff" hidden data-i18n="shNoNet">The pharmacy network is not connected on this site yet.</p>
+    <div class="nb-grid">
+      <form class="panel stack" id="shFind">
+        <h3 data-i18n="shFindTitle">Who has my medicines?</h3>
+        <textarea id="shItems" rows="4" maxlength="1200" data-i18n-ph="shFindPh" placeholder="One medicine per line, e.g. Dolo 650"></textarea>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+          <button class="btn btn-ghost btn-sm" type="button" id="shFromList" data-i18n="shFromShop">Use my shopping list</button>
+          <button class="btn btn-ghost btn-sm" type="button" id="shLoc" data-i18n="shUseLoc">Use my location</button>
+          <div class="field" style="flex:1 1 140px"><label for="shDistrict" data-i18n="shDistrict">District</label><input id="shDistrict" maxlength="60" placeholder="Erode"></div>
+        </div>
+        <p class="muted small" id="shLocMsg" hidden></p>
+        <button class="btn btn-primary" type="submit" data-i18n="shSearch">Search</button>
+        <div id="shResults" class="sh-results"></div>
+      </form>
+      <div class="panel stack"><h3 data-i18n="shOrders">My orders</h3><ul class="ap-list sh-orders" id="shOrders"></ul></div>
+      <div class="panel stack"><h3 data-i18n="shMine">My pharmacies</h3><ul class="ap-list" id="shMine"></ul></div>
+      <div class="panel stack" id="shWalletCard"><h3 data-i18n="shWallet">Credit book and points</h3><div id="shWallet"></div>
+        <details class="sh-link"><summary data-i18n="shLinkPhone">Already have a credit book at a shop under your phone number? Link it:</summary>
+          <div class="ph-code"><div class="field"><label for="shLinkPhone" data-i18n="shYourPhone">Mobile number</label><input id="shLinkPhone" inputmode="tel" maxlength="13"></div><button class="btn btn-ghost btn-sm" type="button" id="shLinkSend" data-i18n="shSendCode">Send code</button></div>
+          <div class="ph-code" id="shLinkStep" hidden><div class="field"><label for="shLinkCode">SMS code</label><input id="shLinkCode" inputmode="numeric" maxlength="6"></div><button class="btn btn-primary btn-sm" type="button" id="shLinkOk" data-i18n="shConfirm">Link</button></div>
+        </details>
+      </div>
+    </div>
+    <p class="muted" style="margin-top:14px;font-size:.88rem"><a href="/pharmacy" data-i18n="shForPharm">Are you a pharmacy? Join the network</a></p>
   </section>
 
   <!-- SAFETY -->
@@ -539,11 +569,16 @@
 </dialog>
 
 <!-- Shopping list -->
+<dialog class="sheet wide" id="storeDialog" aria-labelledby="stName">
+  <form method="dialog" class="sheet-x"><button class="icon-btn" aria-label="Close">✕</button></form>
+  <div id="stBody"></div>
+</dialog>
+
 <dialog class="sheet" id="shopDialog" aria-labelledby="shopHead">
   <form method="dialog" class="sheet-x"><button class="icon-btn" aria-label="Close">✕</button></form>
   <h2 id="shopHead" data-i18n="shopTitle">Shopping list</h2>
   <ul class="shop-list" id="shopList"></ul>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" id="shopWa" href="#" target="_blank" rel="noopener" data-i18n="shopShare">Share on WhatsApp</a><button class="btn btn-ghost btn-sm" type="button" id="shopCopy" data-i18n="shopCopy">Copy list</button><a class="btn btn-ghost btn-sm" id="shopPharm" href="#" target="_blank" rel="noopener" data-i18n="phSend">Send to my pharmacy</a><button class="btn btn-ghost btn-sm" type="button" id="shopRefill" data-i18n="refillTitle">Ask a pharmacy to keep medicines ready</button></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-primary btn-sm" id="shopWa" href="#" target="_blank" rel="noopener" data-i18n="shopShare">Share on WhatsApp</a><button class="btn btn-ghost btn-sm" type="button" id="shopCopy" data-i18n="shopCopy">Copy list</button><a class="btn btn-ghost btn-sm" id="shopPharm" href="#" target="_blank" rel="noopener" data-i18n="phSend">Send to my pharmacy</a><button class="btn btn-ghost btn-sm" type="button" id="shopRefill" data-i18n="refillTitle">Ask a pharmacy to keep medicines ready</button><button class="btn btn-ghost btn-sm" type="button" id="shopFind" data-i18n="shFindTitle">Who has my medicines?</button></div>
 </dialog>
 
 <dialog class="sheet wide" id="sheetDialog" aria-labelledby="shHead">
@@ -597,10 +632,12 @@
 <script src="/i18n-notebook.js?v=8"></script>
 <script src="/i18n-household.js?v=9"></script>
 <script src="/i18n-connect.js?v=9"></script>
+<script src="/i18n-network.js?v=1"></script>
 <script src="/rx-parse.js?v=6"></script>
 <script src="/ble-health.js?v=1"></script>
 <script src="/health-import.js?v=1"></script>
-<script src="/app.js?v=9"></script>
+<script src="/app.js?v=10"></script>
+<script src="/network.js?v=1"></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer></script>
 </body>
