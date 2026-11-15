@@ -73,3 +73,9 @@ The **licensor** is the individual or entity offering these terms, and the **sof
 **Your licenses** are all the licenses granted to you for the software under these terms.
 
 **Use** means anything you do with the software requiring one of your licenses.
+
+---
+
+Third-party libraries in `public_html/lib/` and `pharmacy-platform/public/lib/` (jsQR, qrcode-generator) keep their own licences; see the LICENSE files next to them.
+
+For commercial use (selling it, hosting it for clients, or using it in a paid product), ask the licensor for a commercial licence.
