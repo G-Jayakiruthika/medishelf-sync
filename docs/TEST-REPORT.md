@@ -2,22 +2,28 @@
 
 | | |
 |---|---|
-| Date | 29 October 2026 |
-| Build | v3.1 (household extras, AushadhBox card and pharmacy portal, smartwatch) |
-| Environment | PHP 8.3, MariaDB 11.4, Chromium (Playwright), phone 390 px and desktop 1366 px |
-| Result | **All automated suites pass (674 checks).** No open defects. |
+| Date | 15 November 2026 |
+| Build | v3.2 (Care+, villages and basic phones, AushadhBox Pharmacy Network with fees and vouchers, 3D models) |
+| Environment | PHP 8.3, MariaDB 11.4, Python 3, Java 21, Chromium (Playwright), phone 390 px and desktop 1366 px |
+| Result | **All automated suites pass (948 checks).** No open defects. |
 
-## 1. Automated suites (in `tests/`)
+## 1. Automated suites
 
 | Suite | Command | Checks | Result |
 |---|---|---|---|
 | SEO and site health | `php tests/seo_check.php <url>` | 271 | ✅ all passed |
-| API, security and automations | `bash tests/api_test.sh <url>` | 174 | ✅ all passed |
-| End-to-end browser journey | `node tests/e2e.js <url>` | 96 (45 phone + 45 desktop + 6 portal and watch) | ✅ all passed |
+| API, security, automations and Care+ | `bash tests/api_test.sh <url>` | 220 | ✅ all passed |
+| End-to-end browser journey | `node tests/e2e.js <url>` | 104 (49 phone + 49 desktop + 6 portal and watch) | ✅ all passed |
 | Prescription and bill reader | `node tests/rx_parse_test.js` | 36 | ✅ all passed |
 | Bluetooth meter parsers | `node tests/ble_parse_test.js` | 12 | ✅ all passed |
 | Watch and health-app import | `node tests/health_import_test.js` | 20 | ✅ all passed |
-| Autopilot, support, safety, patterns, pharmacy card, watch | `php tests/autopilot_test.php` | 65 | ✅ all passed |
+| Autopilot, support, safety, pharmacy card, watch, Care+ | `php tests/autopilot_test.php` | 90 | ✅ all passed |
+| Pharmacy platform API and security | `bash pharmacy-platform/tests/api_test.sh` | 132 | ✅ all passed |
+| Pharmacy network money rules and database upgrade | `php pharmacy-platform/tests/unit_test.php` | 21 | ✅ all passed |
+| Demand forecasts, reorder, expiry, transfers, delivery rounds (Python) | `python3 -m unittest discover -s tests -t .` in `pharmacy-platform/analytics` | 19 | ✅ all passed |
+| Billing-software sync agent (Java) | `sh pharmacy-platform/sync-agent/build.sh` | 17 | ✅ all passed |
+| Fridge thermometer logic (MicroPython) | `python3 -m unittest test_logic` in `pharmacy-platform/iot/coldchain` | 6 | ✅ all passed |
+| 3D models | rebuilt from `tools/models3d/spec.py` in CI; viewer checked in Chromium (no script errors, every screen's model drawn) | — | ✅ |
 
 Re-run all of them against the live site after every change. `api_test.sh` and `e2e.js` create test accounts; run them on a test copy or delete the accounts afterwards.
 

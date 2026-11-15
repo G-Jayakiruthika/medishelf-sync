@@ -37,7 +37,21 @@ The user asked for this explicitly, so it is built into every step:
 - The tap-to-tick and doctor links are long secret links that can be stopped from the app. Opening the tick link never ticks by itself (link previews and bots can't tick); it needs a tap or a POST from the shortcut.
 
 ### Using AushadhBox Pharmacy as its own project
-The portal lives in the same repository (`public_html/pharmacy.html`, `pharmacy.js`, `pharmacy_api.php`, `core/pharmacy.php`) because it shares the database, the medicine list and the safety check. It has its own sign-in, separate from family accounts. To run it as a separate product (own domain, own repository), copy those four files plus `core/` and point it at the same database; the API is documented at the top of `pharmacy_api.php`.
+The pharmacy portal is now its own product in `pharmacy-platform/` (own server, own database, own sign-in), linked to the family app by signed calls. The old `/pharmacy` address forwards there.
+
+## Round 3: what we had missed
+
+| Japanese practice | In AushadhBox |
+|---|---|
+| Refill prescriptions (リフィル処方箋, from 2022): one prescription used up to 3 times | **Repeat prescriptions** in Care+: doctor, date, valid-until and refills allowed; "order refill" sends the medicines with the prescription to a linked pharmacy, which sees the refill count. |
+| Sending the prescription ahead and picking up at a set time (EPARK くすりの窓口) | **Pickup time** on every order; the pharmacy portal shows "customer comes at 6:30 pm: have it ready". |
+| Dose packing (一包化) for older people | **Pack each dose time in its own pouch** on the order; the pharmacy prints colour-coded pouch labels per day and dose time. |
+| Home visits by pharmacists (在宅訪問, 居宅療養管理指導) | **Pharmacist home visit** on a delivery order, and a **medicine review** request. |
+| Polypharmacy review (ポリファーマシー対策, 減薬) | **Medicine review**: flags people with many daily medicines and medicines best avoided in older people (Beers-style list), with what to ask the doctor. |
+| Food and drink interactions in the notebook (grapefruit, alcohol, milk) | **Food and drink cautions** per medicine, matched to Indian food and drink (tea, milk, alcohol, grapefruit, leafy greens). |
+| Maternal and Child Health Handbook (母子健康手帳) | **Mother and child**: India's MCP card check-ups, PMSMA day, IFA tablets, danger signs, growth; vaccinations were already there. |
+| Points from pharmacy apps (EPARK points, d-point) for healthy actions | **Health points** → vouchers at any network pharmacy, paid back to the shop in the monthly network statement. |
+| Watch-over with home sensors (見守りセンサー) | Door / motion / power **life sensors** count as a sign of life. |
 
 ## What was not copied, and why
 - **The national record link (MynaPortal)**: the Indian equivalent (ABHA / ABDM health records) needs registration as a health information user. It is a good next step once the business is registered.
