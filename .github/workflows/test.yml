@@ -57,6 +57,19 @@ jobs:
       - name: Watch and health-app import
         run: node tests/health_import_test.js
 
+      - name: Pharmacy analytics (Python)
+        run: cd pharmacy-platform/analytics && python3 -m unittest discover -s tests -t .
+
+      - name: Fridge thermometer logic (MicroPython, tested on CPython)
+        run: cd pharmacy-platform/iot/coldchain && python3 -m unittest test_logic
+
+      - name: Billing-software sync agent (Java)
+        uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+
+      - name: Build and test the sync agent
+        run: sh pharmacy-platform/sync-agent/build.sh
+
       - name: Pillbox simulator syntax
         run: python3 -m py_compile hardware/simulator/pillbox_sim.py
 

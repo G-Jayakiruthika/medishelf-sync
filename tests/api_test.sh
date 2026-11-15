@@ -180,6 +180,7 @@ expect "new card replaces the old code" "$(post a card_new "{\"member_id\":$MID}
 [ "$NEWCODE" != "$CODE" ] && { PASS=$((PASS+1)); echo "  ✓ new card has a new code"; } || { FAIL=$((FAIL+1)); echo "  ✗ code did not change"; }
 
 echo "Smartwatch, tap-to-tick, imports and barcodes"
+BC=$(printf "89%011d" $((S % 100000000000)))   # a fresh barcode for every run
 expect "watch status" "$(get a watch_status)" 200; body_has "has today's dose times" '"slots":\['
 expect "make a tap-to-tick link" "$(post a tick_link '{}')" 200; TTOK=$(tr -d '\\' < "$T/out" | grep -o '/tick/[A-Za-z0-9_-]*' | head -1 | cut -d/ -f3); body_has "link is a full address" '"url":"http'
 c=$(curl -s -o "$T/out" -w "%{http_code}" "$R/tick/$TTOK"); expect "tick page opens (does not tick on open)" "$c" 200; body_has "has the big button" 'tickBtn'
@@ -191,9 +192,9 @@ c=$(curl -s -o "$T/out" -w "%{http_code}" -X POST "$R/tick/$TTOK"); expect "stop
 NOW=$(date '+%Y-%m-%d %H:%M:00')
 expect "import watch readings" "$(post a vitals_import "{\"readings\":[{\"kind\":\"pulse\",\"v1\":72,\"at\":\"$NOW\"},{\"kind\":\"pulse\",\"v1\":72,\"at\":\"$NOW\"},{\"kind\":\"spo2\",\"v1\":300,\"at\":\"$NOW\"},{\"kind\":\"bp\",\"v1\":120,\"v2\":80,\"at\":\"$NOW\"}]}")" 200
 body_has "good readings added" '"added":2'; body_has "duplicates and impossible values skipped" '"skipped":2'
-expect "unknown barcode" "$(get a 'barcode_lookup&code=8901234567894')" 200; body_has "not found yet" '"found":false'
-post a item_save '{"name":"Dolo 650","barcode":"8901234567894","exp":"2027-05"}' >/dev/null
-expect "barcode learned from a scan" "$(get b 'barcode_lookup&code=8901234567894')" 200; body_has "next family gets the name" '"name":"Dolo 650"'
+expect "unknown barcode" "$(get a "barcode_lookup&code=$BC")" 200; body_has "not found yet" '"found":false'
+post a item_save "{\"name\":\"Dolo 650\",\"barcode\":\"$BC\",\"exp\":\"2027-05\"}" >/dev/null
+expect "barcode learned from a scan" "$(get b "barcode_lookup&code=$BC")" 200; body_has "next family gets the name" '"name":"Dolo 650"'
 
 echo "Your data (DPDP)"
 expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'

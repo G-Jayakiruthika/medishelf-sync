@@ -13,3 +13,6 @@ pharmacy-platform/sync-agent/*.properties
 !pharmacy-platform/sync-agent/agent.example.properties
 pharmacy-platform/analytics/__pycache__/
 pharmacy-platform/iot/coldchain/secrets.py
+**/__pycache__/
+pharmacy-platform/sync-agent/aushadhbox-sync-data/
+pharmacy-platform/iot/coldchain/secrets.h
