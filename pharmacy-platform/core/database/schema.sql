@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS branches (
   upi_vpa         VARCHAR(80)  NULL,                      -- e.g. srisai@okaxis or 9876543210@upi
   upi_name        VARCHAR(80)  NULL,
   accepts_cash    TINYINT(1)   NOT NULL DEFAULT 1,
+  fee_exempt      TINYINT(1)   NOT NULL DEFAULT 0,          -- e.g. Jan Aushadhi Kendras: no network commission
   khata_on        TINYINT(1)   NOT NULL DEFAULT 1,
   loyalty_pct     DECIMAL(4,2) NOT NULL DEFAULT 1.00,     -- points (1 point = ₹1) as % of each paid bill
   referral_amt    DECIMAL(7,2) NOT NULL DEFAULT 20.00,    -- reward for bringing a new customer, after their first paid order
@@ -208,6 +209,9 @@ CREATE TABLE IF NOT EXISTS orders (
   worth           VARCHAR(400) NULL,                      -- JSON: why a long delivery was allowed
   otp_hash        CHAR(64)     NULL,                      -- delivery OTP the customer gives the rider
   note            VARCHAR(300) NULL,
+  dose_pack       TINYINT(1)   NOT NULL DEFAULT 0,          -- pack each dose time in its own pouch
+  pickup_at       DATETIME     NULL,                        -- the customer's chosen pickup time
+  service         VARCHAR(10)  NULL,                        -- home_visit or review
   address_enc     VARCHAR(600) NULL,
   created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -225,6 +229,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   qty         INT          NOT NULL DEFAULT 1,
   price       DECIMAL(9,2) NULL,
   schedule    VARCHAR(5)   NOT NULL DEFAULT 'OTC',
+  times       VARCHAR(10)  NOT NULL DEFAULT '',            -- dose times from the family app (m,a,e,b), for pouch labels
   batch       VARCHAR(40)  NULL,
   exp         DATE         NULL,
   status      VARCHAR(10)  NOT NULL DEFAULT 'ok',         -- ok, missing, substituted, removed

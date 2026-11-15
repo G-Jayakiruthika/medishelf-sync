@@ -16,7 +16,7 @@ Built end to end by **Jayakiruthika G** · [LinkedIn](https://www.linkedin.com/i
 - **Pharmacy network:** counter, khata (credit book), UPI QR from the shop's UPI ID, linked pharmacies that pass on a missing medicine, delivery when the trip is worth it, monthly fee statement.
 - **Data and IoT:** nightly Python demand forecasts, a Java agent that syncs stock from any billing software, an ESP32 fridge thermometer for insulin.
 - **Privacy and security:** family-controlled consent per pharmacy, signed links between the two products, encrypted customer data, DPDP Act 2023 rights (see [SECURITY.md](SECURITY.md)).
-- **Quality:** 12 automated test suites (948 checks) run on every push with GitHub Actions.
+- **Quality:** 13 automated test suites (1,121 checks, including 167 security checks) and a load test run on every push with GitHub Actions.
 
 ## Tech stack
 

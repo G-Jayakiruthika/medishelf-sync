@@ -5,7 +5,7 @@
 | Date | 15 November 2026 |
 | Build | v3.3 (security hardening, privacy tab, backups, load testing; v3.2: Care+, villages, pharmacy network, 3D) |
 | Environment | PHP 8.3, MariaDB 11.4, Python 3, Java 21, Chromium (Playwright), phone 390 px and desktop 1366 px |
-| Result | **All automated suites pass (1,120 checks).** No open defects. Security review: [SECURITY-REPORT.md](SECURITY-REPORT.md). |
+| Result | **All automated suites pass (1,121 checks).** No open defects. Security review: [SECURITY-REPORT.md](SECURITY-REPORT.md). |
 
 ## 1. Automated suites
 
@@ -20,7 +20,7 @@
 | Watch and health-app import | `node tests/health_import_test.js` | 20 | ✅ all passed |
 | Autopilot, support, safety, pharmacy card, watch, Care+ | `php tests/autopilot_test.php` | 90 | ✅ all passed |
 | Pharmacy platform API and security | `bash pharmacy-platform/tests/api_test.sh` | 132 | ✅ all passed |
-| Pharmacy network money rules and database upgrade | `php pharmacy-platform/tests/unit_test.php` | 21 | ✅ all passed |
+| Pharmacy network money rules and database upgrade | `php pharmacy-platform/tests/unit_test.php` | 22 | ✅ all passed |
 | Demand forecasts, reorder, expiry, transfers, delivery rounds (Python) | `python3 -m unittest discover -s tests -t .` in `pharmacy-platform/analytics` | 19 | ✅ all passed |
 | Billing-software sync agent (Java) | `sh pharmacy-platform/sync-agent/build.sh` | 17 | ✅ all passed |
 | Fridge thermometer logic (MicroPython) | `python3 -m unittest test_logic` in `pharmacy-platform/iot/coldchain` | 6 | ✅ all passed |

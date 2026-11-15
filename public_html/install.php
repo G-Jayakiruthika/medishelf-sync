@@ -45,6 +45,10 @@ function install_all(array &$msg): void
         db()->exec($stmt);
     }
     $msg[] = 'Database tables created.';
+    // Columns added in later versions live in core/migrate.php: run it now so a fresh install is complete from the start.
+    require_once APP_DIR . '/migrate.php';
+    $up = migrate();
+    if ($up) $msg[] = 'Database brought up to date (' . count($up) . ' changes).';
     $msg[] = load_info_json(APP_DIR . '/database/medicine_info.json') . ' ingredient guides loaded.';
     foreach (glob(APP_DIR . '/database/catalog-*.csv') ?: [] as $file) {
         $source = basename($file, '.csv');

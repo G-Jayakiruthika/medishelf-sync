@@ -21,5 +21,9 @@ set_exception_handler(function (Throwable $e) {
     echo '<!doctype html><meta charset="utf-8"><title>Something went wrong</title><body style="font:16px system-ui;padding:40px"><h1>Something went wrong</h1><p>Please try again in a minute. <a href="/">Go to the home page</a></p>';
 });
 
+// After an upload of a new version, bring the database up to date before any page reads it (cheap: compares two file dates).
+require_once __DIR__ . '/core/migrate.php';
+try { migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
+
 security_headers();
 route_site(rawurldecode($path));

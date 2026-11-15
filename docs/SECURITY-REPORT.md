@@ -5,7 +5,7 @@
 | Date | 15 November 2026 |
 | Scope | Family app and website (`public_html/`), AushadhBox Pharmacy Network (`pharmacy-platform/`), tools, CI, git history |
 | Method | Code review of every endpoint and query, automated attack tests, load tests, git-history secret scan, configuration review |
-| Result | **All 1,120 automated checks pass** (13 suites), including **167 security checks** that try to break in. 0 errors with 400 users at once. |
+| Result | **All 1,121 automated checks pass** (13 suites), including **167 security checks** that try to break in. 0 errors with 400 users at once. |
 | Standard | Privacy work designed to follow ISO/IEC 29100 (privacy principles) and ISO/IEC 27701 (records of processing, consent records, data-subject requests), for India's DPDP Act 2023 and DPDP Rules 2025. This is a design aim, not a certification. |
 
 How to re-run everything: see [Tests](#tests) at the end. `tests/security_test.sh` is the proof for most rows below.
@@ -161,6 +161,6 @@ Above about 200 users at once, requests wait in line rather than fail. On a real
 | Autopilot, safety, Care+ | `php tests/autopilot_test.php` | 90 |
 | Prescription reader, Bluetooth meters, health imports | `node tests/rx_parse_test.js` etc. | 68 |
 | Pharmacy API and security | `bash pharmacy-platform/tests/api_test.sh` | 132 |
-| Pharmacy money rules | `php pharmacy-platform/tests/unit_test.php` | 21 |
+| Pharmacy money rules | `php pharmacy-platform/tests/unit_test.php` | 22 |
 | Forecasts (Python), sync agent (Java), fridge sensor (MicroPython) | see `docs/TEST-REPORT.md` | 42 |
 | Load | `php tests/load_seed.php 200 && python3 tests/load_test.py --users 10,50,100,200` | 0 errors |

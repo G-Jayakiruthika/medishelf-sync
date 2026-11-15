@@ -28,6 +28,8 @@ eq(fee_for_order(['discount' => 100.0] + $o, $urban)['base'], 400.0, 'the shop\'
 eq(fee_for_order(['paid' => 0.0] + $o, $urban), null, 'unpaid orders: nothing yet');
 eq(fee_for_order(['source' => 'asha'] + $o, $urban), null, 'orders placed by ASHA workers for families: no commission');
 
+// A fresh database built from schema.sql must already have everything; running the upgrade must change nothing.
+$first = ph_migrate();
 db()->beginTransaction();
 try {
     echo "Statements and settlement\n";
@@ -50,6 +52,7 @@ try {
     eq(refused(fn() => fee_statement($org, '2031-13x')), 'bad_period', 'bad month refused');
 
     echo "Database upgrade\n";
+    eq($first, [], 'schema.sql already has every column the upgrader knows about');
     eq(ph_migrate(), [], 'upgrade is idempotent (nothing left to do)');
     ok(ph_has_table('fees') && !ph_has_table('no_such_table'), 'table check');
 } finally {
