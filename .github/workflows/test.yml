@@ -60,6 +60,15 @@ jobs:
       - name: Pharmacy analytics (Python)
         run: cd pharmacy-platform/analytics && python3 -m unittest discover -s tests -t .
 
+      - name: Pharmacy network money rules and database upgrade
+        run: |
+          bash pharmacy-platform/tests/ci_setup.sh
+          php pharmacy-platform/tests/unit_test.php
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASS: root
+
       - name: Fridge thermometer logic (MicroPython, tested on CPython)
         run: cd pharmacy-platform/iot/coldchain && python3 -m unittest test_logic
 

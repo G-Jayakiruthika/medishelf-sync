@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=10">
+<link rel="stylesheet" href="/styles.css?v=11">
 </head>
 <body>
 
@@ -212,10 +212,10 @@
 
   <!-- NOTEBOOK -->
   <section class="view" id="view-notebook" data-view="notebook" hidden>
-    <div class="section-head"><div><h2 data-i18n="nbTitle">Medicine notebook</h2><p class="muted" data-i18n="nbDesc" style="margin-top:6px">Show this to your doctor or chemist.</p></div><div class="chips" id="nbMembers"></div></div>
+    <div class="section-head"><div><h2 data-i18n="nbTitle">Medicine notebook</h2><button class="btn btn-ghost btn-sm care-link" type="button" data-go="care"><span aria-hidden="true">✚</span> <span data-i18n="cpTitle">Care+</span></button><p class="muted" data-i18n="nbDesc" style="margin-top:6px">Show this to your doctor or chemist.</p></div><div class="chips" id="nbMembers"></div></div>
     <div class="nb-grid">
       <div class="notebook">
-        <div class="cover"><b id="nbWho"></b><button class="btn btn-ghost btn-sm" id="btnCopyNb" style="color:var(--ink)"><span data-i18n="nbCopy">Copy for doctor</span></button></div>
+        <div class="cover"><b id="nbWho"></b><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" id="btnCopyNb" style="color:var(--ink)"><span data-i18n="nbCopy">Copy for doctor</span></button><a class="btn btn-ghost btn-sm" id="fhirLink" href="/api.php?action=fhir" style="color:var(--ink)" data-i18n="fhirBtn">Download health record (FHIR, for ABHA)</a></span></div>
         <div class="table-scroll"><table><thead><tr><th data-i18n="fName">Medicine</th><th data-i18n="fTimes">When</th><th data-i18n="expLabel">Expiry</th></tr></thead><tbody id="nbRows"></tbody></table></div>
         <div style="padding:14px" class="field"><label for="nbAllergy" data-i18n="nbAllergy">Allergies</label><textarea id="nbAllergy" rows="2" maxlength="500" placeholder="e.g. Penicillin, sulfa drugs"></textarea></div>
       </div>
@@ -289,6 +289,57 @@
     </div>
   </section>
 
+  <!-- CARE+ (round 3: Japanese household-app ideas, rural features) -->
+  <section class="view" id="view-care" data-view="care" hidden>
+    <div class="section-head"><div><h2 data-i18n="cpTitle">Care+</h2><p class="muted" data-i18n="cpDesc" style="margin-top:6px">Repeat prescriptions, medicine review, food cautions, mother and child, health points and phones without internet.</p></div></div>
+    <div class="nb-grid care-grid">
+      <div class="panel stack" id="rpCard">
+        <h3 data-i18n="rpTitle">Repeat prescriptions</h3>
+        <p class="muted" data-i18n="rpDesc">When the doctor writes "continue for 3 months", save it once and order each refill in time.</p>
+        <ul class="ap-list" id="rpList"></ul>
+        <details><summary class="link" data-i18n="rpAdd">Save prescription</summary>
+        <form class="stack" id="rpForm">
+          <div class="form-grid">
+            <div class="field"><label for="rpFor" data-i18n="fFor">For</label><select id="rpFor"></select></div>
+            <div class="field"><label for="rpDoctor" data-i18n="rpDoctor">Doctor</label><input id="rpDoctor" maxlength="80" required></div>
+            <div class="field"><label for="rpIssued" data-i18n="rpIssued">Date on the prescription</label><input id="rpIssued" type="date" required></div>
+            <div class="field"><label for="rpUntil" data-i18n="rpUntil">Valid until</label><input id="rpUntil" type="date" required></div>
+            <div class="field"><label for="rpAllowed" data-i18n="rpAllowed">Refills allowed</label><input id="rpAllowed" type="number" min="1" max="12" value="3" required></div>
+          </div>
+          <div class="field"><label for="rpItems" data-i18n="rpItems">Medicines (one per line)</label><textarea id="rpItems" rows="3" maxlength="1500" required></textarea></div>
+          <div><button class="btn btn-primary btn-sm" type="submit" data-i18n="rpAdd">Save prescription</button></div>
+        </form></details>
+      </div>
+      <div class="panel stack" id="rvCard"><h3 data-i18n="rvTitle">Medicine review</h3><p class="muted" data-i18n="rvDesc">Many daily medicines, or some medicines in older people, are worth checking with the doctor.</p><div id="rvList" class="stack"></div></div>
+      <div class="panel stack" id="fdCard"><h3 data-i18n="fdTitle">Food and drink</h3><ul class="ap-list" id="fdList"></ul></div>
+      <div class="panel stack" id="mcCard">
+        <h3 data-i18n="mcTitle">Mother and child</h3>
+        <p class="muted" data-i18n="mcDesc">Pregnancy check-ups as on the MCP card, iron tablets, danger signs, and children's growth.</p>
+        <div id="mcList" class="stack"></div>
+        <form class="ex-form" id="mcForm">
+          <div class="field"><label for="mcWho" data-i18n="mcWho">Who is pregnant?</label><select id="mcWho"></select></div>
+          <div class="field"><label for="mcLmp" data-i18n="mcLmp">First day of the last period</label><input id="mcLmp" type="date" required></div>
+          <button class="btn btn-primary btn-sm" type="submit" data-i18n="mcStart">Start</button>
+        </form>
+        <h4 data-i18n="mcGrowth">Child growth</h4>
+        <ul class="ap-list" id="mcGrowth"></ul>
+      </div>
+      <div class="panel stack" id="ptCard">
+        <h3 data-i18n="ptTitle">Health points</h3>
+        <p class="muted" data-i18n="ptDesc">Earn points for looking after your health.</p>
+        <p class="ex-sum" id="ptBal"></p>
+        <form class="ex-form" id="ptForm"><div class="field"><label for="ptAmount" class="sr-only">Points</label><input id="ptAmount" type="number" min="100" step="10" value="100"></div><button class="btn btn-ghost btn-sm" type="submit" data-i18n="ptMake">Make a voucher</button></form>
+        <ul class="ap-list" id="ptVouchers"></ul>
+      </div>
+      <div class="panel stack" id="pnCard">
+        <h3 data-i18n="pnTitle">Phones without internet</h3>
+        <p class="muted" data-i18n="pnDesc">For family members with a basic phone.</p>
+        <div id="pnList" class="stack"></div>
+        <p class="muted small" id="pnNumbers"></p>
+      </div>
+    </div>
+  </section>
+
   <!-- AUSHADHBOX CARD (pharmacy link; the family decides what is shared) -->
   <section class="view" id="view-card" data-view="card" hidden>
     <div class="section-head"><div><h2 data-i18n="cardTitle">AushadhBox card</h2><p class="muted" data-i18n="cardDesc" style="margin-top:6px">Show this QR at the pharmacy.</p></div><div class="chips" id="cdMembers"></div></div>
@@ -303,7 +354,8 @@
         <label class="switch"><input type="checkbox" id="cdAdd"><span class="track" aria-hidden="true"></span><span data-i18n="shareAdd">Pharmacies may add the medicines they give</span></label>
         <label class="switch"><input type="checkbox" id="cdView"><span class="track" aria-hidden="true"></span><span data-i18n="shareView">Pharmacies may see medicines, allergies and check-ins</span></label>
         <p class="muted" style="font-size:.85rem" data-i18n="sharePrivacy">Both are off until you switch them on.</p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="cdPrint" data-i18n="cardPrint">Print wallet card</button><button class="btn btn-ghost btn-sm" type="button" id="cdNew" data-i18n="cardNew">New card (the old one stops working)</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="cdPrint" data-i18n="cardPrint">Print wallet card</button><button class="btn btn-ghost btn-sm" type="button" id="cdNew" data-i18n="cardNew">New card (the old one stops working)</button><button class="btn btn-ghost btn-sm" type="button" id="scBtn" data-i18n="scBtn">One-time code for a pharmacy</button></div>
+        <p class="sc-out" id="scOut" hidden></p>
       </div>
       <div class="panel stack">
         <h3 data-i18n="phLinked">Pharmacies that used this card</h3>
@@ -357,7 +409,7 @@
 
   <!-- SAFETY -->
   <section class="view" id="view-safety" data-view="safety" hidden>
-    <div class="section-head"><h2 data-i18n="safeTitle">Label safety check</h2></div>
+    <div class="section-head"><h2 data-i18n="safeTitle">Label safety check</h2><button class="btn btn-ghost btn-sm" type="button" data-go="care"><span aria-hidden="true">✚</span> <span data-i18n="rvTitle">Medicine review</span></button></div>
     <div class="panel label-anatomy">
       <svg viewBox="0 0 760 300" role="img" aria-label="Parts of an Indian medicine label">
         <rect x="150" y="40" width="460" height="200" rx="14" fill="var(--sunk)" stroke="var(--line)" stroke-width="2"/>
@@ -454,6 +506,16 @@
         <label class="switch"><input type="checkbox" id="aiOptIn"><span class="track" aria-hidden="true"></span><span data-i18n="aiDesc">Lets Ask answer questions about your family's medicines in your language.</span></label>
         <p class="muted" id="aiOffNote" hidden data-i18n="aiOff">Not available on this site yet.</p>
       </div>
+      <form class="panel stack" id="ruForm">
+        <h3 data-i18n="ruTitle">Village and data</h3>
+        <label class="switch"><input type="checkbox" id="ruLow"><span class="track" aria-hidden="true"></span><span data-i18n="ruLow">Low-data mode</span></label>
+        <div class="form-grid">
+          <div class="field"><label for="ruDistrict" data-i18n="ruDistrict">District</label><input id="ruDistrict" maxlength="60"></div>
+          <div class="field"><label for="ruVillage" data-i18n="ruVillage">Village or town</label><input id="ruVillage" maxlength="80"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="ruAsha"><span data-i18n="ruAsha">I am an ASHA or health worker ordering for families</span></label>
+        <div><button class="btn btn-ghost btn-sm" type="submit" data-i18n="ruSave">Save</button></div>
+      </form>
       <div class="panel stack" id="watchCard">
         <h3 data-i18n="watchTitle">Smartwatch</h3>
         <p class="muted" data-i18n="watchDesc">Reminders appear on any watch connected to your phone.</p>
@@ -480,6 +542,7 @@
         <form class="box-add" id="boxAdd">
           <div class="field"><label for="bxName" data-i18n="boxName">Name</label><input id="bxName" maxlength="40" required placeholder="Amma's pillbox"></div>
           <div class="field"><label for="bxFor" data-i18n="fFor">For</label><select id="bxFor"></select></div>
+          <div class="field"><label for="bxKind" data-i18n="bxKind">Type</label><select id="bxKind"><option value="pillbox" data-i18n="bxPillbox">Pillbox</option><option value="life" data-i18n="bxLife">Door or motion sensor (watch-over)</option></select></div>
           <div class="field"><label for="bxLids" data-i18n="boxLids">Lids</label><select id="bxLids"><option value="4" data-i18n="boxLids4">4 lids: morning, afternoon, evening, bedtime</option><option value="1" data-i18n="boxLids1">1 lid for everything</option></select></div>
           <button class="btn btn-primary btn-sm" type="submit" data-i18n="boxAdd">Add a pillbox</button>
         </form>
@@ -633,11 +696,13 @@
 <script src="/i18n-household.js?v=9"></script>
 <script src="/i18n-connect.js?v=9"></script>
 <script src="/i18n-network.js?v=1"></script>
+<script src="/i18n-careplus.js?v=1"></script>
 <script src="/rx-parse.js?v=6"></script>
 <script src="/ble-health.js?v=1"></script>
 <script src="/health-import.js?v=1"></script>
-<script src="/app.js?v=10"></script>
-<script src="/network.js?v=1"></script>
+<script src="/app.js?v=11"></script>
+<script src="/network.js?v=3"></script>
+<script src="/careplus.js?v=1"></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer></script>
 </body>

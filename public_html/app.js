@@ -21,7 +21,7 @@
     ["numbers", "Emergency numbers: 108 ambulance, 112 emergency"]
   ];
 
-  const EXTRA_VIEWS = ["card", "shops"];   // reached from buttons, not the bottom bar
+  const EXTRA_VIEWS = ["card", "shops", "care"];   // reached from buttons, not the bottom bar
   const isView = (id) => VIEWS.some(v => v.id === id) || EXTRA_VIEWS.includes(id);
 
   /* ---------------- State ---------------- */
@@ -169,6 +169,7 @@
     $("#authView").hidden = true; $("#appView").hidden = false;
     $("#consentBanner").hidden = !!state.user.consentCurrent;
     $("#adminLink").hidden = !state.user.admin;
+    document.body.classList.toggle("lite", !!state.user.lowData);   // low-data mode: no videos or 3D
     applyI18n();
     const h = (location.hash || "").replace("#", "");
     go(isView(h) ? h : (h === "upgrade" ? "account" : /^store-/.test(h) ? "shops" : "cabinet"));
@@ -601,6 +602,7 @@
         const r = await api.post("dose_toggle", { item_id: Number(id), slot, taken: on });
         const it = state.items.find(x => x.id === Number(id));
         if (it && r.stock !== undefined && r.stock !== it.stock) { it.stock = r.stock; renderDoses(); renderCabinet(); }
+        if (r.points) toast("🎉 " + t("ptEarned", { n: r.points }));
       }
       catch (err) { on ? state.taken.delete(tk) : state.taken.add(tk); renderDoses(); toast(err.message); }
     }
@@ -1188,13 +1190,13 @@
   });
 
   /* Health diary (血圧・血糖 records): readings with safe-range flags and a small chart */
-  const VK = { bp: ["kBp", "mmHg"], sugar: ["kSugar", "mg/dL"], weight: ["kWeight", "kg"], temp: ["kTemp", "°C"], spo2: ["kSpo2", "%"], pulse: ["kPulse", "/min"],
+  const VK = { bp: ["kBp", "mmHg"], sugar: ["kSugar", "mg/dL"], weight: ["kWeight", "kg"], temp: ["kTemp", "°C"], spo2: ["kSpo2", "%"], pulse: ["kPulse", "/min"], steps: ["kSteps", ""],
     hba1c: ["kHba1c", "%"], chol: ["kChol", "mg/dL"], hb: ["kHb", "g/dL"] };
   let vitals = [];
   function vitalKindChanged() {
     const k = $("#hdKind").value;
     $("#hdV2").hidden = $("#hdSlash").hidden = k !== "bp"; $("#hdV2").required = k === "bp"; $("#hdUnit").textContent = VK[k][1]; $("#hdCtxWrap").hidden = k !== "sugar";
-    $("#hdV1").placeholder = { bp: "120", sugar: "110", weight: "62", temp: "37.0", spo2: "98", pulse: "72", hba1c: "6.1", chol: "180", hb: "13.5" }[k];
+    $("#hdV1").placeholder = { bp: "120", sugar: "110", weight: "62", temp: "37.0", spo2: "98", pulse: "72", hba1c: "6.1", chol: "180", hb: "13.5", steps: "6000" }[k];
     renderVitals();
   }
   async function loadVitals() {
@@ -1308,10 +1310,10 @@
     const OUT = { taken: "outTaken", again: "outAgain", outside: "outOutside", already: "outAlready", nodose: "outNodose" };
     $("#boxList").innerHTML = boxes.devices.map(d => {
       const status = !d.paired ? "" : d.online ? '<span class="pill ok">' + esc(t("boxOnline")) + "</span>" : '<span class="pill warn">' + esc(t("boxOffline")) + "</span>";
-      const lids = d.compartments >= 4 ? SLOTS.map((s, i) => '<button type="button" class="btn btn-ghost btn-sm" data-boxtest="' + d.id + ":" + (i + 1) + '">' + esc(t(s.key)) + "</button>").join("")
+      const lids = d.kind === "life" ? "" : d.compartments >= 4 ? SLOTS.map((s, i) => '<button type="button" class="btn btn-ghost btn-sm" data-boxtest="' + d.id + ":" + (i + 1) + '">' + esc(t(s.key)) + "</button>").join("")
         : '<button type="button" class="btn btn-ghost btn-sm" data-boxtest="' + d.id + ':1">' + esc(t("boxTest").split(":").pop().trim()) + "</button>";
       return '<div class="box-item"><div class="box-top"><b>' + esc(d.name) + "</b>" + status + "</div>" +
-        "<small>" + esc(memberName(d.memberId)) + " · " + esc(d.compartments >= 4 ? t("boxLids4") : t("boxLids1")) + "</small>" +
+        "<small>" + esc(memberName(d.memberId)) + " · " + esc(d.kind === "life" ? t("bxLife") : d.compartments >= 4 ? t("boxLids4") : t("boxLids1")) + "</small>" +
         (d.paired ? "<small>" + esc(d.lastSeen ? t("boxSeen", { t: fmtSeen(d.lastSeen) }) : t("boxNever")) + (d.battery !== null ? " · " + esc(t("boxBattery", { n: d.battery })) : "") + (d.firmware ? " · v" + esc(d.firmware) : "") + "</small>"
           : '<div class="pair"><span class="muted">' + esc(t("boxPairCode")) + '</span><span class="code mono">' + esc(d.pairCode || "——") + '</span><small class="muted">' + esc(t("boxPairHint")) + "</small></div>") +
         '<div class="box-test"><small class="muted">' + esc(t("boxTest")) + '</small><div class="box-lids">' + lids + "</div></div>" +
@@ -1324,7 +1326,7 @@
   $("#boxAdd").addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
-      await api.post("device_add", { name: $("#bxName").value.trim(), member_id: $("#bxFor").value ? Number($("#bxFor").value) : null, compartments: Number($("#bxLids").value) });
+      await api.post("device_add", { name: $("#bxName").value.trim(), member_id: $("#bxFor").value ? Number($("#bxFor").value) : null, compartments: Number($("#bxLids").value), kind: $("#bxKind").value });
       $("#bxName").value = ""; await loadBoxes(); sound("saved");
     } catch (err) { toast(err.message); }
   });

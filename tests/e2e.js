@@ -129,6 +129,19 @@ async function journey(browser, label, viewport) {
   await p.click('#tkMake'); await p.waitForTimeout(700);
   ok(/\/tick\/[A-Za-z0-9_-]{24,}$/.test((await p.textContent('#tkUrl')).trim()), 'tap-to-tick link made for Siri / NFC / QR sticker');
 
+  // Care+: repeat prescription, pregnancy tracker, points, low-data mode
+  await p.evaluate(() => AB.go('care')); await p.waitForTimeout(900);
+  ok(await p.isVisible('#rpCard') && await p.isVisible('#ptBal'), 'Care+ screen opens');
+  await p.click('#rpCard summary'); await p.fill('#rpDoctor', 'Dr Rao'); await p.fill('#rpItems', 'Metformin 500\nAmlodipine 5');
+  await p.click('#rpForm button[type=submit]'); await p.waitForTimeout(800);
+  ok((await p.textContent('#rpList')).includes('Dr Rao'), 'repeat prescription saved');
+  const lmp = new Date(Date.now() - 140 * 864e5).toISOString().slice(0, 10);
+  await p.fill('#mcLmp', lmp); await p.click('#mcForm button[type=submit]'); await p.waitForTimeout(1000);
+  ok((await p.$$('[data-anc]')).length === 4, 'pregnancy tracker lists the 4 MCP-card check-ups');
+  if (process.env.SHOTS) await p.screenshot({ path: process.env.SHOTS + '/care-' + viewport.width + '.png', fullPage: true });
+  await p.click('[data-rporder]'); await p.waitForTimeout(600);
+  ok((await p.inputValue('#shItems')).includes('Amlodipine'), 'refill order opens Pharmacies with the medicines');
+
   await p.selectOption('#langSelect', 'hi'); await p.waitForTimeout(400);
   ok((await p.textContent('#planBadge')).includes('प्रीमियम'), 'app switches to Hindi');
   const ov = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
@@ -145,9 +158,13 @@ async function journey(browser, label, viewport) {
     console.log('\nPharmacy portal and watch page');
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } }), p = await ctx.newPage(), errors = [];
     p.on('pageerror', e => errors.push(e.message));
-    await p.goto(B + '/pharmacy'); await p.waitForTimeout(800);
-    ok(await p.isVisible('#inForm') && await p.isVisible('#tabUp'), 'pharmacy portal shows sign in and register');
-    await p.click('#tabUp'); ok(await p.isVisible('#upLic'), 'registration asks for the drug licence');
+    // /pharmacy hands off to the separate pharmacy platform (pharmacy-platform/, its own server)
+    let portal = true;
+    try { await p.goto(B + '/pharmacy', { timeout: 8000 }); await p.waitForTimeout(800); } catch (e) { portal = false; }
+    if (portal && await p.isVisible('#fIn')) {
+      ok(await p.isVisible('#tUp'), 'pharmacy link opens the pharmacy platform: sign in and register');
+      await p.click('#tUp'); ok(await p.isVisible('#upLic'), 'registration asks for the drug licence');
+    } else console.log('  - pharmacy platform not running here: skipped');
     await p.goto(B + '/watch'); await p.waitForTimeout(800);
     ok(await p.isVisible('#wSignin'), 'watch page asks to sign in when signed out');
     ok(errors.length === 0, 'no JavaScript errors' + (errors.length ? ': ' + errors.join(' | ') : ''));

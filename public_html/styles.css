@@ -517,3 +517,20 @@ dialog.sheet { grid-template-columns: minmax(0, 1fr); }
 .sh-link summary { cursor: pointer; font-size: .9rem; color: var(--muted); }
 .chips label.chip { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .ph-code { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; } .ph-code .field { flex: 1 1 160px; }
+
+/* ---------- Care+ ---------- */
+.care-grid { align-items: start; }
+.rv-person { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rv-person p { margin: 6px 0 0; }
+.mc-preg { padding: 12px 0; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.mc-preg h4 { margin: 6px 0 0; font-size: .95rem; }
+.mc-head { font-size: 1.02rem; }
+.danger-box { background: var(--bad-soft); color: var(--ink); border-left: 3px solid var(--bad); padding: 8px 10px; border-radius: 8px; margin: 0; }
+.ok-note { color: var(--ok); }
+.pn-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.pn-row input[name=phone] { flex: 1 1 140px; min-width: 0; }
+.sc-code { font-size: 1.6rem; letter-spacing: .12em; padding: 2px 8px; border-radius: 8px; background: var(--sunk); }
+#scOut { margin-top: 8px; }
+/* Low-data mode (villages, 2G): no animations, video or 3D */
+body.lite *, body.lite *::before, body.lite *::after { animation: none !important; transition: none !important; }
+body.lite video, body.lite .scene3d, body.lite [data-3d] { display: none !important; }

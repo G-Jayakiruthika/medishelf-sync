@@ -82,7 +82,7 @@
       // Pay
       (s.pay.upi && s.upiLink ? '<details class="sh-box" id="stPay"><summary><b>' + esc(t("shPay")) + "</b></summary>" +
         '<div class="ph-code"><div class="field"><label for="stAmt">' + esc(t("shAmount")) + '</label><input id="stAmt" inputmode="decimal" maxlength="9"' + (mine.khata && mine.khata.balance > 0 ? ' value="' + mine.khata.balance + '"' : "") + '></div><a class="btn btn-primary btn-sm" id="stUpi" href="#">' + esc(t("shPay")) + "</a></div>" +
-        '<canvas id="stQr" width="220" height="220" hidden aria-label="UPI QR"></canvas>' + (mine.khata && mine.khata.balance > 0 ? claimForm("stClaim", "") : "") + "</details>" : "") +
+        '<canvas id="stQr" width="220" height="220" hidden aria-label="UPI QR"></canvas>' + '<p class="muted small">📞 ' + esc(t("pay123", { v: new URLSearchParams(s.upiLink.split("?")[1] || "").get("pa") || "" })) + "</p>" + (mine.khata && mine.khata.balance > 0 ? claimForm("stClaim", "") : "") + "</details>" : "") +
       // Order
       '<details class="sh-box" id="stOrder"' + (items ? " open" : "") + '><summary><b>' + esc(t("shOrder")) + "</b></summary><form class=\"stack\" id=\"stOrderForm\">" +
         '<div class="field"><label for="stItems">' + esc(t("shItems")) + '</label><textarea id="stItems" rows="3" maxlength="1200">' + esc((items || []).map(i => i.name + (i.qty > 1 ? " x " + i.qty : "")).join("\n")) + "</textarea></div>" +
@@ -91,6 +91,12 @@
         '<div id="stDel" hidden class="stack"><div class="field"><label for="stAddr">' + esc(t("shAddress")) + '</label><input id="stAddr" maxlength="200"></div><button class="btn btn-ghost btn-sm" type="button" id="stLoc">' + esc(t("shUseLoc")) + '</button><p class="muted small" id="stQuote"></p>' +
           '<label class="check"><input type="checkbox" id="stPayFull"> <span>' + esc(t("shPayFull")) + "</span></label></div>" +
         '<div id="stPt" hidden class="field"><select id="stPoint">' + (s.points || []).map(p => '<option value="' + p.id + '">' + esc(p.village + " · " + p.name + (p.days ? " (" + p.days + ")" : "")) + "</option>").join("") + "</select></div>" +
+        // Care+ options: dose packs, a pickup time, a pharmacist's home visit, a repeat prescription
+        '<label class="check"><input type="checkbox" id="stPack"> <span>' + esc(t("orDosePack")) + "</span></label>" +
+        '<div class="field" id="stAtF"><label for="stAt">' + esc(t("orPickupAt")) + '</label><input type="datetime-local" id="stAt"></div>' +
+        '<label class="check" id="stVisitF" hidden><input type="checkbox" id="stVisit"> <span>' + esc(t("orVisit")) + "</span></label>" +
+        ((A.state.repeats || []).some(r => r.active) ? '<div class="field"><label for="stRep">' + esc(t("orRepeat")) + '</label><select id="stRep"><option value="">—</option>' +
+          A.state.repeats.filter(r => r.active).map(r => '<option value="' + r.id + '"' + (window.ABRepeat && window.ABRepeat.id === r.id ? " selected" : "") + ">" + esc(r.doctor + " · " + r.items.join(", ")) + "</option>").join("") + "</select></div>" : "") +
         '<div class="field"><label for="stPhone">' + esc(t("shYourPhone")) + '</label><input id="stPhone" inputmode="tel" maxlength="13" value="' + esc((A.state.user && A.state.user.phone) || "") + '"></div>' +
         '<div class="field"><label for="stNote">' + esc(t("shNote")) + '</label><input id="stNote" maxlength="300"></div>' +
         '<div class="field"><label for="stRef">' + esc(t("shRefCode")) + '</label><input id="stRef" maxlength="6" style="text-transform:uppercase"></div>' +
@@ -126,6 +132,7 @@
     const kindChange = () => {
       const k = (f.querySelector("input[name=stKind]:checked") || {}).value;
       $("#stDel").hidden = k !== "delivery"; $("#stPt").hidden = k !== "point";
+      $("#stAtF").hidden = k !== "pickup"; $("#stVisitF").hidden = k !== "delivery";
     };
     f.addEventListener("change", (e) => { if (e.target.name === "stKind") kindChange(); });
     const quote = async () => {
@@ -141,9 +148,11 @@
       if (kind === "delivery" && !here) { await locate(); if (!here) { err.textContent = t("shUseLoc"); err.hidden = false; return; } }
       try {
         const r = await api.post("net_order", { code: s.code, items: lines($("#stItems").value), kind, pickup_point_id: kind === "point" ? Number($("#stPoint").value) : null, note: $("#stNote").value,
+          dose_pack: $("#stPack").checked, pickup_at: kind === "pickup" && $("#stAt").value ? $("#stAt").value.replace("T", " ") + ":00" : null,
+          service: kind === "delivery" && $("#stVisit").checked ? "home_visit" : null, rx_repeat_id: $("#stRep") && $("#stRep").value ? Number($("#stRep").value) : null,
           referral_code: $("#stRef").value.trim() || null, customer_pays_full: $("#stPayFull").checked, share_ok: $("#stShare").checked,
           customer: { phone: $("#stPhone").value, address: $("#stAddr").value, lat: here ? here.lat : null, lng: here ? here.lng : null, district: $("#shDistrict").value.trim() || null, lang: A.state.lang, sms_ok: true } });
-        A.sound("saved"); toast("✔ " + t("shPlaced", { n: r.number, s: s.name }) + (r.rules && r.rules.rx ? " " + t("shRxNote") : ""));
+        window.ABRepeat = null; A.sound("saved"); toast("✔ " + t("shPlaced", { n: r.number, s: s.name }) + (r.rules && r.rules.rx ? " " + t("shRxNote") : ""));
         $("#storeDialog").close(); loadOrders();
       } catch (er) { err.textContent = er.message; err.hidden = false; }
     });
