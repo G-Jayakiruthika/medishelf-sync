@@ -32,7 +32,19 @@ function db(): PDO
     if ($pdo === null) {
         $dsn = config('db_socket') ? sprintf('mysql:unix_socket=%s;dbname=%s;charset=utf8mb4', config('db_socket'), config('db_name'))
                                    : sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', config('db_host'), (int) (config('db_port') ?: 3306), config('db_name'));
-        $pdo = new PDO($dsn, config('db_user'), config('db_pass'), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false]);
+        $opts = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false, PDO::ATTR_TIMEOUT => 5];
+        // Busy database ("too many connections"): try twice more, then answer 503 "busy, try again" (never an error page).
+        for ($try = 0; ; $try++) {
+            try { $pdo = new PDO($dsn, config('db_user'), config('db_pass'), $opts); break; }
+            catch (PDOException $e) {
+                if ($try < 2 && in_array((int) ($e->errorInfo[1] ?? 0), [1040, 1203, 2002, 2006, 2013], true)) { usleep(150000 * ($try + 1)); continue; }
+                error_log('db connect: ' . $e->getMessage());
+                if (PHP_SAPI === 'cli') throw $e;
+                if (!headers_sent()) { http_response_code(503); header('Retry-After: 30'); header('Content-Type: application/json'); header('Cache-Control: no-store'); }
+                echo '{"error":"busy","message":"Very busy right now. Please try again in a minute."}';
+                exit;
+            }
+        }
         $pdo->exec("SET time_zone = '+05:30'");
     }
     return $pdo;

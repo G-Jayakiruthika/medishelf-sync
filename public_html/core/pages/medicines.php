@@ -20,12 +20,17 @@ function medicines_index(): void
     } elseif ($letter !== '') {
         $where = 'c.generic_name LIKE ?'; $args = [$letter . '%'];
     }
-    $total = (int) q("SELECT COUNT(*) FROM medicine_catalog c LEFT JOIN medicine_info i ON i.id = c.info_id WHERE $where", $args)->fetchColumn();
+    // The list only changes when a new medicine list is imported (which clears the cache): keep results 10 minutes.
+    require_once APP_DIR . '/cache.php';
+    $ck = 'medicines|' . $where . '|' . json_encode($args) . '|' . $pg;
+    [$total, $rows, $pg] = cache_remember($ck, 600, function () use ($where, $args, $pg) {
+        $total = (int) q("SELECT COUNT(*) FROM medicine_catalog c LEFT JOIN medicine_info i ON i.id = c.info_id WHERE $where", $args)->fetchColumn();
+        $pg = min($pg, max(1, (int) ceil($total / MED_PER_PAGE)));
+        return [$total, q("SELECT c.generic_name, c.slug, c.unit_size, c.dosage_form, i.ingredient FROM medicine_catalog c LEFT JOIN medicine_info i ON i.id = c.info_id
+               WHERE $where ORDER BY c.generic_name LIMIT " . MED_PER_PAGE . ' OFFSET ' . (($pg - 1) * MED_PER_PAGE), $args)->fetchAll(), $pg];
+    });
     $pages = max(1, (int) ceil($total / MED_PER_PAGE));
-    $pg = min($pg, $pages);
-    $rows = q("SELECT c.generic_name, c.slug, c.unit_size, c.dosage_form, i.ingredient FROM medicine_catalog c LEFT JOIN medicine_info i ON i.id = c.info_id
-               WHERE $where ORDER BY c.generic_name LIMIT " . MED_PER_PAGE . ' OFFSET ' . (($pg - 1) * MED_PER_PAGE), $args)->fetchAll();
-    $all = (int) q('SELECT COUNT(*) FROM medicine_catalog')->fetchColumn();
+    $all = (int) cache_remember('medicines|count', 600, fn() => (int) q('SELECT COUNT(*) FROM medicine_catalog')->fetchColumn());
 
     $qs = fn(int $n) => '/medicines?' . http_build_query(array_filter(['q' => $qText, 'letter' => $letter, 'page' => $n > 1 ? $n : null]));
     $canonical = base_url() . ($qText !== '' ? '/medicines' : $qs($pg));

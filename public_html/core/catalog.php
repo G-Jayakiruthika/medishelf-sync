@@ -38,7 +38,8 @@ function info_rows(): array
 {
     static $rows = null;
     if ($rows === null) {
-        $rows = q('SELECT id, ingredient, keywords, use_text, rx, storage, note, slug, usual_times, course_days, food FROM medicine_info')->fetchAll();
+        require_once APP_DIR . '/cache.php';
+        $rows = cache_remember('medicine_info|all', 600, fn() => q('SELECT id, ingredient, keywords, use_text, rx, storage, note, slug, usual_times, course_days, food FROM medicine_info')->fetchAll());
         foreach ($rows as &$r) $r['kw'] = array_values(array_filter(array_map('trim', explode(',', mb_strtolower($r['keywords'])))));
     }
     return $rows;
@@ -142,6 +143,7 @@ function search_catalog(string $q, int $limit = 20): array
 /* Insert or update catalogue rows. $rows = [[drug_code, generic_name, unit_size], ...] */
 function import_catalog(array $rows, string $source): array
 {
+    if (is_file(APP_DIR . '/cache.php')) { require_once APP_DIR . '/cache.php'; register_shutdown_function('cache_clear'); }
     $ins = db()->prepare('INSERT INTO medicine_catalog (source, drug_code, generic_name, unit_size, dosage_form, info_id, search_text, slug)
         VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE generic_name=VALUES(generic_name), unit_size=VALUES(unit_size),
         dosage_form=VALUES(dosage_form), info_id=VALUES(info_id), search_text=VALUES(search_text), slug=VALUES(slug)');
@@ -182,6 +184,7 @@ function parse_list_file(string $content): array
 
 function load_info_json(string $file): int
 {
+    if (is_file(APP_DIR . '/cache.php')) { require_once APP_DIR . '/cache.php'; register_shutdown_function('cache_clear'); }
     $items = json_decode((string) file_get_contents($file), true) ?: [];
     $st = db()->prepare('INSERT INTO medicine_info (ingredient, keywords, use_text, rx, storage, note, slug, usual_times, course_days, food) VALUES (?,?,?,?,?,?,?,?,?,?)
         ON DUPLICATE KEY UPDATE keywords=VALUES(keywords), use_text=VALUES(use_text), rx=VALUES(rx), storage=VALUES(storage), note=VALUES(note), slug=VALUES(slug),

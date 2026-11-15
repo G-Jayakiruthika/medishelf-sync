@@ -28,14 +28,31 @@ function db(): PDO
     static $pdo = null;
     if ($pdo === null) {
         $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', config('db_host'), (int) config('db_port'), config('db_name'));
-        $pdo = new PDO($dsn, config('db_user'), config('db_pass'), [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-        ]);
+        $opts = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, PDO::ATTR_EMULATE_PREPARES => false, PDO::ATTR_TIMEOUT => 5];
+        // Under heavy load the database may refuse new connections ("too many connections"): try twice more with a short
+        // pause, then answer 503 "busy, try again" instead of an error page. Nothing about the server is shown.
+        for ($try = 0; ; $try++) {
+            try { $pdo = new PDO($dsn, config('db_user'), config('db_pass'), $opts); break; }
+            catch (PDOException $e) {
+                if ($try < 2 && in_array((int) ($e->errorInfo[1] ?? 0), [1040, 1203, 2002, 2006, 2013], true)) { usleep(150000 * ($try + 1)); continue; }
+                error_log('db connect: ' . $e->getMessage());
+                if (PHP_SAPI === 'cli') throw $e;
+                server_busy();
+            }
+        }
         $pdo->exec("SET time_zone = '+05:30'");
     }
     return $pdo;
+}
+
+/* 503 with Retry-After: browsers, the app and search engines know to try again shortly. */
+function server_busy(): void
+{
+    if (!headers_sent()) { http_response_code(503); header('Retry-After: 30'); header('Cache-Control: no-store'); }
+    $json = str_contains((string) ($_SERVER['SCRIPT_NAME'] ?? ''), 'api') || str_contains((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json');
+    if ($json) { if (!headers_sent()) header('Content-Type: application/json'); echo '{"error":"busy","message":"Very busy right now. Please try again in a minute."}'; }
+    else { if (!headers_sent()) header('Content-Type: text/html; charset=utf-8'); echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Busy</title><body style="font:16px system-ui;padding:40px;max-width:560px"><h1>Very busy right now</h1><p>Please try again in a minute. Your data is safe.</p></body>'; }
+    exit;
 }
 
 function q(string $sql, array $params = []): PDOStatement
