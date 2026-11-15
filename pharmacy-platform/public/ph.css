@@ -132,3 +132,12 @@ footer.site { border-top: 1px solid var(--line); padding: 24px 0 40px; color: va
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 
 @media (max-width: 600px) { #branchSel { max-width: 120px; font-size: .82rem; min-height: 34px; padding: 4px 8px; } .brand small { max-width: 34vw; } .top .btn.sm { padding: 4px 10px; } }
+
+/* Dose-pouch labels (一包化): a grid of small labels, colour band by dose time */
+.labels { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
+.label { border: 1px dashed #888; border-left: 8px solid #888; border-radius: 6px; padding: 6px 8px; font-size: 12px; display: grid; gap: 2px; break-inside: avoid; background: #fff; color: #111; }
+.label b { font-size: 14px; } .label ul { margin: 2px 0; padding-left: 16px; } .label small { color: #444; }
+.lb-m { border-left-color: #f2b705; } .lb-a { border-left-color: #e8590c; } .lb-e { border-left-color: #1c7ed6; } .lb-b { border-left-color: #5f3dc4; }
+body.print-labels { background: #fff; padding: 8mm; }
+@media print { body.print-labels .labels { grid-template-columns: repeat(4, 1fr); } }
+#feeMonth, #feM { width: auto; max-width: 12em; }

@@ -269,7 +269,10 @@
       (o.customer ? '<p class="small">' + esc(o.customer.name) + (o.customer.phone ? ' · <a href="tel:+91' + esc(o.customer.phone) + '">' + esc(o.customer.phone) + "</a>" : "") + (o.customer.village ? " · " + esc(o.customer.village) : "") + (o.customer.app ? ' <span class="pill info">app</span>' : "") + "</p>" : "") +
       (o.askedPharmacy ? '<p class="small muted">Passed on by ' + esc(o.askedPharmacy) + "</p>" : "") +
       "<ul>" + o.items.filter(i => i.status !== "removed").map(i => '<li class="' + (i.status === "missing" ? "missing" : "") + '">' + esc(i.name) + " × " + i.qty + (i.price ? " · " + rs(i.price) : "") + (i.schedule !== "OTC" ? ' <small class="muted">' + esc(i.schedule) + "</small>" : "") + (i.batch ? ' <small class="muted">B.' + esc(i.batch) + "</small>" : "") + (i.status === "missing" ? " (not in stock)" : "") + "</li>").join("") + "</ul>" +
-      (o.note ? '<p class="small">📝 ' + esc(o.note) + "</p>" : "") + (o.kind === "delivery" && o.address ? '<p class="small">📍 ' + esc(o.address) + (o.distanceKm ? " · " + o.distanceKm + " km" : "") + "</p>" : "") + (o.point ? '<p class="small">📍 ' + esc(o.point.village + " · " + o.point.name) + "</p>" : "") +
+      (o.note ? '<p class="small">📝 ' + esc(o.note) + "</p>" : "") +
+      (o.dosePack ? '<p class="small">💊 <b>Pack each dose time in its own pouch</b></p>' : "") +
+      (o.pickupAt ? '<p class="small">🕒 Customer comes at <b>' + esc(when(o.pickupAt)) + "</b>: have it ready</p>" : "") +
+      (o.service === "home_visit" ? '<p class="small">🏠 <b>Pharmacist home visit</b>: check the medicines at home, explain them, take back old or expired strips</p>' : o.service === "review" ? '<p class="small">🩺 <b>Medicine review</b> asked: look for duplicates, interactions and medicines that may no longer be needed</p>' : "") + (o.kind === "delivery" && o.address ? '<p class="small">📍 ' + esc(o.address) + (o.distanceKm ? " · " + o.distanceKm + " km" : "") + "</p>" : "") + (o.point ? '<p class="small">📍 ' + esc(o.point.village + " · " + o.point.name) + "</p>" : "") +
       (o.worth && o.worth.why ? '<p class="small muted">' + esc(o.worth.why.join(" ")) + "</p>" : "") +
       (o.rx.needed ? '<p class="small">Prescription: <span class="pill ' + (["ok", "seen"].includes(o.rx.status) ? "" : "warn") + '">' + esc(o.rx.status || "needed") + "</span>" + (o.rx.date ? " dated " + esc(day(o.rx.date)) : "") + "</p>" : "") +
       '<p><b>' + rs(o.total) + "</b>" + (o.deliveryFee ? ' <small class="muted">incl. delivery ' + rs(o.deliveryFee) + "</small>" : "") + ' · <span class="pill ' + (o.payStatus === "paid" ? "" : o.payStatus === "khata" ? "info" : "warn") + '">' + esc(o.payStatus) + "</span>" + (o.paid ? ' <small class="muted">paid ' + rs(o.paid) + "</small>" : "") + "</p>" +
@@ -283,6 +286,7 @@
     if (o.kind !== "pickup" && ["packed", "ready"].includes(o.status) && can("delivery")) b.push('<button class="btn sm primary" data-act="deliver">Send out</button>');
     if (o.kind !== "pickup" && o.status === "out" && can("delivery")) b.push('<button class="btn sm" data-act="handover">Handed over</button>');
     if (o.items.some(i => i.status === "missing") && ["new", "accepted"].includes(o.status) && can("network")) b.push('<button class="btn sm" data-act="pass">Find missing in network</button>');
+    if (o.dosePack && !["cancelled"].includes(o.status)) b.push('<button class="btn sm" data-act="labels">Pouch labels</button>');
     if (o.total > o.paid && !["cancelled"].includes(o.status) && can("payments")) b.push('<button class="btn sm" data-act="pay">Payment</button>');
     if (!["delivered", "collected", "cancelled"].includes(o.status)) b.push('<button class="btn sm danger" data-act="cancel">Cancel</button>');
     return b.join("");
@@ -303,22 +307,38 @@
       $("#hoF", b).addEventListener("submit", (ev) => { ev.preventDefault(); run(null, async () => { await api.post("delivery_done", { order_id: id, otp: $("#hoOtp", b).value, cash: Number($("#hoCash", b).value) || 0 }); close(); toast("✓ Delivered"); go(current); }); });
     });
     if (act === "pass") passDialog(o);
+    if (act === "labels") labelsDialog(o);
   });
   function payDialog(o) {
     const due = Math.max(0, o.total - o.paid);
-    dialog('<h2>Payment for ' + esc(o.number) + '</h2><p>Due: <b>' + rs(due) + '</b></p><form class="stack" id="pyF"><div class="row"><label class="field">How<select id="pyM"><option value="cash">Cash</option><option value="upi_qr">UPI (our QR)</option><option value="upi_phone">UPI to our number</option><option value="other_qr">Someone else\'s QR</option><option value="card">Card</option>' + (o.customer ? '<option value="points">Reward points</option><option value="khata">Put on khata (credit)</option>' : "") + '</select></label>' +
-      '<label class="field">Amount (₹)<input id="pyA" inputmode="decimal" value="' + due + '" required></label><label class="field">UPI reference (optional)<input id="pyU" maxlength="22" inputmode="numeric"></label></div>' +
+    dialog('<h2>Payment for ' + esc(o.number) + '</h2><p>Due: <b>' + rs(due) + '</b></p><form class="stack" id="pyF"><div class="row"><label class="field">How<select id="pyM"><option value="cash">Cash</option><option value="upi_qr">UPI (our QR)</option><option value="upi_phone">UPI to our number</option><option value="other_qr">Someone else\'s QR</option><option value="card">Card</option><option value="voucher">AushadhBox health-points voucher</option>' + (o.customer ? '<option value="points">Reward points</option><option value="khata">Put on khata (credit)</option>' : "") + '</select></label>' +
+      '<label class="field">Amount (₹)<input id="pyA" inputmode="decimal" value="' + due + '" required></label><label class="field">UPI reference or voucher code (optional)<input id="pyU" maxlength="22" autocapitalize="characters"></label></div>' +
       (o.payUpi ? '<div class="qrbox"><canvas width="440" height="440" id="pyQ"></canvas><small class="muted">The customer scans this with any UPI app</small></div>' : "") +
       '<button class="btn primary" type="submit">Record</button><p class="error" id="pyE" hidden></p></form>', (b) => {
       if (o.payUpi) qr($("#pyQ", b), o.payUpi);
       $("#pyF", b).addEventListener("submit", async (ev) => {
         ev.preventDefault(); const m = $("#pyM", b).value, a = Number($("#pyA", b).value);
         try {
+          if (m === "voucher") { const code = ($("#pyU", b).value || "").trim(); if (!code) throw new Error("Type the 8-character voucher code in the reference box.");
+            const r = await api.post("voucher_redeem", { code, order_id: o.id }); close(); toast("✓ Voucher accepted: " + rs(r.rupees) + ". The network pays this back in your monthly statement."); go(current); return; }
           if (m === "khata") await api.post("khata_credit", { customer_id: o.customer.id, amount: a, order_id: o.id });
           else await api.post("pay_record", { order_id: o.id, method: m, amount: a, utr: $("#pyU", b).value || null });
           close(); toast("✓ Recorded"); go(current);
         } catch (er) { $("#pyE", b).textContent = er.message; $("#pyE", b).hidden = false; }
       });
+    });
+  }
+  /* 一包化: one printed label per pouch (day × dose time), cut and stick on each pouch */
+  async function labelsDialog(o) {
+    const from = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+    dialog('<h2>Pouch labels · ' + esc(o.number) + '</h2><form class="row" id="lbF"><label class="field">From<input type="date" id="lbFrom" value="' + from + '"></label><label class="field">Days<input id="lbDays" type="number" min="1" max="31" value="7"></label><button class="btn primary" type="submit">Make labels</button></form><div id="lbOut"></div>', (b) => {
+      $("#lbF", b).addEventListener("submit", (ev) => { ev.preventDefault(); run(null, async () => {
+        const r = await api.get("labels", { id: o.id, from: $("#lbFrom", b).value, days: $("#lbDays", b).value });
+        const html = '<div class="labels">' + r.labels.map(l => '<div class="label lb-' + l.key + '"><b>' + esc(l.slot) + "</b><span>" + esc(l.date) + "</span><small>" + esc(r.for || "") + "</small><ul>" + l.meds.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul><small>" + esc(r.pharmacy) + (r.phone ? " · " + esc(r.phone) : "") + "</small></div>").join("") + "</div>";
+        $("#lbOut", b).innerHTML = '<p class="muted small">' + r.labels.length + ' labels.</p>' + html + '<button class="btn" type="button" id="lbPrint">Print</button>';
+        $("#lbPrint", b).addEventListener("click", () => { const w = window.open("", "_blank"); if (!w) return toast("Allow pop-ups to print");
+          w.document.write('<!doctype html><meta charset="utf-8"><title>Labels ' + esc(r.order) + '</title><link rel="stylesheet" href="ph.css"><body class="print-labels">' + html + "</body>"); w.document.close(); w.onload = () => w.print(); });
+      }); });
     });
   }
   async function deliverDialog(o) {
@@ -561,9 +581,19 @@
 
   /* ----- Reports: complaints and audit log ----- */
   VIEWS.reports = async (m) => {
-    const [c, a] = await Promise.all([api.get("complaints"), api.get("audit")]);
-    m.innerHTML = '<h1>Reports</h1><div class="card stack"><h2>Complaints</h2><ul class="list" id="cpl">' + (c.complaints.map(x => "<li><span><b>" + esc(x.topic) + '</b> <span class="pill ' + (x.status === "open" ? "bad" : "") + '">' + esc(x.status) + "</span><br>" + esc(x.body) + (x.reply ? '<br><small class="muted">Your reply: ' + esc(x.reply) + "</small>" : "") + '<br><small class="muted">' + esc(when(x.created_at)) + "</small></span>" + (x.status === "open" ? '<button class="btn sm" data-cr="' + x.id + '">Reply</button>' : "") + "</li>").join("") || '<li class="muted">No complaints.</li>') + "</ul></div>" +
+    const month = (VIEWS.reports.month = VIEWS.reports.month || new Date().toISOString().slice(0, 7));
+    const [c, a, f] = await Promise.all([api.get("complaints"), api.get("audit"), api.get("fees", { period: month }).catch(() => null)]);
+    const fees = f ? '<div class="card stack" id="feeCard"><div class="row between"><h2>Network fees</h2><input type="month" id="feeMonth" value="' + esc(month) + '" aria-label="Month"></div>' +
+      '<p class="muted small">Commission only on orders the network brings you (AushadhBox app, orders passed on by linked pharmacies): ' + f.rates.urban + "% in cities, " + f.rates.semiurban + "% in towns, " + f.rates.rural + "% in villages, at most " + rs(f.rates.cap) + " an order, plus " + f.rates.gst + "% GST. Your own walk-in, phone and SMS customers are free. Health-points vouchers you accept are paid back here.</p>" +
+      '<div class="kpis">' + kpi(f.totals.orders, "network orders") + kpi(rs(f.totals.commission), "commission") + kpi(rs(f.totals.gst), "GST") + kpi(rs(-f.totals.voucher), "vouchers to pay back", "good") +
+      kpi(f.net > 0 ? rs(f.net) : f.net < 0 ? rs(-f.net) : "₹0", f.net > 0 ? "you pay the network" : f.net < 0 ? "the network pays you" : "settled", f.net > 0 ? "alert" : "good") + "</div>" +
+      '<p class="small">Invoice ' + esc(f.invoice) + (f.gstin ? " · GSTIN " + esc(f.gstin) : "") + "</p>" +
+      (f.payTo ? '<div class="row"><a class="btn primary" href="' + esc(f.payTo) + '">Pay ' + rs(f.net) + ' by UPI</a><span class="muted small">Send the UPI reference to support; the month is marked settled.</span></div>' : "") +
+      (f.lines.length ? '<div class="table-scroll"><table><thead><tr><th>Type</th><th>Order / code</th><th>Branch</th><th>On</th><th>Amount</th><th>GST</th></tr></thead><tbody>' +
+        f.lines.map(l => "<tr><td>" + esc(l.kind) + "</td><td>" + esc(l.order || l.ref || "") + "</td><td>" + esc(l.branch || "") + "</td><td>" + (l.base != null ? rs(l.base) + " × " + l.rate + "%" : "") + "</td><td>" + (l.amount < 0 ? "−" + rs(-l.amount) : rs(l.amount)) + "</td><td>" + (l.gst ? rs(l.gst) : "") + "</td></tr>").join("") + "</tbody></table></div>" : '<p class="muted">Nothing this month.</p>') + "</div>" : "";
+    m.innerHTML = '<h1>Reports</h1>' + fees + '<div class="card stack"><h2>Complaints</h2><ul class="list" id="cpl">' + (c.complaints.map(x => "<li><span><b>" + esc(x.topic) + '</b> <span class="pill ' + (x.status === "open" ? "bad" : "") + '">' + esc(x.status) + "</span><br>" + esc(x.body) + (x.reply ? '<br><small class="muted">Your reply: ' + esc(x.reply) + "</small>" : "") + '<br><small class="muted">' + esc(when(x.created_at)) + "</small></span>" + (x.status === "open" ? '<button class="btn sm" data-cr="' + x.id + '">Reply</button>' : "") + "</li>").join("") || '<li class="muted">No complaints.</li>') + "</ul></div>" +
       '<div class="card stack"><h2>Activity log</h2><p class="muted small">Every sign-in, sale, payment, stock change, card scan and setting change, with who did it.</p><div class="table-scroll"><table><thead><tr><th>When</th><th>Who</th><th>What</th></tr></thead><tbody>' + a.log.map(l => "<tr><td>" + esc(when(l.created_at)) + "</td><td>" + esc(l.name || l.actor) + "</td><td><b>" + esc(l.action) + "</b> " + esc(l.detail || "") + "</td></tr>").join("") + "</tbody></table></div></div>";
+    if ($("#feeMonth")) $("#feeMonth").addEventListener("change", (e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) { VIEWS.reports.month = e.target.value; go("reports"); } });
     $("#cpl").addEventListener("click", (e) => { const b = e.target.closest("[data-cr]"); if (b) dialog('<h2>Reply to the complaint</h2><form class="stack" id="crF"><textarea id="crT" rows="4" required maxlength="1000"></textarea><button class="btn primary">Send</button></form>', (d) =>
       $("#crF", d).addEventListener("submit", (ev) => { ev.preventDefault(); run(null, async () => { await api.post("complaint_reply", { id: Number(b.dataset.cr), reply: $("#crT", d).value }); close(); go("reports"); }); })); });
   };
