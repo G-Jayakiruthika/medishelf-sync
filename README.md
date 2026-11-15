@@ -1,10 +1,46 @@
-# AushadhBox v3 — family medicine cabinet for India
+# AushadhBox — family medicine cabinet and pharmacy network for India
 
-A complete, deployable web product: a public marketing website built for Google search, a multilingual
-web app (installable on phones), a Premium plan with Razorpay payments, family sharing, a cookie-consent
-system that follows the DPDP Act, and an admin dashboard with business numbers.
+**AushadhBox helps Indian families keep track of their medicines and links them with neighbourhood pharmacies, in cities, towns and villages.**
+It is two linked products: a family web app (installable on phones, 10 Indian languages) and a separate pharmacy network for chemists.
+Built end to end by **Jayakiruthika G** · [LinkedIn](https://www.linkedin.com/in/jayakiruthikag/) · [Figma designs](https://www.figma.com/design/PK9KGNnylGHJcH9ee9r4Qv)
 
-**Stack:** PHP 8.1+ (no framework) · MySQL 8 / MariaDB 10.6+ · HTML, CSS, JavaScript (no build step) ·
+| Family app (phone) | Pharmacy network | 3D models on every screen |
+|---|---|---|
+| ![Care+ screen](docs/screenshots/app-careplus.jpg) | ![Pharmacy landing](docs/screenshots/pharmacy-landing.jpg) ![Network fee statement](docs/screenshots/pharmacy-fees.jpg) | ![3D models](docs/screenshots/models-3d.jpg) |
+
+## Highlights
+
+- **Scan to add:** reads medicine strips, prescriptions in Indian shorthand (1-0-1, BD, HS) and pharmacy bills into a ready list.
+- **Doses that actually get taken:** reminders, a smart ESP32 pillbox, missed-dose alerts to the family, SMS and "missed call = taken" for basic phones.
+- **Care+:** repeat prescriptions, medicine review for older people, mother-and-child tracker (MCP card), health points turned into pharmacy vouchers.
+- **Pharmacy network:** counter, khata (credit book), UPI QR from the shop's UPI ID, linked pharmacies that pass on a missing medicine, delivery when the trip is worth it, monthly fee statement.
+- **Data and IoT:** nightly Python demand forecasts, a Java agent that syncs stock from any billing software, an ESP32 fridge thermometer for insulin.
+- **Privacy and security:** family-controlled consent per pharmacy, signed links between the two products, encrypted customer data, DPDP Act 2023 rights (see [SECURITY.md](SECURITY.md)).
+- **Quality:** 12 automated test suites (948 checks) run on every push with GitHub Actions.
+
+## Tech stack
+
+| Layer | Used |
+|---|---|
+| Backend | PHP 8.1+ (no framework), MySQL 8 / MariaDB 10.6+, PDO with prepared statements |
+| Frontend | HTML, CSS, vanilla JavaScript, Progressive Web App, own WebGL 3D viewer, 10 languages |
+| Data | Python 3 (standard library only): forecasting, reorder, expiry, delivery routing |
+| Integrations | Java 17 sync agent, HMAC-signed APIs, Razorpay, UPI deep links, SMS / missed-call webhooks, FHIR export |
+| Hardware | ESP32 (Arduino and MicroPython) pillbox and fridge sensor |
+| Design and tools | Figma, Blender (Python bpy), Playwright, GitHub Actions |
+
+## Run it locally
+
+```sh
+# Family app (needs PHP 8.1+ and MySQL/MariaDB)
+cp public_html/core/config.example.php public_html/core/config.php   # fill in the database details
+cd public_html && php -S 127.0.0.1:8080 index.php                     # then open http://127.0.0.1:8080/install.php
+# Pharmacy network (its own database)
+cp pharmacy-platform/core/config.example.php pharmacy-platform/core/config.php
+php pharmacy-platform/tools/install.php you@example.in "Your Name" 'a-strong-password' && cd pharmacy-platform/public && php -S 127.0.0.1:8090 index.php
+```
+
+**Stack in one line:** PHP 8.1+ (no framework) · MySQL 8 / MariaDB 10.6+ · HTML, CSS, JavaScript (no build step) ·
 Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hostinger, cPanel).
 
 | Website (10 languages) | App on a phone | Admin dashboard |
@@ -96,3 +132,7 @@ Read **docs/DEPLOY.md** (Hostinger step by step, Razorpay, Google Search Console
 - Ingredient guides are general information written for this project, not medical advice.
 
 > AushadhBox helps families organise medicines. It does not replace a doctor or pharmacist.
+
+## License
+
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md): free to read, learn from and use for non-commercial purposes. Commercial use needs written permission from the author.
