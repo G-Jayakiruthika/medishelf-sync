@@ -44,8 +44,9 @@ function login_start(string $id, string $password): array
     $phone = phone_norm($id);
     limit('login:' . strtolower($id), 8, 15); limit('loginip:' . client_ip(), 30, 15);
     $s = q("SELECT * FROM staff WHERE (email = ? OR (? <> '' AND phone = ?)) AND status = 'active'", [strtolower($id), $phone, $phone])->fetch();
-    if (!$s || !password_verify($password, $s['password_hash'])) fail('bad_login', 'E-mail / phone or password is not correct.', 401);
-    if (password_needs_rehash($s['password_hash'], PASSWORD_DEFAULT)) q('UPDATE staff SET password_hash = ? WHERE id = ?', [password_hash($password, PASSWORD_DEFAULT), $s['id']]);
+    $ok = password_verify($password, $s['password_hash'] ?? PW_DUMMY);   // same work whether or not the account exists
+    if (!$s || !$ok) { audit('staff', $s ? (int) $s['id'] : null, $s ? (int) $s['org_id'] : null, null, 'login_fail', mb_substr($id, 0, 80)); fail('bad_login', 'E-mail / phone or password is not correct.', 401); }
+    if (pw_needs_rehash($s['password_hash'])) q('UPDATE staff SET password_hash = ? WHERE id = ?', [pw_hash($password), $s['id']]);
     if ($s['totp_on']) { $_SESSION['pending_2fa'] = (int) $s['id']; $_SESSION['pending_at'] = time(); return ['twoFactor' => true]; }
     return login_finish($s);
 }

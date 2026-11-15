@@ -11,7 +11,7 @@
     if (body) { opts.headers["Content-Type"] = "application/json"; opts.headers["X-CSRF-Token"] = csrf; opts.body = JSON.stringify(body); }
     const res = await fetch("/api.php?action=" + action, opts);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Request failed");
+    if (!res.ok) { const e = new Error(data.message || "Request failed"); e.code = data.error; throw e; }
     return data;
   }
   function showError(m) { $("#err").textContent = m; $("#err").hidden = false; }
@@ -153,8 +153,30 @@
     csrf = session.csrf;
     if (!session.user) { location.href = "/app#signin"; return; }
     if (!session.user.admin) { showError("This page is only for administrators."); return; }
-    await Promise.all([load(), loadAutopilot().catch(e => showError(e.message)), loadPharmacies().catch(e => showError(e.message))]);
-  } catch (e) { showError(e.message); }
+    await Promise.all([load(), loadAutopilot().catch(e => showError(e.message)), loadPharmacies().catch(e => showError(e.message)), loadSecurity()]);
+  } catch (e) { if (e.code === "setup_2fa") setupTwoFactor(); else showError(e.message); }
+
+  /* Two-factor sign-in for administrators: required before the dashboard opens. */
+  async function setupTwoFactor() {
+    $("#tfaCard").hidden = false;
+    const r = await call("admin_2fa_setup", {});
+    $("#tfaKey").textContent = r.secret.replace(/(.{4})/g, "$1 ").trim();
+    const q = window.qrcode(0, "M"); q.addData(r.uri); q.make();
+    const cv = $("#tfaQr"), c = cv.getContext("2d"), n = q.getModuleCount(), k = Math.floor(cv.width / (n + 4)), off = Math.floor((cv.width - k * n) / 2);
+    c.fillStyle = "#fff"; c.fillRect(0, 0, cv.width, cv.height); c.fillStyle = "#000";
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (q.isDark(y, x)) c.fillRect(off + x * k, off + y * k, k, k);
+  }
+  $("#tfaForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    try { await call("admin_2fa_enable", { code: $("#tfaCode").value }); location.reload(); } catch (err) { showError(err.message); }
+  });
+  async function loadSecurity() {
+    const s = await call("admin_security");
+    $("#secCard").hidden = false;
+    $("#secChecks").innerHTML = s.checks.map(c => "<li><span>" + (c.ok ? "✅ " : "⚠️ ") + esc(c.check) + (c.fix ? '<br><small class="muted">' + esc(c.fix) + "</small>" : "") + "</span></li>").join("");
+    $("#secCounts").textContent = s.counts.length ? s.counts.map(c => c.kind.replace(/_/g, " ") + ": " + c.n).join(" · ") : "No security events.";
+    $("#secEvents").innerHTML = s.events.map(e => "<tr><td>" + esc(e.at) + "</td><td>" + esc(e.kind.replace(/_/g, " ")) + '</td><td class="mono">' + esc(e.ip) + "</td><td>" + esc(e.detail || "") + "</td></tr>").join("");
+  }
 
   $("#importForm").addEventListener("submit", async (e) => {
     e.preventDefault();

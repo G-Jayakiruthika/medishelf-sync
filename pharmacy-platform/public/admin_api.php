@@ -25,7 +25,8 @@ case 'session':
 case 'login':
     limit('adminlogin:' . client_ip(), 6, 15);
     $a = q('SELECT * FROM admins WHERE email = ?', [strtolower((string) ($in['email'] ?? ''))])->fetch();
-    if (!$a || !password_verify((string) ($in['password'] ?? ''), $a['password_hash'])) fail('bad_login', 'E-mail or password is not correct.', 401);
+    if (!password_verify((string) ($in['password'] ?? ''), $a['password_hash'] ?? PW_DUMMY) || !$a) { audit('admin', null, null, null, 'login_fail', mb_substr((string) ($in['email'] ?? ''), 0, 80)); fail('bad_login', 'E-mail or password is not correct.', 401); }
+    if (pw_needs_rehash($a['password_hash'])) q('UPDATE admins SET password_hash = ? WHERE id = ?', [pw_hash((string) $in['password']), $a['id']]);
     if ($a['totp_on']) {
         if (!totp_ok((string) dec($a['totp_secret']), (string) ($in['code'] ?? ''))) fail('need_code', 'Enter the 6-digit code from your authenticator app.', 401);
     } else {   // first sign-in: two-factor must be set up before anything else

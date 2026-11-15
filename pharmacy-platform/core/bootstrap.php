@@ -68,6 +68,9 @@ function security_headers(bool $camera = true): void
     header('X-Frame-Options: DENY');
     header('Permissions-Policy: camera=' . ($camera ? '(self)' : '()') . ', microphone=(), geolocation=(self)');
     header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+    header('Cross-Origin-Opener-Policy: same-origin');
+    header('Cross-Origin-Resource-Policy: same-origin');
+    header('X-Permitted-Cross-Domain-Policies: none');
     if (is_https()) header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 }
 
@@ -114,6 +117,9 @@ function require_csrf(): void
 {
     $t = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     if (!is_string($t) || empty($_SESSION['csrf']) || !hash_equals($_SESSION['csrf'], $t)) fail('csrf', 'Your session expired. Reload the page.', 419);
+    // Defence in depth: a browser always sends Origin on POST; it must be this site (server-to-server calls carry no Origin and are signed).
+    $o = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+    if ($o !== '' && strtolower((string) parse_url($o, PHP_URL_HOST)) !== strtolower(explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0])) fail('bad_origin', 'This request came from another website and was blocked.', 403);
 }
 
 /* Rate limit: at most $max events for key $k in $minutes. */
@@ -206,3 +212,15 @@ set_exception_handler(function (Throwable $e) {
     if (PHP_SAPI === 'cli') { fwrite(STDERR, $e->getMessage() . "\n"); exit(1); }
     if (!headers_sent()) json_out(['error' => 'server_error', 'message' => 'Something went wrong on our side. Please try again.'], 500);
 });
+
+/* Passwords: Argon2id (OWASP settings: 19 MiB memory, 2 passes, 1 thread). Older bcrypt hashes are upgraded at the next sign-in. */
+function pw_hash(string $plain): string
+{
+    return defined('PASSWORD_ARGON2ID') ? password_hash($plain, PASSWORD_ARGON2ID, ['memory_cost' => 19456, 'time_cost' => 2, 'threads' => 1]) : password_hash($plain, PASSWORD_DEFAULT);
+}
+function pw_needs_rehash(string $hash): bool
+{
+    return defined('PASSWORD_ARGON2ID') ? password_needs_rehash($hash, PASSWORD_ARGON2ID, ['memory_cost' => 19456, 'time_cost' => 2, 'threads' => 1]) : password_needs_rehash($hash, PASSWORD_DEFAULT);
+}
+/* Checked against when an account is not found, so the answer takes as long either way. */
+const PW_DUMMY = '$argon2id$v=19$m=19456,t=2,p=1$bXg3VzVqS3JHb1guS2NlZQ$qkH20vPkPyiP2c7e/kEMq3CIaT/6ISbyIeWyHBoZBoM';

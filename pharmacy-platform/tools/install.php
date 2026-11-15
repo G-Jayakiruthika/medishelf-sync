@@ -13,13 +13,13 @@ require_once dirname(__DIR__) . '/core/orders.php';
 if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($pass) < 10) { fwrite(STDERR, "Usage: php tools/install.php EMAIL \"NAME\" PASSWORD(10+ chars) [--demo]\n"); exit(1); }
 $sql = file_get_contents(dirname(__DIR__) . '/core/database/schema.sql');
 foreach (array_filter(array_map('trim', preg_split('/;\s*\n/', preg_replace('/^--.*$/m', '', $sql)))) as $stmt) db()->exec($stmt);
-q('INSERT INTO admins (name, email, password_hash) VALUES (?,?,?) ON DUPLICATE KEY UPDATE name = VALUES(name), password_hash = VALUES(password_hash)', [$name, strtolower($email), password_hash($pass, PASSWORD_DEFAULT)]);
+q('INSERT INTO admins (name, email, password_hash) VALUES (?,?,?) ON DUPLICATE KEY UPDATE name = VALUES(name), password_hash = VALUES(password_hash)', [$name, strtolower($email), pw_hash($pass)]);
 echo "Tables ready. Admin: $email (two-factor sign-in is set up at the first sign-in at /admin).\n";
 if (!in_array('--demo', $argv, true)) exit(0);
 
 /* ---------- Demo network: a city chain, a semi-urban business with two shops, a village pharmacy and a Jan Aushadhi Kendra ---------- */
 if (q("SELECT 1 FROM branches WHERE code = 'SRSA2K7Q'")->fetch()) { echo "Demo data already there.\n"; exit(0); }
-$pw = password_hash('demo1234', PASSWORD_DEFAULT);
+$pw = pw_hash('demo1234');
 $orgs = [
   ['Sri Sai Medicals', '33AABCS1234F1Z5', [['SRSA2K7Q', 'Sri Sai Medicals, Gandhipuram', 'retail', 'TN-CBE-20-4471', 'TN-CBE-20B-4471', '14 Cross Cut Road, Gandhipuram', 'Gandhipuram', 'Coimbatore', '641012', 11.0176, 76.9674, 'urban', '9840012345', 'srisai@okaxis', 'Mon-Sat 08:00-22:00; Sun 09:00-13:00']],
    'Sai Kumar', 'owner@srisai.test'],

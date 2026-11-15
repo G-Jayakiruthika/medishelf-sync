@@ -75,6 +75,7 @@ function card_member(array $ph, string $code): array
         $code = card_normalize($code);
         $m = $code ? q('SELECT m.*, u.id owner_id FROM members m JOIN users u ON u.id = m.user_id WHERE m.card_code = ?', [$code])->fetch() : null;
     }
+    if ($m) $m = member_open($m);
     if (!$m) fail('bad_card', 'This card was not found. It may have been replaced: ask for the new card.', 404);
     if (!$m['share_add'] && !$m['share_view']) fail('not_shared', 'The family has not allowed pharmacies to use this card. They can switch it on in the app (Account → AushadhBox card).', 403);
     $link = q('SELECT blocked FROM pharmacy_links WHERE member_id = ? AND pharmacy_id = ?', [$m['id'], $ph['id']])->fetch();

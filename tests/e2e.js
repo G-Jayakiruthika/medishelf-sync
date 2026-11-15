@@ -34,7 +34,7 @@ async function journey(browser, label, viewport) {
   await p.waitForSelector('#signupForm:not([hidden])');
   ok(true, 'Start free opens the sign-up form');
   await p.fill('#suName', 'E2E User'); await p.fill('#suEmail', 'e2e' + Date.now() + Math.floor(Math.random() * 1e4) + '@test.in');
-  await p.fill('#suPass', 'secret123'); await p.check('#suConsent');
+  await p.fill('#suPass', 'secret123'); await p.check('#suConsent'); await p.check('#suAdult'); await p.waitForTimeout(2100);
   await p.click('#signupForm button[type=submit]');
   await p.waitForSelector('#tourDialog[open]');
   ok(true, 'welcome tour opens after sign-up');

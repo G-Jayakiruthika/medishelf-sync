@@ -69,6 +69,21 @@
   <div class="section-head"><h2>Admin dashboard</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ghost btn-sm" href="/">Website</a><a class="btn btn-ghost btn-sm" href="/app#account">App</a></div></div>
   <p class="error" id="err" hidden></p>
 
+  <section class="panel stack" id="tfaCard" hidden aria-labelledby="tfaTitle">
+    <h3 id="tfaTitle">Turn on two-factor sign-in</h3>
+    <p>Administrators need a second step: a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy…). Scan the QR code, then type the code it shows.</p>
+    <canvas id="tfaQr" width="220" height="220" aria-label="QR code for the authenticator app"></canvas>
+    <p class="muted small">Can't scan? Type this key: <span class="mono" id="tfaKey"></span></p>
+    <form class="row" id="tfaForm"><label for="tfaCode" class="sr-only">Code</label><input id="tfaCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" placeholder="123456" required><button class="btn btn-primary" type="submit">Turn on</button></form>
+  </section>
+
+  <section class="panel stack" id="secCard" hidden aria-labelledby="secTitle">
+    <h3 id="secTitle">Security</h3>
+    <ul class="ap-list" id="secChecks"></ul>
+    <h4>Last 30 days</h4><p id="secCounts" class="muted"></p>
+    <details><summary>Recent security events</summary><div class="table-scroll"><table><thead><tr><th>When</th><th>What</th><th>IP</th><th>Detail</th></tr></thead><tbody id="secEvents"></tbody></table></div></details>
+  </section>
+
   <section class="ap-hero" aria-labelledby="apTitle">
     <h3 id="apTitle">Autopilot</h3>
     <p>Ask about your numbers in plain words. The autopilot also watches the site day and night: unusual numbers, problems it can fix, people to help, messages to answer.</p>
@@ -127,6 +142,7 @@
     <p id="importMsg" class="muted" aria-live="polite"></p>
   </form>
 </main>
-<script src="/admin.js?v=8"></script>
+<script src="/lib/qrcode.js"></script>
+<script src="/admin.js?v=9"></script>
 </body>
 </html>

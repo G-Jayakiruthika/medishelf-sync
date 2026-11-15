@@ -13,10 +13,10 @@ ppost() { local c; c=$(pcsrf "$1"); curl -s -o "$T/out" -w "%{http_code}" -b "$T
 body_has() { if grep -q "$2" "$T/out"; then PASS=$((PASS+1)); echo "  ✓ $1"; else FAIL=$((FAIL+1)); echo "  ✗ $1: $(head -c 200 "$T/out")"; fi; }
 
 echo "Accounts"
-expect "sign up A" "$(post a signup "{\"name\":\"<img src=x onerror=alert(1)>\",\"email\":\"a$S@test.in\",\"password\":\"secret123\",\"consent\":true}")" 200
+expect "sign up A" "$(post a signup "{\"name\":\"<img src=x onerror=alert(1)>\",\"email\":\"a$S@test.in\",\"password\":\"secret123\",\"consent\":true,\"adult\":true}")" 200
 expect "sign up needs consent" "$(post x signup "{\"name\":\"X\",\"email\":\"x$S@test.in\",\"password\":\"secret123\"}")" 400
-expect "duplicate e-mail rejected" "$(post x signup "{\"name\":\"X\",\"email\":\"a$S@test.in\",\"password\":\"secret123\",\"consent\":true}")" 409
-expect "sign up B" "$(post b signup "{\"name\":\"B\",\"email\":\"b$S@test.in\",\"password\":\"secret123\",\"consent\":true}")" 200
+expect "duplicate e-mail rejected" "$(post x signup "{\"name\":\"X\",\"email\":\"a$S@test.in\",\"password\":\"secret123\",\"consent\":true,\"adult\":true}")" 409
+expect "sign up B" "$(post b signup "{\"name\":\"B\",\"email\":\"b$S@test.in\",\"password\":\"secret123\",\"consent\":true,\"adult\":true}")" 200
 expect "wrong password" "$(post x login "{\"email\":\"a$S@test.in\",\"password\":\"nope\"}")" 401
 
 echo "Security"

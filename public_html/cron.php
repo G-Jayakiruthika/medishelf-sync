@@ -25,6 +25,15 @@ $key = (string) ($_GET['key'] ?? ($argv[1] ?? ''));
 if (!hash_equals((string) config('cron_key'), $key)) { http_response_code(403); exit("forbidden\n"); }
 // After an update: create any new tables or columns (only does work when the code changed).
 foreach (migrate_if_due() as $m) echo "migrate: $m\n";
+// Encrypt member health details and phones saved before encryption existed (a few hundred rows a run; safe to repeat).
+try { if ($n = encrypt_existing_members(500)) echo "encrypted: $n members\n"; } catch (Throwable $e) { error_log('encrypt: ' . $e->getMessage()); }
+// Weekly encrypted backup (Sunday after 2 am), last 8 kept in core/backups. Copy them off the server too.
+if ((int) date('w') === 0 && (int) date('G') >= 2 && (string) state_get('backup_day') !== date('Y-m-d')) {
+    try { require_once APP_DIR . '/backup.php'; $bf = backup_make(db(), APP_DIR . '/backups', fam_data_key(), 'family'); state_set('backup_day', date('Y-m-d')); state_set('last_backup', date('Y-m-d H:i:s')); echo 'backup: ' . basename($bf) . "\n"; }
+    catch (Throwable $e) { error_log('backup: ' . $e->getMessage()); security_event('backup_failed', mb_substr($e->getMessage(), 0, 200)); }
+}
+// Old security events are removed after 180 days.
+q('DELETE FROM security_events WHERE created_at < NOW() - INTERVAL 180 DAY');
 // Housekeeping (runs even without push): keep security logs one year, then delete; clear old tokens and reminder marks.
 q('DELETE FROM login_attempts WHERE created_at < NOW() - INTERVAL 1 YEAR');
 q('DELETE FROM password_resets WHERE expires_at < NOW() - INTERVAL 7 DAY');

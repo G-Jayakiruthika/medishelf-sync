@@ -50,8 +50,8 @@ function assistant_answer(array $user, int $hid, string $question): array
             "Use ONLY the family's cabinet data given and well-established general facts about what a medicine is for.\n" .
             "Never tell anyone to start, stop or change a medicine or a dose, and never give a dose that is not already recorded in the cabinet. Never diagnose.\n" .
             "For symptoms, side effects, pregnancy, children or combining medicines: say to ask their doctor or pharmacist. For emergencies (overdose, chest pain, trouble breathing, a child swallowed tablets): say to call 112 or go to hospital now.\n" .
-            "If the answer is not in the data, say so plainly.",
-            "Today: " . date('j M Y') . "\nFamily cabinet: " . json_encode(assistant_context($hid), JSON_UNESCAPED_UNICODE) . "\n\nQuestion: $question", 350);
+            "If the answer is not in the data, say so plainly.\n" . AI_UNTRUSTED_RULE,
+            "Today: " . date('j M Y') . "\nFamily cabinet: " . json_encode(assistant_context($hid), JSON_UNESCAPED_UNICODE) . "\n\n" . ai_untrusted('family question', $question), 350);
         if ($ans) return ['answer' => $ans, 'source' => 'ai'];
     }
     $r = assistant_rules($question, $hid);

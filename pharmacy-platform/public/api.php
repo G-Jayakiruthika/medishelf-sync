@@ -37,6 +37,7 @@ case 'session':
 
 case 'signup':   // a new pharmacy: business + first shop + owner. Waits for approval (licence check).
     limit('signup:' . client_ip(), 5, 60);
+    if (!empty($in['website'])) { audit('system', null, null, null, 'bot_signup', client_ip()); fail('bot', 'Please try again.', 400); }   // hidden field: only bots fill it
     $name = str_in($in, 'name', 120, true); $lic = str_in($in, 'licence_retail', 60, true); $district = str_in($in, 'district', 60, true);
     $owner = str_in($in, 'owner_name', 80, true); $email = strtolower((string) str_in($in, 'email', 160, true)); $phone = phone_norm($in['phone'] ?? '');
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) fail('bad_email', 'Enter a valid e-mail address.');
@@ -53,7 +54,7 @@ case 'signup':   // a new pharmacy: business + first shop + owner. Waits for app
           [$org, $code, $name, $lic, $district, str_in($in, 'state', 40) ?? 'Tamil Nadu', str_in($in, 'village', 80), str_in($in, 'address', 220), preg_match('/^\d{6}$/', (string) ($in['pincode'] ?? '')) ? $in['pincode'] : null,
            is_numeric($in['lat'] ?? null) ? (float) $in['lat'] : null, is_numeric($in['lng'] ?? null) ? (float) $in['lng'] : null, $area, $phone, str_in($in, 'upi_vpa', 80),
            ($in['kind'] ?? '') === 'janaushadhi' ? 'janaushadhi' : 'retail']);
-        q('INSERT INTO staff (org_id, name, phone, email, password_hash, role) VALUES (?,?,?,?,?,?)', [$org, $owner, $phone, $email, password_hash((string) $in['password'], PASSWORD_DEFAULT), 'owner']);
+        q('INSERT INTO staff (org_id, name, phone, email, password_hash, role) VALUES (?,?,?,?,?,?)', [$org, $owner, $phone, $email, pw_hash((string) $in['password']), 'owner']);
         $sid = (int) db()->lastInsertId();
         audit('staff', $sid, $org, null, 'signup', "$name, $district, licence $lic");
         return $sid;
@@ -83,7 +84,7 @@ case 'password_change':
     $s = need_me();
     if (!password_verify((string) ($in['current'] ?? ''), $s['password_hash'])) fail('bad_password', 'Your current password is not correct.', 403);
     password_check((string) ($in['new'] ?? ''));
-    q('UPDATE staff SET password_hash = ? WHERE id = ?', [password_hash((string) $in['new'], PASSWORD_DEFAULT), $s['id']]); audit('staff', (int) $s['id'], (int) $s['org_id'], null, 'password_change'); json_out(['ok' => true]);
+    q('UPDATE staff SET password_hash = ? WHERE id = ?', [pw_hash((string) $in['new']), $s['id']]); audit('staff', (int) $s['id'], (int) $s['org_id'], null, 'password_change'); json_out(['ok' => true]);
 case 'branch_switch':
     $s = need_me(); if ($s['branch_id']) fail('forbidden', 'You work at one branch only.', 403);
     $_SESSION['branch_id'] = (int) ($in['id'] ?? 0); json_out(['ok' => true, 'branch' => branch_settings(my_branch($s))]);
@@ -152,7 +153,7 @@ case 'staff_add':
     if (q('SELECT 1 FROM staff WHERE (? IS NOT NULL AND email = ?) OR (? <> "" AND phone = ?)', [$email, $email, $phone, $phone])->fetch()) fail('exists', 'Someone already signs in with this phone or e-mail.', 409);
     $tmp = code(4) . '-' . code(4);   // first password, shown once; they change it after signing in
     q('INSERT INTO staff (org_id, branch_id, name, phone, email, password_hash, role) VALUES (?,?,?,?,?,?,?)',
-      [$s['org_id'], !empty($in['branch_id']) ? (int) $in['branch_id'] : ($s['branch_id'] ?: null), str_in($in, 'name', 80, true), $phone ?: null, $email, password_hash($tmp, PASSWORD_DEFAULT), $role]);
+      [$s['org_id'], !empty($in['branch_id']) ? (int) $in['branch_id'] : ($s['branch_id'] ?: null), str_in($in, 'name', 80, true), $phone ?: null, $email, pw_hash($tmp), $role]);
     audit('staff', (int) $s['id'], (int) $s['org_id'], null, 'staff_add', "$role " . ($in['name'] ?? ''));
     json_out(['ok' => true, 'password' => $tmp]);
 case 'staff_update':
@@ -161,7 +162,7 @@ case 'staff_update':
     if ($t['role'] === 'manager' && $s['role'] !== 'owner') fail('forbidden', 'Only the owner can change managers.', 403);
     $status = ($in['status'] ?? '') === 'blocked' ? 'blocked' : 'active';
     $role = in_array($in['role'] ?? '', ['manager', 'pharmacist', 'cashier', 'rider'], true) && !($in['role'] === 'manager' && $s['role'] !== 'owner') ? $in['role'] : $t['role'];
-    $pw = null; if (!empty($in['reset'])) { $pw = code(4) . '-' . code(4); q('UPDATE staff SET password_hash = ?, totp_on = 0, totp_secret = NULL WHERE id = ?', [password_hash($pw, PASSWORD_DEFAULT), $t['id']]); }
+    $pw = null; if (!empty($in['reset'])) { $pw = code(4) . '-' . code(4); q('UPDATE staff SET password_hash = ?, totp_on = 0, totp_secret = NULL WHERE id = ?', [pw_hash($pw), $t['id']]); }
     q('UPDATE staff SET role = ?, status = ? WHERE id = ?', [$role, $status, $t['id']]);
     audit('staff', (int) $s['id'], (int) $s['org_id'], null, 'staff_update', $t['name'] . " → $role/$status" . ($pw ? ' (password reset)' : ''));
     json_out(['ok' => true, 'password' => $pw]);

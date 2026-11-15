@@ -70,7 +70,7 @@
     e.preventDefault(); authErr("");
     const v = (id) => $(id).value.trim();
     try {
-      const r = await api.post("signup", { name: v("#upName"), licence_retail: v("#upLic"), village: v("#upVillage"), district: v("#upDistrict"), state: v("#upState"), pincode: v("#upPin"), area: v("#upArea"), kind: v("#upKind"),
+      const r = await api.post("signup", { website: v("#upWebsite"), name: v("#upName"), licence_retail: v("#upLic"), village: v("#upVillage"), district: v("#upDistrict"), state: v("#upState"), pincode: v("#upPin"), area: v("#upArea"), kind: v("#upKind"),
         owner_name: v("#upOwner"), phone: v("#upPhone"), email: v("#upEmail"), password: $("#upPw").value, upi_vpa: v("#upUpi").includes("@") ? v("#upUpi") : null, gstin: v("#upGst") || null,
         agree: $("#upAgree").checked, lat: upLL ? upLL.lat : null, lng: upLL ? upLL.lng : null });
       api.csrf = r.csrf; boot();

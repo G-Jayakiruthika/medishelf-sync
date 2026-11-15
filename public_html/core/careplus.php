@@ -367,9 +367,10 @@ function member_phone_set(int $hid, int $memberId, string $phone, bool $sms): ar
     member_of($hid, $memberId);
     $p = $phone === '' ? null : phone_norm($phone);
     if ($phone !== '' && !$p) fail('bad_phone', 'Enter a 10-digit Indian mobile number.');
-    $cur = q('SELECT phone, phone_verified FROM members WHERE id = ?', [$memberId])->fetch();
+    $cur = member_open(q('SELECT phone, phone_verified FROM members WHERE id = ?', [$memberId])->fetch());
     $verified = $p && $p === $cur['phone'] ? (int) $cur['phone_verified'] : 0;
-    q('UPDATE members SET phone = ?, phone_verified = ?, sms_remind = ? WHERE id = ?', [$p, $verified, $sms && $p ? 1 : 0, $memberId]);
+    // Stored encrypted; the keyed hash lets a missed call find the member without decrypting every phone.
+    q('UPDATE members SET phone = ?, phone_hash = ?, phone_verified = ?, sms_remind = ? WHERE id = ?', [seal($p), $p ? blind_index($p) : null, $verified, $sms && $p ? 1 : 0, $memberId]);
     return ['phone' => $p, 'verified' => (bool) $verified, 'sms' => $sms && $p, 'numbers' => telephony_numbers()];
 }
 
@@ -388,10 +389,10 @@ function missed_call(string $from, string $to): array
     $to = phone_norm($to) ?? preg_replace('/\D/', '', $to);
     $verifyNo = $nums['verify'] ? (phone_norm((string) $nums['verify']) ?? preg_replace('/\D/', '', (string) $nums['verify'])) : null;
     $doseNo = $nums['dose'] ? (phone_norm((string) $nums['dose']) ?? preg_replace('/\D/', '', (string) $nums['dose'])) : null;
-    $members = q('SELECT id, user_id, name, phone_verified FROM members WHERE phone = ?', [$p])->fetchAll();
+    $members = q('SELECT id, user_id, name, phone_verified FROM members WHERE phone_hash = ?', [blind_index($p)])->fetchAll();
     if (!$members) return ['result' => 'unknown_caller'];
     if ($to === $verifyNo) {
-        q('UPDATE members SET phone_verified = 1 WHERE phone = ?', [$p]);
+        q('UPDATE members SET phone_verified = 1 WHERE phone_hash = ?', [blind_index($p)]);
         return ['result' => 'verified', 'members' => count($members)];
     }
     if ($to === $doseNo) {
@@ -455,7 +456,7 @@ function sms_dose_reminders(?DateTime $now = null): int
             $ref = $m['id'] . ':' . $s . ':' . $now->format('Y-m-d');
             if (q("SELECT 1 FROM sms_out WHERE template = 'dose' AND ref = ?", [$ref])->fetch()) continue;
             $names = implode(', ', array_slice(array_map(fn($i) => $i['name'], $due), 0, 3));
-            sms_send($m['phone'], 'dose', ['name' => $m['name'], 'meds' => mb_substr($names, 0, 60), 'time' => SLOT_LABELS[$s]], $ref);
+            sms_send((string) unseal($m['phone']), 'dose', ['name' => $m['name'], 'meds' => mb_substr($names, 0, 60), 'time' => SLOT_LABELS[$s]], $ref);
             $sent++;
         }
     }

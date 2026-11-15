@@ -53,15 +53,18 @@ try {
         $lang = lang_in($in['language'] ?? null);
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) fail('bad_email', 'Please enter a valid e-mail address.');
         if ($phone !== null && !preg_match('/^[6-9]\d{9}$/', $phone)) fail('bad_phone', 'Enter a 10-digit Indian mobile number, or leave it empty.');
-        if (mb_strlen($pass) < 8) fail('weak_password', 'Use at least 8 characters for your password.');
+        if (looks_like_bot($in)) { security_event('bot_signup', $email); fail('bot', 'Please try again.', 400); }
+        if (mb_strlen($pass) < 8 || mb_strlen($pass) > 128) fail('weak_password', 'Use 8 to 128 characters for your password.');
+        if (pw_too_common($pass) || str_contains(mb_strtolower($pass), explode('@', $email)[0])) fail('weak_password', 'That password is too easy to guess. Try a short sentence you will remember.');
         if (empty($in['consent'])) fail('no_consent', 'Please read and agree to the privacy notice to create an account.');
+        if (empty($in['adult'])) fail('not_adult', 'You must be 18 or older to create an account. A parent or guardian can add children to their own family.');
         if (q('SELECT 1 FROM users WHERE email = ?', [$email])->fetch()) {
             log_attempt('signup', false);
             fail('email_taken', 'An account with this e-mail already exists. Try signing in.', 409);
         }
         db()->beginTransaction();
-        q('INSERT INTO users (name, email, phone, password_hash, language, consent_version, consent_at) VALUES (?,?,?,?,?,?,NOW())',
-          [$name, $email, $phone, password_hash($pass, PASSWORD_DEFAULT), $lang, config('consent_version')]);
+        q('INSERT INTO users (name, email, phone, password_hash, language, consent_version, consent_at, adult_confirmed_at, marketing_ok) VALUES (?,?,?,?,?,?,NOW(),NOW(),?)',
+          [$name, $email, $phone, pw_hash($pass), $lang, config('consent_version'), empty($in['marketing']) ? 0 : 1]);
         $uid = (int) db()->lastInsertId();
         q('INSERT INTO members (user_id, name, relation, is_self, account_id) VALUES (?,?,?,1,?)', [$uid, $name, 'Self', $uid]);
         q('INSERT INTO reminder_settings (user_id) VALUES (?)', [$uid]);
@@ -75,13 +78,22 @@ try {
         $in = input();
         $email = strtolower((string) str_in($in, 'email', 160, true));
         rate_limit('login', $email, 8, 15);
-        $row = q('SELECT id, password_hash FROM users WHERE email = ?', [$email])->fetch();
-        if (!$row || !password_verify((string) ($in['password'] ?? ''), $row['password_hash'])) {
+        $row = q('SELECT id, password_hash, role, totp_on, totp_secret FROM users WHERE email = ?', [$email])->fetch();
+        // Same work whether or not the account exists, so response time does not reveal which e-mails are registered.
+        $ok = password_verify((string) ($in['password'] ?? ''), $row['password_hash'] ?? '$argon2id$v=19$m=19456,t=2,p=1$Q3BOZVRRVWg1YmNDeG12WA$ppaxDiJjoclDj0/STtCIx/uUyKoUmNthEtumbPYaCJA');
+        if (!$row || !$ok) {
             log_attempt('login', false, $email);
+            security_event('login_fail', $email);
             fail('bad_login', 'E-mail or password is not correct.', 401);
         }
-        if (password_needs_rehash($row['password_hash'], PASSWORD_DEFAULT)) q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash((string) $in['password'], PASSWORD_DEFAULT), $row['id']]);
+        if ($row['role'] === 'admin' && $row['totp_on']) {   // administrators: a code from their authenticator app as well
+            $code = (string) ($in['code'] ?? '');
+            if ($code === '') fail('need_code', 'Enter the 6-digit code from your authenticator app.', 401);
+            if (!totp_ok((string) unseal($row['totp_secret']), $code)) { log_attempt('login', false, $email); security_event('totp_fail', $email, (int) $row['id']); fail('bad_code', 'That code is not correct.', 401); }
+        }
+        if (pw_needs_rehash($row['password_hash'])) q('UPDATE users SET password_hash = ? WHERE id = ?', [pw_hash((string) $in['password']), $row['id']]);
         log_attempt('login', true, $email);
+        if ($row['role'] === 'admin') security_event('admin_login', $email, (int) $row['id']);
         sign_in((int) $row['id']);
         json_out(['ok' => true, 'user' => public_user(current_user())]);
 
@@ -109,11 +121,15 @@ try {
         $in = input();
         $token = (string) ($in['token'] ?? '');
         $pass = (string) ($in['password'] ?? '');
-        if (mb_strlen($pass) < 8) fail('weak_password', 'Use at least 8 characters for your password.');
+        rate_limit('reset', null, 10, 60);
+        if (mb_strlen($pass) < 8 || mb_strlen($pass) > 128) fail('weak_password', 'Use 8 to 128 characters for your password.');
+        if (pw_too_common($pass)) fail('weak_password', 'That password is too easy to guess. Try a short sentence you will remember.');
         $r = q('SELECT id, user_id FROM password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > NOW()', [hash('sha256', $token)])->fetch();
-        if (!$r) fail('bad_token', 'This reset link has expired. Ask for a new one.', 400);
-        q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash($pass, PASSWORD_DEFAULT), $r['user_id']]);
-        q('UPDATE password_resets SET used_at = NOW() WHERE id = ?', [$r['id']]);
+        if (!$r) { log_attempt('reset', false); security_event('reset_bad_token'); fail('bad_token', 'This reset link has expired. Ask for a new one.', 400); }
+        // New password, every other device signed out, every other reset link for this account cancelled.
+        q('UPDATE users SET password_hash = ?, auth_epoch = auth_epoch + 1 WHERE id = ?', [pw_hash($pass), $r['user_id']]);
+        q('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$r['user_id']]);
+        security_event('password_reset', '', (int) $r['user_id']);
         sign_in((int) $r['user_id']);
         json_out(['ok' => true]);
 
@@ -131,7 +147,7 @@ try {
         json_out(['repeats' => rx_repeats($hid), 'repeatDue' => rx_repeat_due($hid), 'review' => poly_review($hid), 'food' => food_cautions($hid),
                   'pregnancies' => pregnancies($hid), 'growth' => child_growth($hid), 'points' => points_view($hid), 'numbers' => telephony_numbers(),
                   'phones' => array_map(fn($m) => ['memberId' => (int) $m['id'], 'phone' => $m['phone'], 'verified' => (bool) $m['phone_verified'], 'sms' => (bool) $m['sms_remind']],
-                                        q('SELECT id, phone, phone_verified, sms_remind FROM members WHERE user_id = ?', [$hid])->fetchAll())]);
+                                        array_map('member_open', q('SELECT id, phone, phone_verified, sms_remind FROM members WHERE user_id = ?', [$hid])->fetchAll()))]);
 
     case 'rx_repeat_save':
         rx_repeat_save($hid, input());
@@ -213,9 +229,13 @@ try {
         $in = input();
         $row = q('SELECT password_hash FROM users WHERE id = ?', [$user['id']])->fetch();
         if (!password_verify((string) ($in['current'] ?? ''), $row['password_hash'])) fail('bad_password', 'Your current password is not correct.', 403);
-        if (mb_strlen((string) ($in['new'] ?? '')) < 8) fail('weak_password', 'Use at least 8 characters for your new password.');
-        q('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash((string) $in['new'], PASSWORD_DEFAULT), $user['id']]);
-        session_regenerate_id(true);
+        $new = (string) ($in['new'] ?? '');
+        if (mb_strlen($new) < 8 || mb_strlen($new) > 128) fail('weak_password', 'Use 8 to 128 characters for your new password.');
+        if (pw_too_common($new)) fail('weak_password', 'That password is too easy to guess. Try a short sentence you will remember.');
+        q('UPDATE users SET password_hash = ?, auth_epoch = auth_epoch + 1 WHERE id = ?', [pw_hash($new), $user['id']]);
+        q('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$user['id']]);
+        security_event('password_change', '', (int) $user['id']);
+        sign_in((int) $user['id']);   // this device stays signed in; others are signed out
         json_out(['ok' => true]);
 
     case 'export':   // DPDP: right to access your data
@@ -225,7 +245,7 @@ try {
             'exported_at' => date('c'),
             'account' => q('SELECT name, email, phone, language, consent_version, consent_at, created_at, plan, plan_until, weekly_email FROM users WHERE id = ?', [$user['id']])->fetch(),
             'payments' => q("SELECT period, amount_paise/100 AS amount_rupees, status, rp_order_id, rp_payment_id, created_at, paid_at FROM payments WHERE user_id = ?", [$user['id']])->fetchAll(),
-            'members' => q('SELECT name, relation, allergies, blood_group, conditions, emergency_contact FROM members WHERE user_id = ?', [$uid])->fetchAll(),
+            'members' => array_map('member_open', q('SELECT name, relation, allergies, blood_group, conditions, emergency_contact, phone FROM members WHERE user_id = ?', [$uid])->fetchAll()),
             'medicines' => q('SELECT c.name, m.name AS member, c.batch_no, c.mfg_month, c.exp_month, c.dose_times, c.quantity, c.notes, c.created_at FROM cabinet_items c LEFT JOIN members m ON m.id = c.member_id WHERE c.user_id = ?', [$uid])->fetchAll(),
             'doses_taken' => q('SELECT c.name, d.slot, d.taken_on, d.taken_at, d.status, d.reason, d.source FROM dose_logs d JOIN cabinet_items c ON c.id = d.item_id WHERE d.user_id = ? ORDER BY d.taken_on DESC', [$uid])->fetchAll(),
             'reminders' => q('SELECT enabled, m_time, a_time, e_time, b_time FROM reminder_settings WHERE user_id = ?', [$user['id']])->fetch(),
@@ -259,7 +279,7 @@ try {
     case 'bootstrap':
         $uid = $hid;
         q('UPDATE users SET last_seen_at = NOW() WHERE id = ? AND (last_seen_at IS NULL OR last_seen_at < NOW() - INTERVAL 30 MINUTE)', [$user['id']]);
-        $members = q('SELECT id, name, relation, allergies, is_self, birth_date, blood_group, conditions, emergency_contact FROM members WHERE user_id = ? ORDER BY is_self DESC, id', [$uid])->fetchAll();
+        $members = array_map('member_open', q('SELECT id, name, relation, allergies, is_self, birth_date, blood_group, conditions, emergency_contact FROM members WHERE user_id = ? ORDER BY is_self DESC, id', [$uid])->fetchAll());
         $items = q('SELECT id, member_id, name, catalog_id, info_id, batch_no, mfg_month, exp_month, quantity, dose_times, notes, stock_count, per_dose, course_end FROM cabinet_items WHERE user_id = ? ORDER BY exp_month', [$uid])->fetchAll();
         $today = date('Y-m-d');
         $doses = q('SELECT item_id, slot, status, reason, source, taken_at FROM dose_logs WHERE user_id = ? AND taken_on = ?', [$uid, $today])->fetchAll();
@@ -305,7 +325,7 @@ try {
             foreach (['blood_group' => 4, 'conditions' => 300, 'emergency_contact' => 80] as $f => $max) if (array_key_exists($f, $in)) {
                 $v = str_in($in, $f, $max);
                 if ($f === 'blood_group' && $v !== null && !in_array(strtoupper($v), ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], true)) fail('bad_blood', 'Choose a blood group from the list.');
-                q("UPDATE members SET $f = ? WHERE id = ?", [$f === 'blood_group' && $v ? strtoupper($v) : $v, $id]);
+                q("UPDATE members SET $f = ? WHERE id = ?", [$f === 'blood_group' ? ($v ? strtoupper($v) : $v) : seal($v), $id]);   // conditions and emergency contact are stored encrypted
             }
         } else {
             $lim = plan_info($user)['limits']['members'];
@@ -651,7 +671,7 @@ try {
 
     case 'contact_send':
         $in = input();
-        if (!empty($in['website'])) json_out(['ok' => true]);   // honeypot: bots fill hidden fields
+        if (!empty($in['website'])) { security_event('bot_contact'); json_out(['ok' => true]); }   // honeypot: bots fill hidden fields
         rate_limit('contact', null, 5, 60);
         $name = str_in($in, 'name', 80, true);
         $email = strtolower((string) str_in($in, 'email', 160, true));
@@ -897,6 +917,30 @@ try {
         json_out(['ok' => true, 'aiOptIn' => (bool) $on, 'available' => ai_enabled()]);
 
     /* ---------------- Admin ---------------- */
+    /* ---------------- Admin security: two-factor sign-in and security events ---------------- */
+    case 'admin_2fa_setup':   // makes a new secret (shown once as a QR); two-factor is on only after admin_2fa_enable confirms a code
+        if ($user['role'] !== 'admin') fail('forbidden', 'Only administrators can do this.', 403);
+        if (!empty($user['totp_on'])) fail('already_on', 'Two-factor sign-in is already on.', 409);
+        $secret = b32_secret();
+        q('UPDATE users SET totp_secret = ? WHERE id = ?', [seal($secret), $user['id']]);
+        json_out(['secret' => $secret, 'uri' => totp_uri($secret, $user['email'])]);
+
+    case 'admin_2fa_enable':
+        if ($user['role'] !== 'admin') fail('forbidden', 'Only administrators can do this.', 403);
+        rate_limit('totp', null, 10, 15);
+        $sec = (string) unseal(q('SELECT totp_secret FROM users WHERE id = ?', [$user['id']])->fetchColumn() ?: null);
+        if ($sec === '' || !totp_ok($sec, (string) (input()['code'] ?? ''))) { log_attempt('totp', false); security_event('totp_fail', 'enrol', (int) $user['id']); fail('bad_code', 'That code is not correct. Check the time on your phone and try again.', 422); }
+        q('UPDATE users SET totp_on = 1 WHERE id = ?', [$user['id']]);
+        security_event('totp_on', '', (int) $user['id']);
+        json_out(['ok' => true]);
+
+    case 'admin_security':   // recent security events and counts by kind (30 days)
+        require_admin($user);
+        json_out(['counts' => q('SELECT kind, COUNT(*) n FROM security_events WHERE created_at >= NOW() - INTERVAL 30 DAY GROUP BY kind ORDER BY n DESC')->fetchAll(),
+                  'events' => array_map(fn($e) => ['kind' => $e['kind'], 'ip' => preg_replace('/(\d+)\.(\d+)$/', 'x.x', (string) $e['ip']), 'detail' => $e['detail'], 'at' => $e['created_at']],
+                                        q('SELECT kind, ip, detail, created_at FROM security_events ORDER BY id DESC LIMIT 100')->fetchAll()),
+                  'checks' => security_checks()]);
+
     case 'admin_stats':
         require_admin($user);
         json_out([
@@ -1025,7 +1069,9 @@ try {
         require_admin($user);
         $in = input();
         $source = preg_replace('/[^a-z0-9_.-]/', '', strtolower((string) ($in['source'] ?? 'import')));
-        $rows = parse_list_file((string) ($in['content'] ?? ''));
+        $content = (string) ($in['content'] ?? '');
+        if (!mb_check_encoding($content, 'UTF-8') || str_contains($content, "\0")) fail('bad_file', 'Upload a text file (CSV or pipe-separated), not a spreadsheet or image.');
+        $rows = parse_list_file($content);
         if (!$rows) fail('empty', 'No rows found. Use CSV (drug_code,generic_name,unit_size) or pipe format.');
         if (count($rows) > 20000) fail('too_big', 'Import at most 20,000 rows at a time.');
         audit($user, 'catalog_import', "$source: " . count($rows) . ' rows');
@@ -1129,6 +1175,7 @@ function sign_in(int $uid): void
 {
     session_regenerate_id(true);
     $_SESSION['uid'] = $uid;
+    $_SESSION['ep'] = (int) q('SELECT auth_epoch FROM users WHERE id = ?', [$uid])->fetchColumn();
     $_SESSION['csrf'] = bin2hex(random_bytes(32));
     q('UPDATE users SET last_login_at = NOW() WHERE id = ?', [$uid]);
 }
@@ -1171,5 +1218,7 @@ function rate_limit(string $kind, ?string $email, int $max, int $minutes): void
 
 function require_admin(array $u): void
 {
-    if ($u['role'] !== 'admin') fail('forbidden', 'Only administrators can do this.', 403);
+    if ($u['role'] !== 'admin') { security_event('admin_denied', (string) ($_GET['action'] ?? ''), (int) $u['id']); fail('forbidden', 'Only administrators can do this.', 403); }
+    // Administrators must turn on two-factor sign-in before they can use the dashboard (config admin_2fa => false turns this off for a test install).
+    if (config('admin_2fa') !== false && empty($u['totp_on'])) fail('setup_2fa', 'Turn on two-factor sign-in first (Admin → Security).', 403);
 }

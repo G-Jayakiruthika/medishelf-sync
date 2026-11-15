@@ -162,8 +162,8 @@ function ask_data(string $question): array
     if (!$plan['metrics'] && !$plan['snapshot'] && !$plan['list'] && ai_enabled()) {
         $keys = implode("\n", array_map(fn($k, $m) => "$k: {$m[0]}", array_keys($cat), $cat));
         $snapKeys = implode(', ', array_keys(snapshot_metrics()));
-        $j = ai_json('ask_route', "You route a business owner's question to metrics of a family medicine-reminder web app. Daily metrics:\n$keys\nSnapshot metrics: $snapKeys\nLists: pages, sources.",
-            "Question: $question\nReturn {\"metrics\": [up to 2 daily metric keys], \"snapshot\": key or null, \"list\": \"pages\"|\"sources\"|null, \"days\": number of days}");
+        $j = ai_json('ask_route', "You route a business owner's question to metrics of a family medicine-reminder web app. Daily metrics:\n$keys\nSnapshot metrics: $snapKeys\nLists: pages, sources. " . AI_UNTRUSTED_RULE,
+            ai_untrusted('owner question', $question) . "\nReturn {\"metrics\": [up to 2 daily metric keys], \"snapshot\": key or null, \"list\": \"pages\"|\"sources\"|null, \"days\": number of days}");
         if ($j) {
             $usedAi = true;
             $plan['metrics'] = array_values(array_intersect((array) ($j['metrics'] ?? []), array_keys($cat)));

@@ -132,13 +132,16 @@
 
   $("#loginForm").addEventListener("submit", async (e) => {
     e.preventDefault(); showErr($("#loginErr"), "");
-    try { await api.post("login", { email: $("#liEmail").value, password: $("#liPass").value }); $("#liPass").value = ""; await enterApp(); }
-    catch (err) { showErr($("#loginErr"), err.message); }
+    try { await api.post("login", { email: $("#liEmail").value, password: $("#liPass").value, code: $("#liCode").value || undefined }); $("#liPass").value = ""; $("#liCode").value = ""; $("#liCodeF").hidden = true; await enterApp(); }
+    catch (err) { if (err.code === "need_code") { $("#liCodeF").hidden = false; $("#liCode").focus(); } showErr($("#loginErr"), err.message); }
   });
+  let suShown = Date.now();   // a form sent back faster than a person can type is a bot
+  new MutationObserver(() => { if (!$("#signupForm").hidden) suShown = Date.now(); }).observe($("#signupForm"), { attributes: true, attributeFilter: ["hidden"] });
   $("#signupForm").addEventListener("submit", async (e) => {
     e.preventDefault(); showErr($("#signupErr"), "");
     try {
-      await api.post("signup", { name: $("#suName").value, email: $("#suEmail").value, phone: $("#suPhone").value, password: $("#suPass").value, consent: $("#suConsent").checked, language: state.lang });
+      await api.post("signup", { name: $("#suName").value, email: $("#suEmail").value, phone: $("#suPhone").value, password: $("#suPass").value, consent: $("#suConsent").checked,
+        adult: $("#suAdult").checked, marketing: $("#suMarketing").checked, website: $("#suWebsite").value, form_ms: Date.now() - suShown, language: state.lang });
       $("#suPass").value = ""; track("signup"); await enterApp();
     } catch (err) { showErr($("#signupErr"), err.message); }
   });

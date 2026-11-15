@@ -545,3 +545,6 @@ body.lite video, body.lite .scene3d, body.lite [data-3d] { display: none !import
 @media (min-width: 760px) { .scene3d { width: 120px; height: 104px; } }
 .hero-3d { width: 100%; max-width: 520px; height: 340px; display: block; margin: 0 auto; }
 @media (max-width: 600px) { .hero-3d { height: 240px; } }
+
+/* Bot trap: a field people never see or reach with the keyboard */
+.hp { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }

@@ -106,6 +106,7 @@ function visit_sheet(int $hid, ?int $memberId): array
 {
     $m = $memberId ? q('SELECT id, name, relation, allergies, blood_group, conditions FROM members WHERE id = ? AND user_id = ?', [$memberId, $hid])->fetch() : null;
     if ($memberId && !$m) fail('not_found', 'That person was not found.', 404);
+    if ($m) $m = member_open($m);
     $cond = $memberId ? 'AND (c.member_id = ? OR c.member_id IS NULL)' : '';
     $args = $memberId ? [$hid, $memberId] : [$hid];
     $meds = q("SELECT c.id, c.name, c.dose_times, c.per_dose, c.stock_count, c.course_end, c.notes, c.exp_month, i.ingredient FROM cabinet_items c LEFT JOIN medicine_info i ON i.id = c.info_id

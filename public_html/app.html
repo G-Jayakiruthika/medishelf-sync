@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=12">
+<link rel="stylesheet" href="/styles.css?v=13">
 </head>
 <body>
 
@@ -38,6 +38,7 @@
     <form class="stack" id="loginForm" autocomplete="on">
       <div class="field"><label for="liEmail" data-i18n="email">E-mail</label><input id="liEmail" type="email" autocomplete="email" required></div>
       <div class="field"><label for="liPass" data-i18n="password">Password</label><input id="liPass" type="password" autocomplete="current-password" required></div>
+      <div class="field" id="liCodeF" hidden><label for="liCode" data-i18n="liCode">6-digit code from your authenticator app</label><input id="liCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}"></div>
       <p class="error" id="loginErr" hidden></p>
       <button class="btn btn-primary" type="submit" data-i18n="signIn">Sign in</button>
       <button class="link" type="button" id="btnForgot" data-i18n="forgot" style="justify-self:start">Forgot password?</button>
@@ -47,7 +48,10 @@
       <div class="field"><label for="suName" data-i18n="yourName">Your name</label><input id="suName" autocomplete="name" maxlength="80" required></div>
       <div class="field"><label for="suEmail" data-i18n="email">E-mail</label><input id="suEmail" type="email" autocomplete="email" maxlength="160" required></div>
       <div class="field"><label for="suPhone" data-i18n="phoneOpt">Mobile number (optional)</label><input id="suPhone" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" autocomplete="tel-national"></div>
-      <div class="field"><label for="suPass" data-i18n="password">Password</label><input id="suPass" type="password" minlength="8" autocomplete="new-password" required></div>
+      <div class="field"><label for="suPass" data-i18n="password">Password</label><input id="suPass" type="password" minlength="8" maxlength="128" autocomplete="new-password" required><small class="muted" data-i18n="pwHint">At least 8 characters. A short sentence is easy to remember and hard to guess.</small></div>
+      <div class="hp" aria-hidden="true"><label for="suWebsite">Website</label><input id="suWebsite" tabindex="-1" autocomplete="off"></div>
+      <label class="check"><input type="checkbox" id="suAdult" required><span data-i18n="suAdult">I am 18 or older. (Children's medicines are added by a parent or guardian inside their family.)</span></label>
+      <label class="check"><input type="checkbox" id="suMarketing"><span data-i18n="suMarketing">Send me occasional product news by e-mail (optional; unsubscribe any time)</span></label>
       <label class="check"><input type="checkbox" id="suConsent" required><span><span data-i18n="consentText">I agree to the privacy notice.</span> <a href="/privacy" target="_blank" rel="noopener" data-i18n="privacyLink">Read the privacy notice</a></span></label>
       <p class="error" id="signupErr" hidden></p>
       <button class="btn btn-primary" type="submit" data-i18n="createAccount">Create account</button>
@@ -700,7 +704,7 @@
 <script src="/rx-parse.js?v=6"></script>
 <script src="/ble-health.js?v=1"></script>
 <script src="/health-import.js?v=1"></script>
-<script src="/app.js?v=11"></script>
+<script src="/app.js?v=12"></script>
 <script src="/network.js?v=3"></script>
 <script src="/careplus.js?v=1"></script>
 <script src="/scene3d.js?v=1" defer></script>

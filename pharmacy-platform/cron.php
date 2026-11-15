@@ -42,6 +42,12 @@ if (date('H') === '02' && (int) date('i') < 15) {
     if ($py !== '') { require_once __DIR__ . '/core/analytics.php'; $log('analytics: ' . json_encode(analytics_run_all($py))); }
 }
 
+// 4b. Weekly encrypted backup (Sunday 03:00), last 8 kept in backups/ (outside the web root). Copy them off the server too.
+if (date('w') === '0' && date('H') === '03' && (int) date('i') < 15) {
+    try { require_once __DIR__ . '/core/backup.php'; $log('backup: ' . basename(backup_make(db(), __DIR__ . '/backups', data_key(), 'pharmacy'))); }
+    catch (Throwable $e) { $log('backup failed: ' . $e->getMessage()); audit('system', null, null, null, 'backup_failed', mb_substr($e->getMessage(), 0, 200)); }
+}
+
 // 5. Clean-up
 q('DELETE FROM hits WHERE created_at < NOW() - INTERVAL 40 DAY');
 q('DELETE FROM nonces WHERE created_at < NOW() - INTERVAL 1 DAY');

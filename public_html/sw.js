@@ -1,6 +1,6 @@
 /* AushadhBox service worker: offline app shell + push reminders. */
-const CACHE = "aushadhbox-v11";
-const SHELL = ["/app", "/styles.css?v=12", "/app.js?v=11", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/i18n-auto.js?v=4", "/i18n-smart.js?v=5", "/i18n-care.js?v=6", "/i18n-autopilot.js?v=7", "/i18n-notebook.js?v=8", "/i18n-household.js?v=9", "/i18n-connect.js?v=9", "/i18n-network.js?v=1", "/network.js?v=3", "/i18n-careplus.js?v=1", "/careplus.js?v=1", "/scene3d.js?v=1", "/rx-parse.js?v=6", "/ble-health.js?v=1", "/health-import.js?v=1", "/consent.js?v=3", "/consent-i18n.js?v=3",
+const CACHE = "aushadhbox-v12";
+const SHELL = ["/app", "/styles.css?v=13", "/app.js?v=12", "/i18n.js?v=3", "/i18n-account.js?v=3", "/i18n-premium.js?v=3", "/i18n-auto.js?v=4", "/i18n-smart.js?v=5", "/i18n-care.js?v=6", "/i18n-autopilot.js?v=7", "/i18n-notebook.js?v=8", "/i18n-household.js?v=9", "/i18n-connect.js?v=9", "/i18n-network.js?v=1", "/network.js?v=3", "/i18n-careplus.js?v=1", "/careplus.js?v=1", "/scene3d.js?v=1", "/rx-parse.js?v=6", "/ble-health.js?v=1", "/health-import.js?v=1", "/consent.js?v=3", "/consent-i18n.js?v=3",
   "/lib/qrcode.js", "/lib/jsQR.js", "/icons/icon-192.png", "/icons/icon-512.png",
   "/assets/audio/dose-reminder.mp3", "/assets/audio/expiry-alert.mp3", "/assets/audio/saved.mp3"];
 

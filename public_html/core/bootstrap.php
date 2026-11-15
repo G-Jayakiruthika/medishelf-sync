@@ -85,6 +85,10 @@ function security_headers(): void
     header('Referrer-Policy: same-origin');
     header('X-Frame-Options: DENY');
     header('Permissions-Policy: camera=(self), microphone=(self), geolocation=()');
+    header('Cross-Origin-Opener-Policy: same-origin');
+    header('Cross-Origin-Resource-Policy: same-origin');
+    header('X-Permitted-Cross-Domain-Policies: none');
+    if (is_https()) header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 }
 
 function json_out($data, int $status = 200): void
@@ -106,8 +110,13 @@ function input(): array
 {
     static $data = null;
     if ($data === null) {
-        $raw = file_get_contents('php://input') ?: '';
-        $data = $raw !== '' ? (json_decode($raw, true) ?: []) : [];
+        // Bodies are capped (512 KB; the admin medicine-list import 7 MB) so one huge request cannot use up the server's memory.
+        $max = in_array((string) ($_GET['action'] ?? ''), ['admin_import'], true) ? 7 * 1024 * 1024 : 512 * 1024;
+        if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > $max) fail('too_large', 'That request is too large.', 413);
+        $raw = (string) file_get_contents('php://input', false, null, 0, $max + 1);
+        if (strlen($raw) > $max) fail('too_large', 'That request is too large.', 413);
+        $j = $raw !== '' ? json_decode($raw, true, 32) : [];
+        $data = is_array($j) ? $j : [];   // JSON only: nothing is ever unserialised into PHP objects
     }
     return $data;
 }
@@ -148,8 +157,10 @@ function current_user(): ?array
     if (empty($_SESSION['uid'])) return null;
     static $user = null;
     if ($user === null) {
-        $user = q('SELECT id, name, email, phone, language, role, consent_version, plan, plan_until, household_id, weekly_email, onboarded, created_at, ai_opt_in, pharmacy_name, pharmacy_phone, low_data, district, village, health_worker FROM users WHERE id = ?', [$_SESSION['uid']])->fetch() ?: null;
-        if (!$user) { $_SESSION = []; }
+        $user = q('SELECT id, name, email, phone, language, role, consent_version, plan, plan_until, household_id, weekly_email, onboarded, created_at, ai_opt_in, pharmacy_name, pharmacy_phone, low_data, district, village, health_worker, auth_epoch, totp_on, adult_confirmed_at, marketing_ok FROM users WHERE id = ?', [$_SESSION['uid']])->fetch() ?: null;
+        // A password change or reset signs out every other device: their session carries an older epoch.
+        if ($user && (int) ($_SESSION['ep'] ?? 0) !== (int) $user['auth_epoch']) { $user = null; }
+        if (!$user) { $_SESSION = ['csrf' => $_SESSION['csrf'] ?? bin2hex(random_bytes(32))]; return null; }
     }
     return $user;
 }
@@ -166,7 +177,13 @@ function require_csrf(): void
     start_session();
     $sent = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
     if (!is_string($sent) || !hash_equals($_SESSION['csrf'] ?? '', $sent)) {
+        security_event('csrf_fail', (string) ($_GET['action'] ?? ''));
         fail('bad_csrf', 'Your session expired. Reload the page and try again.', 419);
+    }
+    // Defence in depth: a browser always sends Origin on POST; it must be this site.
+    if (!origin_ok()) {
+        security_event('bad_origin', mb_substr((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), 0, 120));
+        fail('bad_origin', 'This request came from another website and was blocked.', 403);
     }
 }
 
@@ -190,3 +207,5 @@ function valid_times(?string $s): string
     $parts = array_filter(explode(',', (string) $s), fn($x) => in_array($x, SLOTS, true));
     return implode(',', array_values(array_unique($parts)));
 }
+
+require_once APP_DIR . '/security.php';

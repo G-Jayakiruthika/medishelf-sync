@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS members (
   is_self    TINYINT(1)   NOT NULL DEFAULT 0,
   birth_date  DATE NULL,                 -- for the vaccination schedule (children)
   blood_group VARCHAR(4)  NULL,          -- emergency card
-  conditions  VARCHAR(300) NULL,         -- e.g. diabetes, high BP (emergency card, doctor report)
-  emergency_contact VARCHAR(80) NULL,    -- name and phone to call
+  conditions  VARCHAR(1600) NULL,        -- e.g. diabetes, high BP (emergency card, doctor report); encrypted (core/security.php)
+  emergency_contact VARCHAR(400) NULL,   -- name and phone to call; encrypted
   card_code   VARCHAR(14) NULL,          -- AushadhBox card: random code in the QR (no personal data); "New card" replaces it
   share_add   TINYINT(1)  NOT NULL DEFAULT 0,  -- pharmacies may add the medicines they give (off until the family allows it)
   share_view  TINYINT(1)  NOT NULL DEFAULT 0,  -- pharmacies may see medicines, allergies and check-ins (for interaction checks)
@@ -691,4 +691,17 @@ CREATE TABLE IF NOT EXISTS sms_out (
   status      VARCHAR(8)   NOT NULL DEFAULT 'queued',  -- queued, sent, failed, logged (no provider set)
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_smsout (template, ref)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Security events: failed sign-ins, lockouts, two-factor failures, blocked cross-site requests, bot traps, admin actions.
+-- Read by the admin dashboard (Security) and summed in the daily digest. Kept 180 days.
+CREATE TABLE IF NOT EXISTS security_events (
+  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  kind       VARCHAR(40)  NOT NULL,
+  user_id    INT UNSIGNED NULL,
+  ip         VARCHAR(45)  NOT NULL,
+  detail     VARCHAR(300) NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_sec_kind_time (kind, created_at),
+  KEY idx_sec_time (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
