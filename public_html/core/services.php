@@ -10,9 +10,12 @@ function mail_enabled(): bool
     return (string) config('smtp_host') !== '' && (string) config('mail_from') !== '';
 }
 
-function send_mail(string $to, string $subject, string $text): bool
+/* $unsub = [user id, kind] for optional e-mails (weekly, alerts, news): adds a one-click unsubscribe link and the
+   List-Unsubscribe headers (RFC 8058) that Gmail and other mail apps show as an "Unsubscribe" button. */
+function send_mail(string $to, string $subject, string $text, ?array $unsub = null): bool
 {
     if (!mail_enabled()) return false;
+    if ($unsub) $text .= "\n\n--\nYou get this because of a setting in your account. Stop these e-mails with one click: " . unsub_link((int) $unsub[0], (string) $unsub[1]);
     $host = config('smtp_host'); $port = (int) config('smtp_port');
     $remote = ($port === 465 ? 'ssl://' : 'tcp://') . $host . ':' . $port;
     $fp = @stream_socket_client($remote, $errno, $errstr, 15);
@@ -47,6 +50,7 @@ function send_mail(string $to, string $subject, string $text): bool
             'Content-Type: text/plain; charset=UTF-8',
             'Content-Transfer-Encoding: base64',
         ];
+        if ($unsub) { $headers[] = 'List-Unsubscribe: <' . unsub_link((int) $unsub[0], (string) $unsub[1]) . '>'; $headers[] = 'List-Unsubscribe-Post: List-Unsubscribe=One-Click'; }
         $body = implode("\r\n", $headers) . "\r\n\r\n" . chunk_split(base64_encode($text));
         $cmd($body . "\r\n.", [250]);
         $cmd('QUIT', [221]);
@@ -199,3 +203,22 @@ function bhashini_tts(string $text, string $lang): ?string
     file_put_contents($file, $wav);
     return $wav;
 }
+
+/* Unsubscribe links carry a keyed signature, so nobody can unsubscribe someone else by changing the number. */
+const UNSUB_KINDS = ['weekly' => 'the weekly expiry e-mail', 'alerts' => 'automatic alerts by e-mail', 'news' => 'product news and tips'];
+function unsub_sig(int $uid, string $kind): string { return substr(hash_hmac('sha256', "unsub:$uid:$kind", fam_data_key()), 0, 32); }
+function unsub_link(int $uid, string $kind): string
+{
+    return rtrim((string) (config('app_url') ?: config('base_url') ?: ''), '/') . '/unsubscribe?u=' . $uid . '&k=' . rawurlencode($kind) . '&t=' . unsub_sig($uid, $kind);
+}
+function unsubscribe(int $uid, string $kind, string $sig): bool
+{
+    if (!isset(UNSUB_KINDS[$kind]) || !hash_equals(unsub_sig($uid, $kind), $sig)) return false;
+    if ($kind === 'weekly') q('UPDATE users SET weekly_email = 0 WHERE id = ?', [$uid]);
+    if ($kind === 'news') q('UPDATE users SET marketing_ok = 0 WHERE id = ?', [$uid]);
+    if ($kind === 'alerts') q("INSERT INTO system_state (k, v) VALUES (?, '1') ON DUPLICATE KEY UPDATE v = '1'", ['noalertmail:' . $uid]);
+    if (function_exists('consent_record')) consent_record($uid, $kind === 'news' ? 'marketing_email' : ($kind === 'weekly' ? 'weekly_email' : 'alert_email'), false, 'unsubscribe link');
+    return true;
+}
+
+function marketing_ok(int $uid): bool { return (bool) q('SELECT marketing_ok FROM users WHERE id = ?', [$uid])->fetchColumn(); }

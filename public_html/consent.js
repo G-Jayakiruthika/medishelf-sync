@@ -79,7 +79,7 @@
         '<label class="opt"><input type="checkbox" id="cAna"><span><b class="c-ana"></b><small class="c-anad"></small></span></label>' +
         '<label class="opt"><input type="checkbox" id="cMkt"><span><b class="c-mkt"></b><small class="c-mktd"></small></span></label>' +
       '</div>' +
-      '<div class="row"><button type="button" class="btn btn-ghost c-reject"></button><button type="button" class="btn btn-ghost c-choose"></button><button type="button" class="btn btn-primary c-accept"></button></div>' +
+      '<div class="row"><button type="button" class="btn btn-primary c-reject"></button><button type="button" class="btn btn-ghost c-choose"></button><button type="button" class="btn btn-primary c-accept"></button></div>' +
       '<a class="c-policy" href="/cookie-policy"></a>';
     var set = function (sel, key) { box.querySelector(sel).textContent = t(key); };
     set("h2", "cTitle"); set(".c-text", "cText"); set(".c-nec", "cNecessary"); set(".c-necd", "cNecessaryD"); set(".c-ana", "cAnalytics"); set(".c-anad", "cAnalyticsD");

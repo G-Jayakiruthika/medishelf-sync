@@ -303,9 +303,9 @@ function run_automations(DateTime $now): array
                         elseif ($code >= 200 && $code < 300) $sent['push']++;
                     } catch (Throwable $e) { error_log('automation push: ' . $e->getMessage()); }
                 }
-            } elseif ($msg['kind'] !== 'missed' && mail_enabled()) {   // missed-dose alerts are time-critical: push only
+            } elseif ($msg['kind'] !== 'missed' && mail_enabled() && !q('SELECT 1 FROM system_state WHERE k = ?', ['noalertmail:' . $u['id']])->fetch()) {   // missed-dose alerts: push only; e-mail stops after unsubscribe
                 $base = rtrim((string) config('app_url'), '/');
-                if (send_mail($u['email'], $msg['title'], "Hello {$u['name']},\n\n{$msg['body']}\n\nOpen AushadhBox: $base{$msg['url']}\nChange automatic alerts: Account → Automations.\n")) $sent['mail']++;
+                if (send_mail($u['email'], $msg['title'], "Hello {$u['name']},\n\n{$msg['body']}\n\nOpen AushadhBox: $base{$msg['url']}\nChange automatic alerts: Account → Automations.\n", [(int) $u['id'], 'alerts'])) $sent['mail']++;
             }
         }
     }

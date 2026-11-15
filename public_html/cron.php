@@ -32,8 +32,8 @@ if ((int) date('w') === 0 && (int) date('G') >= 2 && (string) state_get('backup_
     try { require_once APP_DIR . '/backup.php'; $bf = backup_make(db(), APP_DIR . '/backups', fam_data_key(), 'family'); state_set('backup_day', date('Y-m-d')); state_set('last_backup', date('Y-m-d H:i:s')); echo 'backup: ' . basename($bf) . "\n"; }
     catch (Throwable $e) { error_log('backup: ' . $e->getMessage()); security_event('backup_failed', mb_substr($e->getMessage(), 0, 200)); }
 }
-// Old security events are removed after 180 days.
-q('DELETE FROM security_events WHERE created_at < NOW() - INTERVAL 180 DAY');
+// Security events are kept one year (the privacy policy's promise for security logs), then removed.
+q('DELETE FROM security_events WHERE created_at < NOW() - INTERVAL 365 DAY');
 // Housekeeping (runs even without push): keep security logs one year, then delete; clear old tokens and reminder marks.
 q('DELETE FROM login_attempts WHERE created_at < NOW() - INTERVAL 1 YEAR');
 q('DELETE FROM password_resets WHERE expires_at < NOW() - INTERVAL 7 DAY');
@@ -77,7 +77,7 @@ if (mail_enabled() && (int) $now->format('H') >= 9) {
             $lines = array_map(fn($i) => ($i['expired'] ? '[EXPIRED] ' : '[SOON]    ') . $i['name'] . ' — ' . $i['exp'] . ($i['member'] ? ' (' . $i['member'] . ')' : ''), $items);
             if (send_mail($u['email'], count($items) . " medicines need attention this week · $site",
                 "Hello {$u['name']},\n\nThese medicines in your family cabinet have expired or expire within 60 days:\n\n" . implode("\n", $lines) .
-                "\n\nOpen your cabinet: $base/app#cabinet\nHow to dispose of old medicines: $base/guides/how-to-dispose-of-expired-medicines-in-india\n\nTo stop these e-mails: Account → Weekly e-mail.\n\n$site")) $mailed++;
+                "\n\nOpen your cabinet: $base/app#cabinet\nHow to dispose of old medicines: $base/guides/how-to-dispose-of-expired-medicines-in-india\n\n$site", [(int) $u['id'], 'weekly'])) $mailed++;
         }
     }
 }

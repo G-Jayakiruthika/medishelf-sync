@@ -3,7 +3,7 @@
 :root {
   --paper: #EEF2EF; --surface: #FFFFFF; --sunk: #E3E9E5; --ink: #16202E; --muted: #566274; --line: #CDD6D0;
   --ai: #1F3358; --ai-2: #3A5487; --ai-ink: #FFFFFF; --ai-soft: #DFE5F0;
-  --ok: #3E7D49; --ok-soft: #DCEBDD; --warn: #A86C08; --warn-soft: #F5E6C8; --bad: #B3382A; --bad-soft: #F5DAD5;
+  --ok: #397243; --ok-soft: #DCEBDD; --warn: #8E5B06; --warn-soft: #F5E6C8; --bad: #B3382A; --bad-soft: #F5DAD5;
   --shadow: 0 1px 0 rgba(22,32,46,.05), 0 18px 40px -22px rgba(22,32,46,.35);
   --f-display: "Zen Maru Gothic", "Noto Sans", "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans Bengali", "Noto Sans Gujarati", "Noto Sans Gurmukhi", system-ui, sans-serif;
   --f-body: "Noto Sans", "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans Bengali", "Noto Sans Gujarati", "Noto Sans Gurmukhi", system-ui, sans-serif;

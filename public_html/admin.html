@@ -77,6 +77,14 @@
     <form class="row" id="tfaForm"><label for="tfaCode" class="sr-only">Code</label><input id="tfaCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" placeholder="123456" required><button class="btn btn-primary" type="submit">Turn on</button></form>
   </section>
 
+  <section class="panel stack" id="prCard" hidden aria-labelledby="prTitle">
+    <h3 id="prTitle">Privacy requests</h3>
+    <p class="muted small">Access, correction, erasure, nominee and grievance requests from the app's Privacy tab. Answer within 30 days (the DPDP Rules allow at most 90 for grievances). The person sees your reply in the app.</p>
+    <div class="table-scroll"><table><thead><tr><th>Ref</th><th>Who</th><th>Kind</th><th>Details</th><th>Due</th><th>Answer</th></tr></thead><tbody id="prRows"></tbody></table></div>
+    <details><summary>Record of processing (what personal data the service keeps)</summary><div class="table-scroll"><table><thead><tr><th>Data</th><th>Why</th><th>Basis</th><th>Who receives it</th><th>How long</th><th>Protection</th></tr></thead><tbody id="prRegister"></tbody></table></div></details>
+    <p class="muted small" id="prConsents"></p>
+  </section>
+
   <section class="panel stack" id="secCard" hidden aria-labelledby="secTitle">
     <h3 id="secTitle">Security</h3>
     <ul class="ap-list" id="secChecks"></ul>
@@ -143,6 +151,6 @@
   </form>
 </main>
 <script src="/lib/qrcode.js"></script>
-<script src="/admin.js?v=9"></script>
+<script src="/admin.js?v=10"></script>
 </body>
 </html>

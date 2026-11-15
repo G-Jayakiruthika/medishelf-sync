@@ -262,7 +262,7 @@ function run_growth_nudges(DateTime $now): array
         $mark((int) $u['id'], 'a');
         $msg = ['title' => 'Add your medicines in one photo', 'body' => 'Photograph a prescription or pharmacy bill: every medicine, time and day is filled in for you.', 'url' => '/app#scan', 'tag' => 'onboard'];
         if (push_to_user((int) $u['id'], $msg)) $sent['activation']++;
-        elseif (mail_enabled() && send_mail($u['email'], 'Your medicine box is empty · ' . site_title(), "Hello {$u['name']},\n\n{$msg['body']}\nIt takes less than a minute: $base/app#scan\n\n" . site_title())) $sent['activation']++;
+        elseif (mail_enabled() && marketing_ok((int) $u['id']) && send_mail($u['email'], 'Your medicine box is empty · ' . site_title(), "Hello {$u['name']},\n\n{$msg['body']}\nIt takes less than a minute: $base/app#scan\n\n" . site_title(), [(int) $u['id'], 'news'])) $sent['activation']++;
     }
     // k — has medicines, away 14 to 60 days, and something in the cabinet needs attention (a real reason to come back)
     foreach (q("SELECT u.id, (SELECT COUNT(*) FROM cabinet_items c WHERE c.user_id = u.id AND c.exp_month IS NOT NULL AND LAST_DAY(c.exp_month) < ? + INTERVAL 30 DAY) soon

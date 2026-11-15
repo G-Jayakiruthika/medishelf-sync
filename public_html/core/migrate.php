@@ -34,6 +34,8 @@ const MIGRATION_COLUMNS = [
         'totp_on' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER totp_secret',
         'adult_confirmed_at' => 'DATETIME NULL AFTER totp_on',
         'marketing_ok' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER adult_confirmed_at',
+        'nominee_name' => 'VARCHAR(400) NULL AFTER marketing_ok',        // DPDP s.14: who may use these rights if the user dies or cannot act (encrypted)
+        'nominee_contact' => 'VARCHAR(400) NULL AFTER nominee_name',
     ],
     'pharmacies' => [
         'network_branch_id' => 'INT UNSIGNED NULL AFTER id',
@@ -125,6 +127,9 @@ function migrate(): array
             db()->exec("ALTER TABLE `$table` ADD $def"); $done[] = "added index $name";
         }
     }
+    // 3c. The record of processing (core/privacy.php) follows the code
+    require_once APP_DIR . '/privacy.php';
+    privacy_register_sync();
     // 4. Link each owner's own "self" member to their login (used by the "did you take it?" check).
     $n = q('UPDATE members m JOIN users u ON u.id = m.user_id SET m.account_id = u.id WHERE m.is_self = 1 AND m.account_id IS NULL')->rowCount();
     if ($n) $done[] = "linked $n self members to their logins";

@@ -129,6 +129,7 @@ function route_site(string $path): void
             return;
         case preg_match('#^tick/([A-Za-z0-9_-]{24,64})$#', $page, $m) === 1: require APP_DIR . '/pages/tick.php'; tick_page($m[1]); return;
         case preg_match('#^share/([A-Za-z0-9_-]{20,64})$#', $page, $m) === 1: require APP_DIR . '/pages/share.php'; share_page($m[1]); return;
+        case $page === 'unsubscribe': unsubscribe_page(); return;
         // Share target when the service worker isn't running yet: just open the scanner.
         case $page === 'app/share':      header('Location: /app#scan', true, 303); return;
         case $page === 'report':         require APP_DIR . '/pages/report.php'; return;
@@ -139,7 +140,7 @@ function route_site(string $path): void
 function robots(): void
 {
     header('Content-Type: text/plain; charset=utf-8');
-    echo "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api.php\nDisallow: /admin.html\nDisallow: /core/\nDisallow: /install.php\nDisallow: /cron.php\nDisallow: /webhook.php\nDisallow: /report\nDisallow: /calendar/\nDisallow: /share/\nDisallow: /device.php\nDisallow: /tick/\nDisallow: /watch\nDisallow: /partner_api.php\n\nSitemap: " . base_url() . "/sitemap.xml\n";
+    echo "User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api.php\nDisallow: /admin.html\nDisallow: /core/\nDisallow: /install.php\nDisallow: /cron.php\nDisallow: /webhook.php\nDisallow: /report\nDisallow: /calendar/\nDisallow: /share/\nDisallow: /device.php\nDisallow: /tick/\nDisallow: /unsubscribe\nDisallow: /watch\nDisallow: /partner_api.php\n\nSitemap: " . base_url() . "/sitemap.xml\n";
 }
 
 /* Private calendar feed of a family's dose times (subscribed from Google Calendar or the iPhone Calendar app). */
@@ -174,4 +175,22 @@ function breadcrumbs(array $items): array
     $list = [];
     foreach ($items as $i => [$name, $path]) $list[] = ['@type' => 'ListItem', 'position' => $i + 1, 'name' => $name, 'item' => base_url() . $path];
     return ['@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => $list];
+}
+
+/* One-click unsubscribe (link in optional e-mails). Mail apps POST here without a page (RFC 8058); people see a confirm button,
+   so a link scanner that only opens the page cannot unsubscribe anyone. The signed link is the permission: no sign-in needed. */
+function unsubscribe_page(): void
+{
+    require_once APP_DIR . '/services.php';
+    $uid = (int) ($_GET['u'] ?? 0); $kind = (string) ($_GET['k'] ?? ''); $sig = (string) ($_GET['t'] ?? '');
+    $e = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
+    header('Content-Type: text/html; charset=utf-8'); header('X-Robots-Tag: noindex'); header('Cache-Control: no-store');
+    $page = fn(string $title, string $body) => print('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . $e($title) . '</title><link rel="stylesheet" href="/site.css"></head><body><main class="wrap" style="max-width:560px;padding:48px 16px"><h1>' . $e($title) . '</h1>' . $body . '<p><a href="/app#account">Open your account settings</a></p></main></body></html>');
+    if (!isset(UNSUB_KINDS[$kind]) || !hash_equals(unsub_sig($uid, $kind), $sig)) { http_response_code(400); $page('This link is not valid', '<p>Change your e-mail settings in the app under Account.</p>'); return; }
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        unsubscribe($uid, $kind, $sig);
+        $page('You are unsubscribed', '<p>You will not get ' . $e(UNSUB_KINDS[$kind]) . ' any more. Messages you need for your account (password resets, payment receipts) still arrive.</p>');
+        return;
+    }
+    $page('Unsubscribe?', '<p>Stop ' . $e(UNSUB_KINDS[$kind]) . '?</p><form method="post"><button class="btn btn-primary" type="submit">Unsubscribe</button></form>');
 }

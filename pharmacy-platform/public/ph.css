@@ -3,7 +3,7 @@
 :root {
   --paper: #EEF2EF; --surface: #FFFFFF; --sunk: #F4F7F5; --ink: #16202E; --muted: #5A6577; --line: #CDD6D0;
   --ai: #1F3358; --ai-ink: #FFFFFF; --ai-soft: #E3E9F4;
-  --ok: #3E7D49; --ok-soft: #DCEBDD; --warn: #A86C08; --warn-soft: #F5E6C8; --bad: #B3382A; --bad-soft: #F5DAD5;
+  --ok: #397243; --ok-soft: #DCEBDD; --warn: #8E5B06; --warn-soft: #F5E6C8; --bad: #B3382A; --bad-soft: #F5DAD5;
   --radius: 16px; --f: "Noto Sans", system-ui, -apple-system, "Segoe UI", sans-serif; --f-display: "Zen Maru Gothic", var(--f);
   color-scheme: light;
 }
@@ -155,3 +155,7 @@ h1.h3d .scene3d { width: 76px; height: 64px; flex: none; margin: -10px 0 -10px -
 
 /* Bot trap: a field people never see or reach with the keyboard */
 .hp { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+/* Keyboard users: jump past the header; visible focus everywhere */
+.skip-link { position: absolute; left: -999px; top: 8px; background: var(--ai); color: #fff; padding: 8px 14px; border-radius: 8px; z-index: 100; }
+.skip-link:focus { left: 12px; }

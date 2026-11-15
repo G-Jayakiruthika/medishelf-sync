@@ -22,6 +22,9 @@ return [
     'support_email'    => 'support@your-site.example.com',
     'support_phone'    => '',                          // optional, e.g. +91 98xxxxxxxx
     'grievance_officer'=> 'Your Name',
+    'privacy_email'    => '',                          // where privacy requests go (defaults to support_email)
+    'gstin'            => '',                          // optional: shown in the footer and on receipts when registered
+    'business_reg'     => '',                          // optional: Udyam / CIN / shop registration number
 
     // ---- Premium plan prices in rupees ----
     'price_month' => 49,

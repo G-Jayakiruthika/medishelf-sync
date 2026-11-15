@@ -10,8 +10,8 @@
   --ai: #1F3358;         /* indigo (ai-iro) accent */
   --ai-ink: #FFFFFF;
   --ai-soft: #DFE5F0;
-  --ok: #3E7D49;  --ok-soft: #DCEBDD;
-  --warn: #A86C08; --warn-soft: #F5E6C8;
+  --ok: #397243;  --ok-soft: #DCEBDD;
+  --warn: #8E5B06; --warn-soft: #F5E6C8;
   --bad: #B3382A;  --bad-soft: #F5DAD5;
   --shadow: 0 1px 0 rgba(22,32,46,.06), 0 8px 24px -12px rgba(22,32,46,.18);
   --f-display: "Zen Maru Gothic", "Noto Sans", "Noto Sans Devanagari", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans Bengali", "Noto Sans Gujarati", "Noto Sans Gurmukhi", system-ui, sans-serif;
@@ -548,3 +548,16 @@ body.lite video, body.lite .scene3d, body.lite [data-3d] { display: none !import
 
 /* Bot trap: a field people never see or reach with the keyboard */
 .hp { position: absolute !important; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+/* Privacy tab: record of processing */
+.pv-register { display: grid; gap: 6px; }
+.pv-row { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--surface); }
+.pv-row summary { cursor: pointer; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pv-row dl { display: grid; grid-template-columns: minmax(110px, 30%) 1fr; gap: 4px 12px; margin: 10px 0 2px; font-size: .9rem; }
+.pv-row dt { color: var(--muted); font-weight: 600; }
+.pv-row dd { margin: 0; }
+@media (max-width: 520px) { .pv-row dl { grid-template-columns: 1fr; } .pv-row dd { margin-bottom: 6px; } }
+
+/* Keyboard users: jump past the header */
+.skip-link { position: absolute; left: -999px; top: 8px; background: var(--ai); color: var(--ai-ink, #fff); padding: 8px 14px; border-radius: 8px; z-index: 100; }
+.skip-link:focus { left: 12px; }

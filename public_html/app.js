@@ -21,7 +21,7 @@
     ["numbers", "Emergency numbers: 108 ambulance, 112 emergency"]
   ];
 
-  const EXTRA_VIEWS = ["card", "shops", "care"];   // reached from buttons, not the bottom bar
+  const EXTRA_VIEWS = ["card", "shops", "care", "privacy"];   // reached from buttons, not the bottom bar
   const isView = (id) => VIEWS.some(v => v.id === id) || EXTRA_VIEWS.includes(id);
 
   /* ---------------- State ---------------- */
@@ -1480,14 +1480,19 @@
     $("#vxNext").hidden = !next; if (next) $("#vxNext").textContent = t("vxNext", { name: next.name, d: fmtDay(next.due) });
     $("#vxPast").hidden = !list.some(v => !v.given && v.due < today);
   }
-  $("#pfBirth").addEventListener("change", async () => {
+  const saveBirth = async () => {
     const m = state.members.find(x => x.id === state.nbMember); if (!m) return;
     try {
-      await api.post("member_save", { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, birth_date: $("#pfBirth").value });
-      m.birthDate = $("#pfBirth").value || null;
+      await api.post("member_save", { id: m.id, name: m.name, relation: m.relation, allergies: m.allergies, birth_date: $("#pfBirth").value, guardian: $("#pfGuardian").checked });
+      m.birthDate = $("#pfBirth").value || null; $("#pfGuardianF").hidden = true;
       const data = await api.get("bootstrap"); state.vaccines = data.vaccines || []; renderVaccines(); toast("✔ " + t("saved"));
-    } catch (err) { toast(err.message); }
-  });
+    } catch (err) {   // a child's details need a parent's or guardian's consent (DPDP s.9)
+      if (err.code === "guardian_needed") { $("#pfGuardianF").hidden = false; $("#pfGuardian").focus(); }
+      toast(err.message);
+    }
+  };
+  $("#pfBirth").addEventListener("change", saveBirth);
+  $("#pfGuardian").addEventListener("change", () => { if ($("#pfGuardian").checked) saveBirth(); });
   $("#vxList").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-vx]"); if (!b) return;
     try { state.vaccines = (await api.post("vaccine_given", { id: Number(b.dataset.vx), given: b.dataset.on === "1", date: state.today })).vaccines; renderVaccines(); if (b.dataset.on === "1") sound("saved"); }

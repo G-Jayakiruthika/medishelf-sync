@@ -153,7 +153,7 @@
     csrf = session.csrf;
     if (!session.user) { location.href = "/app#signin"; return; }
     if (!session.user.admin) { showError("This page is only for administrators."); return; }
-    await Promise.all([load(), loadAutopilot().catch(e => showError(e.message)), loadPharmacies().catch(e => showError(e.message)), loadSecurity()]);
+    await Promise.all([load(), loadAutopilot().catch(e => showError(e.message)), loadPharmacies().catch(e => showError(e.message)), loadSecurity(), loadPrivacy()]);
   } catch (e) { if (e.code === "setup_2fa") setupTwoFactor(); else showError(e.message); }
 
   /* Two-factor sign-in for administrators: required before the dashboard opens. */
@@ -169,6 +169,23 @@
   $("#tfaForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     try { await call("admin_2fa_enable", { code: $("#tfaCode").value }); location.reload(); } catch (err) { showError(err.message); }
+  });
+  async function loadPrivacy() {
+    const p = await call("admin_privacy");
+    $("#prCard").hidden = false;
+    const today = new Date().toISOString().slice(0, 10);
+    $("#prRows").innerHTML = p.requests.length ? p.requests.map(r => {
+      const late = ["open", "in_progress"].includes(r.status) && r.due < today;
+      return "<tr><td>" + esc(r.ref) + "</td><td>" + esc(r.email || "(deleted account)") + "</td><td>" + esc(r.kind) + "</td><td>" + esc(r.details || "") + "</td><td" + (late ? ' style="color:var(--bad);font-weight:700"' : "") + ">" + esc(r.due) + "</td><td>" +
+        (["done", "declined"].includes(r.status) ? esc(r.status + ": " + (r.reply || "")) :
+          '<form class="stack" data-pr="' + r.id + '"><textarea name="reply" rows="2" maxlength="2000" aria-label="Answer"></textarea><div class="row"><select name="status" aria-label="Status"><option value="in_progress">In progress</option><option value="done">Done</option><option value="declined">Declined</option></select><button class="btn btn-primary btn-sm">Save</button></div></form>') + "</td></tr>";
+    }).join("") : '<tr><td colspan="6" class="muted">No requests.</td></tr>';
+    $("#prRegister").innerHTML = p.register.map(r => "<tr><td><b>" + esc(r.category) + "</b><br><small>" + esc(r.items) + "</small></td><td>" + esc(r.purpose) + "</td><td>" + esc(r.basis) + "</td><td>" + esc(r.recipients) + "</td><td>" + esc(r.retention) + "</td><td>" + esc(r.protection) + "</td></tr>").join("");
+    $("#prConsents").textContent = "Consent records: " + (p.consents.map(c => c.purpose.replace(/_/g, " ") + " " + c.given + " given / " + c.withdrawn + " withdrawn").join(" · ") || "none yet");
+  }
+  document.addEventListener("submit", async (e) => {
+    const f = e.target.closest("[data-pr]"); if (!f) return; e.preventDefault();
+    try { await call("admin_privacy_reply", { id: Number(f.dataset.pr), status: f.status.value, reply: f.reply.value }); loadPrivacy(); } catch (err) { showError(err.message); }
   });
   async function loadSecurity() {
     const s = await call("admin_security");

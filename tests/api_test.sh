@@ -141,7 +141,8 @@ expect "watch-over setting" "$(post a automation_save '{"refill_on":1,"missed_on
 echo "Household extras: vaccinations, expenses, doctor links (like EPARK)"
 BD=$(date -d '-70 day' +%Y-%m-%d)
 expect "add a child" "$(post a member_save '{"name":"Baby","relation":"child"}')" 200; KID=$(sed -E 's/.*"id":([0-9]+).*/\1/' "$T/out")
-expect "child's date of birth" "$(post a member_save "{\"id\":$KID,\"name\":\"Baby\",\"relation\":\"child\",\"birth_date\":\"$BD\"}")" 200
+expect "a child's birth date needs a parent's or guardian's consent" "$(post a member_save "{\"id\":$KID,\"name\":\"Baby\",\"relation\":\"child\",\"birth_date\":\"$BD\"}")" 422
+expect "child's date of birth with guardian consent" "$(post a member_save "{\"id\":$KID,\"name\":\"Baby\",\"relation\":\"child\",\"birth_date\":\"$BD\",\"guardian\":true}")" 200
 get a bootstrap >/dev/null; body_has "vaccination schedule made by itself" '"code":"penta2"'
 expect "future date of birth refused" "$(post a member_save "{\"id\":$KID,\"name\":\"Baby\",\"birth_date\":\"2099-01-01\"}")" 400
 expect "mark earlier doses as given" "$(post a vaccines_mark_past "{\"member_id\":$KID}")" 200; body_has "earlier doses given" '"given":"20'

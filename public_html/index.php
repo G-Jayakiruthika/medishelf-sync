@@ -7,6 +7,7 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 // Local development with `php -S localhost:8000 index.php`: let real files through, protect the private folder.
 if (PHP_SAPI === 'cli-server') {
     if (str_starts_with($path, '/core/')) { http_response_code(403); exit('Forbidden'); }
+    if (preg_match('#/\.(?!well-known)#', $path)) { http_response_code(404); exit('Not found'); }   // hidden files, as .htaccess does on Apache
     if ($path !== '/' && is_file(__DIR__ . $path)) return false;
 }
 

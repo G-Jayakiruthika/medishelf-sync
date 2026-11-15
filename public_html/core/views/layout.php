@@ -41,7 +41,7 @@ if ($lang !== 'en') $navItems[0][0] = '/' . $lang . '/#features';
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&family=Noto+Sans:wght@400;500;600;700<?= $lang !== 'en' ? '&family=' . e(['hi' => 'Noto+Sans+Devanagari', 'mr' => 'Noto+Sans+Devanagari', 'bn' => 'Noto+Sans+Bengali', 'te' => 'Noto+Sans+Telugu', 'ta' => 'Noto+Sans+Tamil', 'gu' => 'Noto+Sans+Gujarati', 'kn' => 'Noto+Sans+Kannada', 'ml' => 'Noto+Sans+Malayalam', 'pa' => 'Noto+Sans+Gurmukhi'][$lang]) . ':wght@400;600;700' : '' ?>&display=swap">
-<link rel="stylesheet" href="/site.css?v=6">
+<link rel="stylesheet" href="/site.css?v=7">
 <?php foreach (($meta['jsonld'] ?? []) as $ld) echo jsonld($ld), "\n"; ?>
 </head>
 <body class="page-<?= e($meta['body_class'] ?? 'default') ?>">
@@ -82,11 +82,11 @@ if ($lang !== 'en') $navItems[0][0] = '/' . $lang . '/#features';
     <div><h2><?= e(st('footCompany')) ?></h2><a href="/about"><?= e(st('about')) ?></a><a href="/contact"><?= e(st('contact')) ?></a><a href="/help"><?= e(st('navHelp')) ?></a></div>
     <div><h2><?= e(st('footLegal')) ?></h2><a href="/privacy"><?= e(st('privacy')) ?></a><a href="/terms"><?= e(st('terms')) ?></a><a href="/refund-policy"><?= e(st('refund')) ?></a><a href="/cookie-policy"><?= e(st('cookiesPolicy')) ?></a><button type="button" class="linklike" data-cookie-settings><?= e(st('cookieSettings')) ?></button></div>
   </div>
-  <div class="wrap foot-bottom">© <?= date('Y') ?> <?= e(config('business_name') ?: site_name()) ?> · Made in India</div>
+  <div class="wrap foot-bottom">© <?= date('Y') ?> <?= e(config('business_name') ?: site_name()) ?><?php if (config('business_address')): ?> · <?= e(config('business_address')) ?><?php endif; ?><?php if (config('gstin')): ?> · GSTIN <?= e(config('gstin')) ?><?php endif; ?><?php if (config('business_reg')): ?> · Reg. <?= e(config('business_reg')) ?><?php endif; ?><?php if (config('support_email')): ?> · <a href="mailto:<?= e(config('support_email')) ?>"><?= e(config('support_email')) ?></a><?php endif; ?> · Made in India</div>
 </footer>
 <script src="/site.js?v=5" defer></script>
 <script src="/scene3d.js?v=1" defer></script>
 <script src="/consent-i18n.js?v=3" defer></script>
-<script src="/consent.js?v=3" defer data-lang="<?= e($lang) ?>" data-ga="<?= e((string) config('ga4_id')) ?>"></script>
+<script src="/consent.js?v=4" defer data-lang="<?= e($lang) ?>" data-ga="<?= e((string) config('ga4_id')) ?>"></script>
 </body>
 </html>

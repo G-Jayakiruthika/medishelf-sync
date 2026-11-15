@@ -16,6 +16,8 @@ security_headers();
 $static = ['' => 'landing.html', 'app' => 'portal.html', 'rider' => 'portal.html', 'admin' => 'admin.html'];   // riders use the portal: their role shows only their deliveries
 if (isset($static[$path])) { header('Content-Type: text/html; charset=utf-8'); if ($path !== '') header('X-Robots-Tag: noindex'); readfile(__DIR__ . '/' . $static[$path]); return; }
 
+if ($path === 'privacy' || $path === 'terms') { require_once dirname(__DIR__) . '/core/fees.php'; require_once dirname(__DIR__) . '/core/legal.php'; legal_page($path); return; }
+
 if (preg_match('#^(s|poster)/([A-Za-z0-9]{8})$#', $path, $m)) {
     $b = branch_by_code($m[2]);
     header('Content-Type: text/html; charset=utf-8');

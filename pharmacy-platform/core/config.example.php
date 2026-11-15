@@ -27,6 +27,9 @@ return [
 
     // Network fees (core/fees.php): commission % on orders the network brings (family app, passed-on orders), by area,
     // capped per order; 18% GST on the fee. Jan Aushadhi Kendras and shops marked fee_exempt pay nothing.
+    // Shown on /privacy, /terms and in the footer: who runs the network (DPDP: the Data Fiduciary for staff accounts).
+    'operator' => ['name' => 'Your Company Pvt Ltd', 'address' => 'Street, City, State, PIN, India', 'email' => 'privacy@example.in', 'grievance_officer' => 'Name, Grievance Officer', 'gstin' => ''],
+
     'fees' => ['urban' => 2.0, 'semiurban' => 1.5, 'rural' => 1.0, 'cap' => 50.0, 'gst' => 18.0],
     'platform_upi' => '',        // the network's UPI ID, shown on each shop's monthly statement (e.g. aushadhbox@okaxis)
 

@@ -694,7 +694,7 @@ CREATE TABLE IF NOT EXISTS sms_out (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Security events: failed sign-ins, lockouts, two-factor failures, blocked cross-site requests, bot traps, admin actions.
--- Read by the admin dashboard (Security) and summed in the daily digest. Kept 180 days.
+-- Read by the admin dashboard (Security) and summed in the daily digest. Kept 1 year.
 CREATE TABLE IF NOT EXISTS security_events (
   id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   kind       VARCHAR(40)  NOT NULL,
@@ -704,4 +704,51 @@ CREATE TABLE IF NOT EXISTS security_events (
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_sec_kind_time (kind, created_at),
   KEY idx_sec_time (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Privacy (ISO/IEC 27701 record of processing, ISO/IEC 29100 principles, DPDP Act 2023). core/privacy.php
+-- What personal data the service keeps, why, on what basis, who receives it, how long and how it is protected.
+-- Filled from PRIVACY_REGISTER in core/privacy.php (kept in step by the upgrader); shown in the app's Privacy tab and to admins.
+CREATE TABLE IF NOT EXISTS privacy_register (
+  id          VARCHAR(40)  NOT NULL PRIMARY KEY,
+  category    VARCHAR(80)  NOT NULL,
+  items       VARCHAR(400) NOT NULL,
+  purpose     VARCHAR(400) NOT NULL,
+  basis       VARCHAR(160) NOT NULL,
+  needed      VARCHAR(10)  NOT NULL,          -- required | optional
+  recipients  VARCHAR(300) NOT NULL,
+  retention   VARCHAR(200) NOT NULL,
+  location    VARCHAR(120) NOT NULL,
+  protection  VARCHAR(300) NOT NULL,
+  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Every consent given or withdrawn, with the wording version and where it happened (proof for DPDP s.6).
+CREATE TABLE IF NOT EXISTS consent_records (
+  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NULL,
+  purpose    VARCHAR(40)  NOT NULL,
+  granted    TINYINT(1)   NOT NULL,
+  version    VARCHAR(20)  NULL,
+  source     VARCHAR(40)  NOT NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_consent_user (user_id, purpose, created_at),
+  CONSTRAINT fk_consent_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Requests from people about their data: access, correction, erasure, nominee, grievance. Due dates follow the DPDP Rules.
+CREATE TABLE IF NOT EXISTS privacy_requests (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id    INT UNSIGNED NULL,
+  user_ref   CHAR(64)     NOT NULL,           -- sha256 of the e-mail: the request record outlives an erased account
+  kind       VARCHAR(12)  NOT NULL,           -- access | correction | erasure | nominee | grievance | other
+  details    VARCHAR(2000) NULL,
+  status     VARCHAR(12)  NOT NULL DEFAULT 'open',   -- open | in_progress | done | declined
+  reply      VARCHAR(2000) NULL,
+  due_at     DATETIME     NOT NULL,
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  closed_at  DATETIME     NULL,
+  KEY idx_pr_status (status, due_at),
+  KEY idx_pr_user (user_id),
+  CONSTRAINT fk_pr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

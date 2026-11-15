@@ -13,9 +13,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=13">
+<link rel="stylesheet" href="/styles.css?v=14">
 </head>
 <body>
+<a class="skip-link" href="#appMain">Skip to content</a>
 
 <!-- ================= SIGN IN / SIGN UP ================= -->
 <div class="wrap auth" id="authView" hidden>
@@ -89,7 +90,7 @@
 </header>
 <nav class="tabs" aria-label="Sections"><div class="wrap" id="tabs"></div></nav>
 
-<main class="wrap">
+<main class="wrap" id="appMain" tabindex="-1">
   <div class="banner offline" id="offlineBanner" hidden><span data-i18n="offline">You are offline.</span></div>
   <div class="banner" id="consentBanner" hidden><span data-i18n="consentRenew">Our privacy notice has changed.</span><span style="display:flex;gap:8px"><a class="btn btn-ghost btn-sm" href="/privacy" target="_blank" rel="noopener" data-i18n="privacyLink">Read</a><button class="btn btn-primary btn-sm" id="btnConsent" data-i18n="agree">I agree</button></span></div>
 
@@ -231,6 +232,7 @@
           <div class="field"><label for="pfContact" data-i18n="emContact">Emergency contact (name and phone)</label><input id="pfContact" maxlength="80" placeholder="Ravi 98765 43210"></div>
           <div class="field"><label for="pfBirth" data-i18n="vxBirth">Date of birth</label><input id="pfBirth" type="date"></div>
         </div>
+        <label class="check" id="pfGuardianF" hidden><input type="checkbox" id="pfGuardian"><span data-i18n="mbGuardian">I am this child's parent or legal guardian, and I agree to keeping their details</span></label>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="btnEmergency" data-i18n="emOpen">Open emergency card</button><button class="btn btn-ghost btn-sm" type="button" data-go="card" data-i18n="cardTitle">AushadhBox card</button><button class="btn btn-ghost btn-sm" type="button" data-go="shops" data-i18n="shopsTitle">Pharmacies</button></div>
       </div>
       <div class="panel stack" id="vxCard">
@@ -462,6 +464,58 @@
   </section>
 
   <!-- ACCOUNT -->
+  <section class="view" id="view-privacy" data-view="privacy" hidden>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/safety.glb" aria-hidden="true"></canvas><div><h2 data-i18n="pvTitle">Privacy</h2><p class="muted" data-i18n="pvDesc" style="margin-top:6px">What we keep about your family, why, who sees it and for how long. Change your choices and use your rights here.</p></div></div>
+    <div class="nb-grid care-grid">
+      <div class="panel stack" id="pvKeep">
+        <h3 data-i18n="pvKeepT">What we keep about you</h3>
+        <p class="muted small" data-i18n="pvKeepD">Open a row to see why we keep it, the legal basis, who receives it, for how long and how it is protected.</p>
+        <div id="pvRegister" class="pv-register"></div>
+      </div>
+      <div class="panel stack" id="pvChoices">
+        <h3 data-i18n="pvChoicesT">Your choices</h3>
+        <label class="switch"><input type="checkbox" data-pvchoice="news"><span class="track" aria-hidden="true"></span><span data-i18n="pvNews">Product news by e-mail</span></label>
+        <label class="switch"><input type="checkbox" data-pvchoice="weekly"><span class="track" aria-hidden="true"></span><span data-i18n="pvWeekly">Weekly expiry e-mail and alerts by e-mail</span></label>
+        <label class="switch"><input type="checkbox" data-pvchoice="ai"><span class="track" aria-hidden="true"></span><span data-i18n="pvAi">AI helper (your question and cabinet list go to the AI provider when you ask)</span></label>
+        <div><button class="btn btn-ghost btn-sm" type="button" data-cookie-settings data-i18n="pvCookies">Cookie settings</button></div>
+        <h4 data-i18n="pvPeople">Sharing for each person</h4>
+        <ul class="ap-list" id="pvPeople"></ul>
+        <div><button class="btn btn-ghost btn-sm" type="button" data-go="card" data-i18n="pvChangeSharing">Change pharmacy sharing</button></div>
+      </div>
+      <div class="panel stack" id="pvRights">
+        <h3 data-i18n="pvRightsT">Your rights</h3>
+        <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn btn-ghost btn-sm" type="button" id="pvExport" data-i18n="exportData">Download my data</button><button class="btn btn-ghost btn-sm" type="button" data-go="cabinet" data-i18n="pvCorrect">Correct my data</button><button class="btn btn-ghost btn-sm" type="button" data-go="account" data-i18n="pvDelete">Delete my account</button></div>
+        <form class="stack" id="pvReqForm">
+          <div class="field"><label for="pvKind" data-i18n="pvReqKind">Send a request or complaint</label><select id="pvKind"></select></div>
+          <div class="field"><label for="pvDetails" data-i18n="pvReqDetails">Details</label><textarea id="pvDetails" rows="3" maxlength="2000"></textarea></div>
+          <p class="error" id="pvReqErr" hidden></p>
+          <div><button class="btn btn-primary btn-sm" type="submit" data-i18n="pvSend">Send</button></div>
+        </form>
+        <p class="muted small" id="pvReplyNote"></p>
+        <ul class="ap-list" id="pvRequests"></ul>
+      </div>
+      <div class="panel stack" id="pvNominee">
+        <h3 data-i18n="pvNomineeT">Nominee</h3>
+        <p class="muted small" data-i18n="pvNomineeD">Someone who may use these rights for you if you die or cannot act yourself.</p>
+        <form class="stack" id="pvNomForm">
+          <div class="field"><label for="pvNomName" data-i18n="yourName">Name</label><input id="pvNomName" maxlength="80"></div>
+          <div class="field"><label for="pvNomContact" data-i18n="pvNomContact">Phone or e-mail</label><input id="pvNomContact" maxlength="120"></div>
+          <div><button class="btn btn-ghost btn-sm" type="submit" data-i18n="saveChanges">Save changes</button></div>
+        </form>
+      </div>
+      <div class="panel stack" id="pvProtect">
+        <h3 data-i18n="pvProtectT">How we protect it</h3>
+        <ul class="ap-list" id="pvPrinciples"></ul>
+        <p class="muted small" data-i18n="pvIso">Designed to follow the ISO/IEC 29100 privacy principles and the ISO/IEC 27701 way of keeping records, for India's DPDP Act 2023. This is our design aim, not a certification.</p>
+        <p class="small" id="pvOfficer"></p>
+      </div>
+      <div class="panel stack">
+        <h3 data-i18n="pvHistoryT">Your consent history</h3>
+        <ul class="ap-list" id="pvConsents"></ul>
+      </div>
+    </div>
+  </section>
+
   <section class="view" id="view-account" data-view="account" hidden>
     <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/account.glb" aria-hidden="true"></canvas><h2 data-i18n="accTitle">Account</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ghost btn-sm" href="/admin.html" id="adminLink" hidden data-i18n="adminPanel">Admin panel</a><button class="btn btn-ghost btn-sm" id="btnLogout" data-i18n="signOut">Sign out</button></div></div>
     <div class="acc-grid">
@@ -579,7 +633,7 @@
       </form>
       <div class="panel stack danger">
         <h3 data-i18n="yourData">Your data</h3>
-        <div><button class="btn btn-ghost" id="btnExport" data-i18n="exportData">Download my data</button></div>
+        <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn btn-ghost" id="btnExport" data-i18n="exportData">Download my data</button><button class="btn btn-ghost" type="button" data-go="privacy">🔒 <span data-i18n="pvTitle">Privacy</span></button></div>
         <p class="muted" data-i18n="deleteWarn">This permanently deletes your account.</p>
         <form class="stack" id="deleteForm">
           <div class="field"><label for="delPass" data-i18n="password">Password</label><input id="delPass" type="password" autocomplete="current-password" required></div>
@@ -707,8 +761,10 @@
 <script src="/app.js?v=12"></script>
 <script src="/network.js?v=3"></script>
 <script src="/careplus.js?v=1"></script>
+<script src="/i18n-privacy.js?v=1"></script>
+<script src="/privacy.js?v=1"></script>
 <script src="/scene3d.js?v=1" defer></script>
 <script src="/consent-i18n.js?v=3" defer></script>
-<script src="/consent.js?v=3" defer></script>
+<script src="/consent.js?v=4" defer></script>
 </body>
 </html>

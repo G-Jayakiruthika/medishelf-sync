@@ -21,6 +21,7 @@ require __DIR__ . '/core/household.php';
 require __DIR__ . '/core/pharmacy.php';
 require __DIR__ . '/core/watch.php';
 require __DIR__ . '/core/network_link.php';
+require_once __DIR__ . '/core/privacy.php';
 require_once __DIR__ . '/core/migrate.php';
 // Right after an update the new columns must exist before anything reads them (cheap: compares two file dates).
 try { migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
@@ -69,6 +70,9 @@ try {
         q('INSERT INTO members (user_id, name, relation, is_self, account_id) VALUES (?,?,?,1,?)', [$uid, $name, 'Self', $uid]);
         q('INSERT INTO reminder_settings (user_id) VALUES (?)', [$uid]);
         q("INSERT INTO consent_log (user_ref, version, action) VALUES (?,?,'given')", [hash('sha256', $email), config('consent_version')]);
+        consent_record($uid, 'privacy_notice', true, 'sign-up', (string) config('consent_version'));
+        consent_record($uid, 'adult_18', true, 'sign-up');
+        if (!empty($in['marketing'])) consent_record($uid, 'marketing_email', true, 'sign-up');
         db()->commit();
         log_attempt('signup', true);
         sign_in($uid);
@@ -318,7 +322,11 @@ try {
             if (array_key_exists('birth_date', $in)) {
                 $bd = (string) $in['birth_date'];
                 if ($bd !== '' && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $bd) || $bd > date('Y-m-d') || $bd < '1900-01-01')) fail('bad_date', 'Choose a date of birth in the past.');
-                q('UPDATE members SET birth_date = ? WHERE id = ?', [$bd ?: null, $id]);
+                // A child's details are kept only with a parent's or guardian's consent (DPDP s.9), given once per child.
+                $had = (bool) q('SELECT guardian_consent_at FROM members WHERE id = ?', [$id])->fetchColumn();
+                guardian_consent_required($bd ?: null, $had || !empty($in['guardian']));
+                q('UPDATE members SET birth_date = ?, guardian_consent_at = COALESCE(guardian_consent_at, IF(? = 1, NOW(), NULL)) WHERE id = ?', [$bd ?: null, empty($in['guardian']) ? 0 : 1, $id]);
+                if (!empty($in['guardian']) && !$had) consent_record((int) $user['id'], 'guardian_child', true, 'member ' . $id);
                 // A child under 17: make the government vaccination schedule by itself
                 if ($bd && $bd > date('Y-m-d', strtotime('-17 year'))) vaccines_make($hid, $id, $bd);
             }
@@ -914,9 +922,45 @@ try {
     case 'ai_opt_in':
         $on = !empty(input()['on']) ? 1 : 0;
         q('UPDATE users SET ai_opt_in = ? WHERE id = ?', [$on, $user['id']]);
+        consent_record((int) $user['id'], 'ai_helper', (bool) $on, 'account');
         json_out(['ok' => true, 'aiOptIn' => (bool) $on, 'available' => ai_enabled()]);
 
     /* ---------------- Admin ---------------- */
+    /* ---------------- Privacy centre (core/privacy.php) ---------------- */
+    case 'privacy':
+        json_out(privacy_overview($user, $hid));
+
+    case 'privacy_choice':
+        $in = input();
+        privacy_choice($user, (string) ($in['what'] ?? ''), !empty($in['on']));
+        json_out(['ok' => true]);
+
+    case 'privacy_nominee':
+        $in = input();
+        privacy_nominee_set((int) $user['id'], (string) ($in['name'] ?? ''), (string) ($in['contact'] ?? ''));
+        json_out(['ok' => true]);
+
+    case 'privacy_request':
+        $in = input();
+        json_out(['request' => privacy_request_create($user, (string) ($in['kind'] ?? ''), (string) ($in['details'] ?? ''))]);
+
+    case 'admin_privacy':   // requests (oldest due first), the record of processing and consent totals
+        require_admin($user);
+        json_out(['requests' => array_map(fn($r) => privacy_request_public($r) + ['email' => (string) q('SELECT email FROM users WHERE id = ?', [$r['user_id']])->fetchColumn()],
+                                          q("SELECT * FROM privacy_requests ORDER BY status IN ('done','declined'), due_at LIMIT 200")->fetchAll()),
+                  'register' => q('SELECT * FROM privacy_register ORDER BY id')->fetchAll(),
+                  'consents' => q('SELECT purpose, SUM(granted) given, SUM(1 - granted) withdrawn FROM consent_records GROUP BY purpose ORDER BY purpose')->fetchAll()]);
+
+    case 'admin_privacy_reply':
+        require_admin($user);
+        $in = input();
+        $st = in_array($in['status'] ?? '', ['open', 'in_progress', 'done', 'declined'], true) ? $in['status'] : 'in_progress';
+        $reply = trim(mb_substr((string) ($in['reply'] ?? ''), 0, 2000));
+        if (in_array($st, ['done', 'declined'], true) && mb_strlen($reply) < 5) fail('reply_needed', 'Write the answer the person will see.');
+        q("UPDATE privacy_requests SET status = ?, reply = ?, closed_at = IF(? IN ('done','declined'), NOW(), NULL) WHERE id = ?", [$st, $reply ?: null, $st, (int) ($in['id'] ?? 0)]);
+        audit($user, 'privacy_reply', 'PR-' . (int) ($in['id'] ?? 0) . ' ' . $st);
+        json_out(['ok' => true]);
+
     /* ---------------- Admin security: two-factor sign-in and security events ---------------- */
     case 'admin_2fa_setup':   // makes a new secret (shown once as a QR); two-factor is on only after admin_2fa_enable confirms a code
         if ($user['role'] !== 'admin') fail('forbidden', 'Only administrators can do this.', 403);
