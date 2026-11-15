@@ -16,3 +16,5 @@ pharmacy-platform/iot/coldchain/secrets.py
 **/__pycache__/
 pharmacy-platform/sync-agent/aushadhbox-sync-data/
 pharmacy-platform/iot/coldchain/secrets.h
+tools/models3d/blender_glb/
+tools/models3d/renders/

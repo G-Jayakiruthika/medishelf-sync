@@ -53,6 +53,7 @@ $drawers = [
 <section id="how">
   <div class="wrap">
     <div class="section-head center"><h2><?= e(st('howTitle')) ?></h2></div>
+    <canvas class="scene3d hero-3d" data-model="/assets/3d/hero.glb" aria-hidden="true"></canvas>
     <ol class="steps">
       <?php foreach ([['scan', 1], ['family', 2], ['bell', 3]] as [$ic, $n]): ?>
       <li class="step"><span class="ic"><?= $icons[$ic] ?></span><h3><?= e(st("step{$n}T")) ?></h3><p class="muted"><?= e(st("step{$n}D")) ?></p></li>

@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=Noto+Sans+Gujarati:wght@400;600;700&family=Noto+Sans+Gurmukhi:wght@400;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="/styles.css?v=11">
+<link rel="stylesheet" href="/styles.css?v=12">
 </head>
 <body>
 
@@ -113,14 +113,14 @@
       <div><h3 id="safetyHead" data-i18n="safetyTitle">Safety check</h3><p class="muted" data-i18n="safetyDesc">Checked automatically every time a medicine is added.</p></div>
       <ul class="safety-list" id="safetyList"></ul>
     </div>
-    <div class="section-head"><h2 data-i18n="cabinetTitle">Your cabinet</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" type="button" id="btnShop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 4h2l2.4 11h11L21 7H6.2M9 20a1 1 0 1 0 0-.01M18 20a1 1 0 1 0 0-.01"/></svg><span data-i18n="shopTitle">Shopping list</span></button><button class="btn btn-ghost btn-sm" type="button" data-go="shops"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h16v10H4zM3 10l2-6h14l2 6M10 14h4M12 12v4"/></svg><span data-i18n="shopsTitle">Pharmacies</span></button></div></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/cabinet.glb" aria-hidden="true"></canvas><h2 data-i18n="cabinetTitle">Your cabinet</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" type="button" id="btnShop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 4h2l2.4 11h11L21 7H6.2M9 20a1 1 0 1 0 0-.01M18 20a1 1 0 1 0 0-.01"/></svg><span data-i18n="shopTitle">Shopping list</span></button><button class="btn btn-ghost btn-sm" type="button" data-go="shops"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 10h16v10H4zM3 10l2-6h14l2 6M10 14h4M12 12v4"/></svg><span data-i18n="shopsTitle">Pharmacies</span></button></div></div>
     <div class="chips" id="memberFilter" style="margin-bottom:14px"></div>
     <div class="cabinet" id="cabinet"></div>
   </section>
 
   <!-- SCAN / ADD / EDIT -->
   <section class="view" id="view-scan" data-view="scan" hidden>
-    <div class="section-head"><div><h2 data-i18n="scanTitle">Scan a medicine</h2><p class="muted" data-i18n="scanDesc" style="margin-top:6px">Take a photo of the strip, bottle or its QR code.</p><p class="scan-any" data-i18n="scanAny">Works with a medicine strip, a doctor's prescription or a pharmacy bill. One photo adds everything.</p></div></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/scan.glb" aria-hidden="true"></canvas><div><h2 data-i18n="scanTitle">Scan a medicine</h2><p class="muted" data-i18n="scanDesc" style="margin-top:6px">Take a photo of the strip, bottle or its QR code.</p><p class="scan-any" data-i18n="scanAny">Works with a medicine strip, a doctor's prescription or a pharmacy bill. One photo adds everything.</p></div></div>
     <div class="scan-grid">
       <div class="panel" style="display:grid; gap:14px">
         <div class="viewer" id="viewer">
@@ -194,7 +194,7 @@
 
   <!-- DOSES -->
   <section class="view" id="view-doses" data-view="doses" hidden>
-    <div class="section-head">
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/doses.glb" aria-hidden="true"></canvas>
       <div><h2 data-i18n="dosesTitle">Today's doses</h2><p class="muted" data-i18n="dosesDesc" style="margin-top:6px">Tick each dose after you take it.</p></div>
       <button class="btn btn-ghost" id="btnRemind" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4"/></svg><span id="remindLabel" data-i18n="remindOff">Turn on reminders</span></button>
     </div>
@@ -212,7 +212,7 @@
 
   <!-- NOTEBOOK -->
   <section class="view" id="view-notebook" data-view="notebook" hidden>
-    <div class="section-head"><div><h2 data-i18n="nbTitle">Medicine notebook</h2><button class="btn btn-ghost btn-sm care-link" type="button" data-go="care"><span aria-hidden="true">✚</span> <span data-i18n="cpTitle">Care+</span></button><p class="muted" data-i18n="nbDesc" style="margin-top:6px">Show this to your doctor or chemist.</p></div><div class="chips" id="nbMembers"></div></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/notebook.glb" aria-hidden="true"></canvas><div><h2 data-i18n="nbTitle">Medicine notebook</h2><button class="btn btn-ghost btn-sm care-link" type="button" data-go="care"><span aria-hidden="true">✚</span> <span data-i18n="cpTitle">Care+</span></button><p class="muted" data-i18n="nbDesc" style="margin-top:6px">Show this to your doctor or chemist.</p></div><div class="chips" id="nbMembers"></div></div>
     <div class="nb-grid">
       <div class="notebook">
         <div class="cover"><b id="nbWho"></b><span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" id="btnCopyNb" style="color:var(--ink)"><span data-i18n="nbCopy">Copy for doctor</span></button><a class="btn btn-ghost btn-sm" id="fhirLink" href="/api.php?action=fhir" style="color:var(--ink)" data-i18n="fhirBtn">Download health record (FHIR, for ABHA)</a></span></div>
@@ -291,7 +291,7 @@
 
   <!-- CARE+ (round 3: Japanese household-app ideas, rural features) -->
   <section class="view" id="view-care" data-view="care" hidden>
-    <div class="section-head"><div><h2 data-i18n="cpTitle">Care+</h2><p class="muted" data-i18n="cpDesc" style="margin-top:6px">Repeat prescriptions, medicine review, food cautions, mother and child, health points and phones without internet.</p></div></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/care.glb" aria-hidden="true"></canvas><div><h2 data-i18n="cpTitle">Care+</h2><p class="muted" data-i18n="cpDesc" style="margin-top:6px">Repeat prescriptions, medicine review, food cautions, mother and child, health points and phones without internet.</p></div></div>
     <div class="nb-grid care-grid">
       <div class="panel stack" id="rpCard">
         <h3 data-i18n="rpTitle">Repeat prescriptions</h3>
@@ -342,7 +342,7 @@
 
   <!-- AUSHADHBOX CARD (pharmacy link; the family decides what is shared) -->
   <section class="view" id="view-card" data-view="card" hidden>
-    <div class="section-head"><div><h2 data-i18n="cardTitle">AushadhBox card</h2><p class="muted" data-i18n="cardDesc" style="margin-top:6px">Show this QR at the pharmacy.</p></div><div class="chips" id="cdMembers"></div></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/card.glb" aria-hidden="true"></canvas><div><h2 data-i18n="cardTitle">AushadhBox card</h2><p class="muted" data-i18n="cardDesc" style="margin-top:6px">Show this QR at the pharmacy.</p></div><div class="chips" id="cdMembers"></div></div>
     <div class="nb-grid">
       <div class="panel stack card-qr-panel">
         <div class="wallet" id="cdWallet">
@@ -379,7 +379,7 @@
 
   <!-- PHARMACIES (AushadhBox Pharmacy Network) -->
   <section class="view" id="view-shops" data-view="shops" hidden>
-    <div class="section-head"><div><h2 data-i18n="shopsTitle">Pharmacies</h2><p class="muted" data-i18n="shopsDesc" style="margin-top:6px">Find medicines in stock near you.</p></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/shops.glb" aria-hidden="true"></canvas><div><h2 data-i18n="shopsTitle">Pharmacies</h2><p class="muted" data-i18n="shopsDesc" style="margin-top:6px">Find medicines in stock near you.</p></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" type="button" id="shScanBtn" data-i18n="shScan">Scan a pharmacy's QR</button></div></div>
     <p class="warn-note" id="shOff" hidden data-i18n="shNoNet">The pharmacy network is not connected on this site yet.</p>
     <div class="nb-grid">
@@ -409,7 +409,7 @@
 
   <!-- SAFETY -->
   <section class="view" id="view-safety" data-view="safety" hidden>
-    <div class="section-head"><h2 data-i18n="safeTitle">Label safety check</h2><button class="btn btn-ghost btn-sm" type="button" data-go="care"><span aria-hidden="true">✚</span> <span data-i18n="rvTitle">Medicine review</span></button></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/safety.glb" aria-hidden="true"></canvas><h2 data-i18n="safeTitle">Label safety check</h2><button class="btn btn-ghost btn-sm" type="button" data-go="care"><span aria-hidden="true">✚</span> <span data-i18n="rvTitle">Medicine review</span></button></div>
     <div class="panel label-anatomy">
       <svg viewBox="0 0 760 300" role="img" aria-label="Parts of an Indian medicine label">
         <rect x="150" y="40" width="460" height="200" rx="14" fill="var(--sunk)" stroke="var(--line)" stroke-width="2"/>
@@ -444,7 +444,7 @@
 
   <!-- GUIDE -->
   <section class="view" id="view-guide" data-view="guide" hidden>
-    <div class="section-head"><h2 data-i18n="guideTitle">Watch and listen</h2></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/guide.glb" aria-hidden="true"></canvas><h2 data-i18n="guideTitle">Watch and listen</h2></div>
     <div class="media-grid">
       <div class="panel" style="display:grid; gap:10px"><h3 data-i18n="guideVideo">How AushadhBox works</h3>
         <video class="guide" controls preload="metadata" poster="/assets/video/aushadhbox-poster.jpg"><source src="/assets/video/aushadhbox-guide.mp4" type="video/mp4"></video></div>
@@ -459,7 +459,7 @@
 
   <!-- ACCOUNT -->
   <section class="view" id="view-account" data-view="account" hidden>
-    <div class="section-head"><h2 data-i18n="accTitle">Account</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ghost btn-sm" href="/admin.html" id="adminLink" hidden data-i18n="adminPanel">Admin panel</a><button class="btn btn-ghost btn-sm" id="btnLogout" data-i18n="signOut">Sign out</button></div></div>
+    <div class="section-head"><canvas class="scene3d" data-model="/assets/3d/account.glb" aria-hidden="true"></canvas><h2 data-i18n="accTitle">Account</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn btn-ghost btn-sm" href="/admin.html" id="adminLink" hidden data-i18n="adminPanel">Admin panel</a><button class="btn btn-ghost btn-sm" id="btnLogout" data-i18n="signOut">Sign out</button></div></div>
     <div class="acc-grid">
       <div class="panel stack plan-card" id="planCard">
         <h3 data-i18n="planTitle">Your plan</h3>
@@ -703,6 +703,7 @@
 <script src="/app.js?v=11"></script>
 <script src="/network.js?v=3"></script>
 <script src="/careplus.js?v=1"></script>
+<script src="/scene3d.js?v=1" defer></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer></script>
 </body>

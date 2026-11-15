@@ -534,3 +534,14 @@ dialog.sheet { grid-template-columns: minmax(0, 1fr); }
 /* Low-data mode (villages, 2G): no animations, video or 3D */
 body.lite *, body.lite *::before, body.lite *::after { animation: none !important; transition: none !important; }
 body.lite video, body.lite .scene3d, body.lite [data-3d] { display: none !important; }
+
+/* 3D models in screen headers (scene3d.js). The page looks complete without them. */
+.scene3d { width: 88px; height: 80px; flex: none; opacity: 0; transition: opacity .5s ease; cursor: grab; touch-action: pan-y; }
+.scene3d.ready { opacity: 1; }
+.section-head { position: relative; }
+.section-head > .scene3d { order: -1; margin: -8px -4px -6px -8px; }
+.section-head:has(> .scene3d) { justify-content: flex-start; }
+.section-head:has(> .scene3d) > :last-child:not(:nth-child(2)) { margin-left: auto; }
+@media (min-width: 760px) { .scene3d { width: 120px; height: 104px; } }
+.hero-3d { width: 100%; max-width: 520px; height: 340px; display: block; margin: 0 auto; }
+@media (max-width: 600px) { .hero-3d { height: 240px; } }

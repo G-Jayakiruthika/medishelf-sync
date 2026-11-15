@@ -328,3 +328,10 @@ ol.steps { list-style: none; margin: 0; padding: 0; }
 .langs a[aria-current="true"] { background: var(--ai); color: var(--ai-ink); border-color: var(--ai); }
 .cta-band .btn-light { color: #1F3358; }
 .footer h2 { text-transform: none; letter-spacing: 0; font-size: .95rem; color: #C9D2DE; }
+
+/* 3D model (scene3d.js) in "How it works" */
+.scene3d { opacity: 0; transition: opacity .6s ease; cursor: grab; touch-action: pan-y; }
+.scene3d.ready { opacity: 1; }
+.hero-3d { width: 100%; max-width: 560px; height: 320px; display: block; margin: 0 auto 8px; }
+@media (max-width: 600px) { .hero-3d { height: 220px; } }
+@media (prefers-reduced-motion: reduce) { .scene3d { transition: none; } }

@@ -41,7 +41,7 @@ if ($lang !== 'en') $navItems[0][0] = '/' . $lang . '/#features';
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@700;900&family=Noto+Sans:wght@400;500;600;700<?= $lang !== 'en' ? '&family=' . e(['hi' => 'Noto+Sans+Devanagari', 'mr' => 'Noto+Sans+Devanagari', 'bn' => 'Noto+Sans+Bengali', 'te' => 'Noto+Sans+Telugu', 'ta' => 'Noto+Sans+Tamil', 'gu' => 'Noto+Sans+Gujarati', 'kn' => 'Noto+Sans+Kannada', 'ml' => 'Noto+Sans+Malayalam', 'pa' => 'Noto+Sans+Gurmukhi'][$lang]) . ':wght@400;600;700' : '' ?>&display=swap">
-<link rel="stylesheet" href="/site.css?v=5">
+<link rel="stylesheet" href="/site.css?v=6">
 <?php foreach (($meta['jsonld'] ?? []) as $ld) echo jsonld($ld), "\n"; ?>
 </head>
 <body class="page-<?= e($meta['body_class'] ?? 'default') ?>">
@@ -85,6 +85,7 @@ if ($lang !== 'en') $navItems[0][0] = '/' . $lang . '/#features';
   <div class="wrap foot-bottom">© <?= date('Y') ?> <?= e(config('business_name') ?: site_name()) ?> · Made in India</div>
 </footer>
 <script src="/site.js?v=5" defer></script>
+<script src="/scene3d.js?v=1" defer></script>
 <script src="/consent-i18n.js?v=3" defer></script>
 <script src="/consent.js?v=3" defer data-lang="<?= e($lang) ?>" data-ga="<?= e((string) config('ga4_id')) ?>"></script>
 </body>

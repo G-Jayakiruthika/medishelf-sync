@@ -38,7 +38,7 @@ DirectoryIndex index.php
   <FilesMatch "^sw\.js$">
     Header set Cache-Control "no-cache"
   </FilesMatch>
-  <FilesMatch "\.(css|js|png|jpg|webp|svg|mp3|mp4|woff2)$">
+  <FilesMatch "\.(css|js|png|jpg|webp|svg|mp3|mp4|woff2|glb)$">
     Header set Cache-Control "public, max-age=604800"
   </FilesMatch>
 </IfModule>
@@ -48,6 +48,7 @@ DirectoryIndex index.php
 </IfModule>
 
 AddType application/manifest+json .webmanifest
+AddType model/gltf-binary .glb
 
 # Never serve backups, logs or data files
 <FilesMatch "(\.(bak|sql|md|log|lock|json|csv)|~)$">

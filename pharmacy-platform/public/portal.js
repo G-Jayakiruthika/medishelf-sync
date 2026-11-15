@@ -111,7 +111,15 @@
     try { history.replaceState(null, "", "#" + id); } catch (e) { /* sandboxed */ }
     renderNav(); window.scrollTo({ top: 0 });
     const m = $("#main"); m.innerHTML = '<p class="muted">Loading…</p>';
-    (VIEWS[id] || VIEWS.home)(m).catch(e => { m.innerHTML = errBox(e.message); });
+    (VIEWS[id] || VIEWS.home)(m).then(() => add3d(m, id)).catch(e => { m.innerHTML = errBox(e.message); });
+  }
+
+  /* A 3D model beside each screen's title (lib/scene3d.js; skipped without WebGL or in low-data mode) */
+  const MODEL3D = { home: "ph_home", counter: "ph_counter", orders: "ph_orders", stock: "ph_stock", network: "ph_network", customers: "card", payments: "ph_payments",
+                    delivery: "ph_delivery", rides: "ph_delivery", devices: "ph_devices", staff: "ph_staff", settings: "ph_settings", reports: "ph_reports", more: "ph_settings" };
+  function add3d(m, id) {
+    const h = m.querySelector("h1"); if (!h || !MODEL3D[id] || h.querySelector(".scene3d")) return;
+    h.classList.add("h3d"); h.insertAdjacentHTML("afterbegin", '<canvas class="scene3d" data-model="/assets/3d/' + MODEL3D[id] + '.glb" aria-hidden="true"></canvas>');
   }
 
   /* ---------------- Screens ---------------- */

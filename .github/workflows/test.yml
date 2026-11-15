@@ -79,6 +79,13 @@ jobs:
       - name: Build and test the sync agent
         run: sh pharmacy-platform/sync-agent/build.sh
 
+      - name: 3D models are built from the shared description
+        run: |
+          python3 tools/models3d/spec.py && python3 tools/models3d/build_glb.py > /dev/null
+          python3 -c "import ast; ast.parse(open('tools/models3d/blender_build.py').read())"
+          cmp public_html/scene3d.js pharmacy-platform/public/lib/scene3d.js
+          git diff --exit-code -- tools/models3d/models.json public_html/assets/3d pharmacy-platform/public/assets/3d || (echo "Run tools/models3d/spec.py and build_glb.py, then commit the models" && exit 1)
+
       - name: Pillbox simulator syntax
         run: python3 -m py_compile hardware/simulator/pillbox_sim.py
 

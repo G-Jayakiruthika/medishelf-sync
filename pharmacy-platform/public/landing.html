@@ -11,12 +11,12 @@
 <body>
 <header class="top"><div class="wrap"><a class="brand" href="/"><img src="/icon.svg" width="36" height="36" alt=""><div><b>AushadhBox Pharmacy</b><small>Network of neighbourhood pharmacies</small></div></a><a class="btn primary sm" href="/app">Sign in / Register</a></div></header>
 
-<section class="hero"><div class="wrap">
+<section class="hero"><div class="wrap hero-split"><div class="hero-text">
   <p class="eyebrow" style="color:#E7B24E">For chemists in cities, towns and villages</p>
   <h1>Your counter, your khata, your customers' medicines: all in one place</h1>
   <p>Families already keep their medicines in the AushadhBox app. Join the network and their orders, refills and payments come straight to you, even from customers with a basic phone. Free to start, works on any smartphone or computer.</p>
   <div class="row"><a class="btn primary" href="/app#">Register your pharmacy</a><a class="btn" href="#how">How it works</a></div>
-</div></section>
+</div><canvas class="scene3d hero-3d" data-model="/assets/3d/ph_home.glb" data-yaw="-0.6" aria-hidden="true"></canvas></div></section>
 
 <main class="wrap pad">
   <section class="stack"><h2>Built for how Indian pharmacies really work</h2>
@@ -50,5 +50,6 @@
     <p>Customers' phone numbers and addresses are encrypted. You see a customer's medicines only when they have switched that on in their app, and they see every look and addition with your name. Owners and managers can turn on two-step sign-in. Built for India's Digital Personal Data Protection Act, 2023.</p></section>
 </main>
 <footer class="site"><div class="wrap">AushadhBox Pharmacy Network · <a href="/app">Pharmacy sign-in</a> · <a href="/rider">Delivery staff</a> · AushadhBox organises medicines; it does not replace your professional judgement.</div></footer>
+<script src="/lib/scene3d.js?v=1" defer></script>
 </body>
 </html>
