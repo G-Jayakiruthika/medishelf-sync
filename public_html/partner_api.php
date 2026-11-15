@@ -4,6 +4,7 @@
      card_patient   {branch, code}           → what the family allows the pharmacy to see (logged for the family)
      card_precheck  {branch, code, items}    → safety check of medicines about to be given (nothing saved)
      card_dispense  {branch, code, items}    → adds the medicines to the family's cabinet with reminders (needs "may add")
+     voucher_redeem {branch, code}           → a health-points voucher is used up (value in rupees, pseudonymous customer)
      notify         {customer_ref, title, body, url, order}  → a push notification to the household (order ready, khata, refills) */
 declare(strict_types=1);
 require __DIR__ . '/core/bootstrap.php';
@@ -30,8 +31,13 @@ case 'card_precheck':
 case 'card_dispense':
     $ph = pharmacy_mirror((array) ($in['branch'] ?? []));
     $r = pharmacy_dispense($ph, (string) ($in['code'] ?? ''), (array) ($in['items'] ?? []));
-    $m = q('SELECT user_id, name FROM members WHERE card_code = ?', [card_normalize((string) ($in['code'] ?? ''))])->fetch();
+    $c = trim((string) ($in['code'] ?? ''));
+    $m = preg_match('/^\d{6}$/', $c) ? q('SELECT m.user_id, m.name FROM share_codes s JOIN members m ON m.id = s.member_id WHERE s.code_hash = ?', [hash('sha256', $c)])->fetch()
+                                     : q('SELECT user_id, name FROM members WHERE card_code = ?', [card_normalize($c)])->fetch();
     json_out($r + ['customer_ref' => customer_ref((int) $m['user_id']), 'name' => masked_name($m['name'])]);   // lets the pharmacy bill it to the same (pseudonymous) customer
+case 'voucher_redeem':   // a shop accepts a health-points voucher; the platform pays the shop back
+    $b = (array) ($in['branch'] ?? []);
+    json_out(voucher_redeem((string) ($in['code'] ?? ''), trim(($b['name'] ?? 'Pharmacy') . ', ' . ($b['district'] ?? ''), ', ')));
 case 'notify':
     $hid = household_by_ref((string) ($in['customer_ref'] ?? ''));
     if (!$hid) json_out(['ok' => true, 'sent' => 0]);   // unknown or deleted household: nothing to do

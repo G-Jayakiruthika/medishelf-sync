@@ -3,6 +3,8 @@
    api.php?action=<name>. Changes use POST with the X-CSRF-Token header. Every action checks the person's role. */
 declare(strict_types=1);
 require dirname(__DIR__) . '/core/bootstrap.php';
+require_once dirname(__DIR__) . '/core/migrate.php';
+try { ph_migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
 foreach (['compliance', 'stock', 'network', 'orders', 'delivery', 'sms', 'devices', 'family', 'auth'] as $f) require_once dirname(__DIR__) . "/core/$f.php";
 
 security_headers();
@@ -361,6 +363,41 @@ case 'upi_qr':   // a payment QR for any amount, for shops without a printed QR
     $s = need('payments'); $b = my_branch($s);
     if (!$b['upi_vpa']) fail('no_upi', 'Add your UPI ID or UPI phone number in Settings first.');
     json_out(['link' => upi_link($b, (float) num_in($in, 'amount', 1, 200000), (string) ($in['note'] ?? 'bill'))]);
+
+/* ---------------- Network fees, health-points vouchers, dose-pouch labels ---------------- */
+case 'fees':   // this business's monthly statement with the network: commission on network orders, minus vouchers it accepted
+    $s = need('reports');
+    $period = preg_match('/^\d{4}-\d{2}$/', (string) ($_GET['period'] ?? '')) ? $_GET['period'] : date('Y-m');
+    json_out(fee_statement((int) $s['org_id'], $period) + ['rates' => array_intersect_key(fee_cfg(), array_flip(['urban', 'semiurban', 'rural', 'cap', 'gst']))]);
+
+case 'voucher_redeem':   // a customer's AushadhBox health-points voucher, for non-prescription items; the network pays the shop back
+    $s = need('payments'); $b = my_branch($s);
+    limit('voucher:' . $b['id'], 30, 60);
+    $order = !empty($in['order_id']) ? my_order($b, (int) $in['order_id']) : null;
+    if ($order) {
+        $otc = (float) q("SELECT COALESCE(SUM(price * qty), 0) FROM order_items WHERE order_id = ? AND status = 'ok' AND schedule IN ('OTC', 'G')", [$order['id']])->fetchColumn();
+        if ($otc <= 0) fail('rx_only', 'Health-points vouchers are for non-prescription items (OTC, nutrition, devices), and this order has none.', 422);
+    }
+    $r = family_or_fail(family_call('voucher_redeem', ['branch' => family_branch($b), 'code' => (string) ($in['code'] ?? '')]));
+    $value = (float) $r['rupees'];
+    if ($order && $value > $otc) $value = $otc;   // never more than the non-prescription part; the rest of the voucher is forfeited (the customer was told)
+    $pay = pay_record($b, ['method' => 'voucher', '_voucher_ok' => true, 'amount' => $value, 'order_id' => $order['id'] ?? null, 'note' => 'AushadhBox health points ' . strtoupper((string) $in['code'])], 'staff', (int) $s['id']);
+    fee_record_voucher($b, $value, strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string) $in['code'])), $order['id'] ?? null);
+    json_out(['ok' => true, 'rupees' => $value, 'payment' => $pay]);
+
+case 'labels':   // 一包化 (dose packing): one label per pouch, for each dose time and day
+    $s = need('orders'); $b = my_branch($s); $o = my_order($b, (int) ($_GET['id'] ?? 0));
+    $days = max(1, min(31, (int) ($_GET['days'] ?? 7)));
+    $start = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) ($_GET['from'] ?? '')) ? $_GET['from'] : date('Y-m-d', strtotime('+1 day'));
+    $items = q("SELECT name, times FROM order_items WHERE order_id = ? AND status = 'ok' AND times <> ''", [$o['id']])->fetchAll();
+    if (!$items) fail('no_times', 'This order has no dose times. Ask the customer when each medicine is taken, or order from the family app.');
+    $cust = $o['customer_id'] ? q('SELECT name FROM customers WHERE id = ?', [$o['customer_id']])->fetchColumn() : '';
+    $labels = [];
+    for ($d = 0; $d < $days; $d++) foreach (['m' => 'Morning', 'a' => 'Afternoon', 'e' => 'Evening', 'b' => 'Bedtime'] as $k => $label) {
+        $meds = array_values(array_map(fn($i) => $i['name'], array_filter($items, fn($i) => in_array($k, explode(',', $i['times']), true))));
+        if ($meds) $labels[] = ['date' => date('D j M', strtotime("$start +$d day")), 'slot' => $label, 'key' => $k, 'meds' => $meds];
+    }
+    json_out(['order' => $o['number'], 'for' => $cust, 'pharmacy' => $b['name'], 'phone' => $b['phone'], 'labels' => $labels]);
 
 /* ---------------- Customers, khata, points ---------------- */
 case 'customer_find':

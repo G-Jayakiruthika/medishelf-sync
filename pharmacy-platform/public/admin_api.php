@@ -3,6 +3,8 @@
    handle complaints, see the health of the network. Two-factor sign-in is required for admins. */
 declare(strict_types=1);
 require dirname(__DIR__) . '/core/bootstrap.php';
+require_once dirname(__DIR__) . '/core/migrate.php';
+try { ph_migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
 foreach (['network', 'orders', 'family'] as $f) require_once dirname(__DIR__) . "/core/$f.php";
 security_headers(false);
 start_session();
@@ -52,7 +54,22 @@ case 'overview':
         'coldAlerts' => (int) q("SELECT COUNT(*) FROM devices WHERE alert_state IN ('high','low')")->fetchColumn(),
         'complaintsOpen' => (int) q("SELECT COUNT(*) FROM complaints WHERE status = 'open'")->fetchColumn(),
         'sms30' => q("SELECT direction, status, COUNT(*) n FROM sms_log WHERE created_at >= NOW() - INTERVAL 30 DAY GROUP BY direction, status")->fetchAll(),
+        'fees' => q("SELECT period, SUM(CASE WHEN kind = 'commission' THEN amount ELSE 0 END) commission, SUM(gst) gst, SUM(CASE WHEN kind = 'voucher' THEN amount ELSE 0 END) vouchers,
+                     SUM(CASE WHEN kind = 'settlement' THEN amount ELSE 0 END) settled, SUM(amount + gst) net FROM fees GROUP BY period ORDER BY period DESC LIMIT 6")->fetchAll(),
     ]);
+case 'fees':   // every business's balance for a month
+    admin_me();
+    $period = preg_match('/^\d{4}-\d{2}$/', (string) ($_GET['period'] ?? '')) ? $_GET['period'] : date('Y-m');
+    json_out(['period' => $period, 'orgs' => array_map(fn($o) => ['id' => (int) $o['id'], 'name' => $o['name']] + array_intersect_key(fee_statement((int) $o['id'], $period), array_flip(['totals', 'net', 'invoice'])),
+        q('SELECT DISTINCT o.id, o.name FROM fees f JOIN orgs o ON o.id = f.org_id WHERE f.period = ? ORDER BY o.name', [$period])->fetchAll())]);
+case 'fee_statement':
+    admin_me();
+    json_out(fee_statement((int) ($_GET['org'] ?? 0), (string) ($_GET['period'] ?? date('Y-m'))));
+case 'fee_settle':   // record the shop's payment (or the platform's payout) with the UPI reference
+    $a = admin_me();
+    fee_settle((int) ($in['org_id'] ?? 0), (string) ($in['period'] ?? ''), (float) ($in['amount'] ?? 0), (string) ($in['utr'] ?? ''), (int) $a['id']);
+    audit('admin', (int) $a['id'], (int) ($in['org_id'] ?? 0), null, 'fee_settle', json_encode(array_intersect_key($in, array_flip(['period', 'amount', 'utr']))));
+    json_out(['ok' => true] + fee_statement((int) ($in['org_id'] ?? 0), (string) $in['period']));
 case 'orgs':
     admin_me();
     json_out(['orgs' => array_map(fn($o) => $o + ['branches' => q('SELECT id, code, name, licence_retail, licence_whole, district, village, area, phone, pharmacist, created_at FROM branches WHERE org_id = ?', [$o['id']])->fetchAll(),

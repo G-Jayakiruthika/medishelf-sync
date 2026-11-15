@@ -196,6 +196,40 @@ expect "unknown barcode" "$(get a "barcode_lookup&code=$BC")" 200; body_has "not
 post a item_save "{\"name\":\"Dolo 650\",\"barcode\":\"$BC\",\"exp\":\"2027-05\"}" >/dev/null
 expect "barcode learned from a scan" "$(get b "barcode_lookup&code=$BC")" 200; body_has "next family gets the name" '"name":"Dolo 650"'
 
+echo "Care+ (round 3: repeat prescriptions, medicine review, food cautions, mother and child, points, share code, FHIR, phones)"
+get a bootstrap >/dev/null; SELF=$(grep -o '"members":\[{"id":[0-9]*' "$T/out" | grep -o '[0-9]*$')
+UNTIL=$(date -d '+90 day' +%Y-%m-%d); TODAY=$(date +%Y-%m-%d)
+expect "save a repeat prescription" "$(post a rx_repeat_save "{\"doctor\":\"Dr. Rao\",\"issued\":\"$TODAY\",\"until\":\"$UNTIL\",\"allowed\":2,\"items\":[\"Glycomet 500\",\"Telma 40\"],\"member_id\":$SELF}")" 200
+RXID=$(grep -o '"repeats":\[{"id":[0-9]*' "$T/out" | grep -o '[0-9]*$'); body_has "two refills allowed" '"allowed":2,"used":0'
+expect "prescription valid more than a year refused" "$(post a rx_repeat_save "{\"doctor\":\"X\",\"issued\":\"$TODAY\",\"until\":\"2099-01-01\",\"items\":[\"A tab\"]}")" 400
+expect "use a refill" "$(post a rx_repeat_use "{\"id\":$RXID}")" 200; body_has "one refill left" '"left":1'
+post a rx_repeat_use "{\"id\":$RXID}" >/dev/null
+expect "used-up prescription refused" "$(post a rx_repeat_use "{\"id\":$RXID}")" 400; body_has "says ask the doctor" 'used_up'
+expect "B cannot use A's prescription" "$(post b rx_repeat_use "{\"id\":$RXID}")" 404
+for m in "Cifran 500 (Ciprofloxacin)" "Flagyl 400 (Metronidazole)" "Alprax 0.25 (Alprazolam)" "Amlong 5" "Atorva 10"; do post a item_save "{\"name\":\"$m\",\"times\":[\"m\",\"e\"],\"member_id\":$SELF}" >/dev/null; done
+expect "care screen" "$(get a careplus)" 200
+body_has "milk caution with ciprofloxacin" '"code":"dairy"'; body_has "no alcohol with metronidazole" '"code":"alcohol_severe"'
+body_has "five or more daily medicines suggest a review" '"many":true'
+LMP=$(date -d '-140 day' +%Y-%m-%d)
+expect "start a pregnancy record" "$(post a pregnancy_start "{\"member_id\":$SELF,\"lmp\":\"$LMP\"}")" 200; body_has "20 weeks" '"weeks":20'; body_has "second trimester" '"trimester":2'
+PID=$(grep -o '"pregnancy":{"id":[0-9]*' "$T/out" | grep -o '[0-9]*$')
+body_has "check-up 2 is due now" '"n":2,"label":"Second check-up (14–26 weeks)","from":"[0-9-]*","to":"[0-9-]*","done":false,"state":"now"'
+expect "future LMP refused" "$(post a pregnancy_start "{\"member_id\":$SELF,\"lmp\":\"2099-01-01\"}")" 400
+expect "mark check-up 1 done" "$(post a pregnancy_anc "{\"id\":$PID,\"n\":1,\"done\":true}")" 200; body_has "check-up 1 done" '"n":1,[^}]*"done":true'
+expect "points" "$(get a points)" 200; body_has "points earned for the check-up" '"balance":[1-9]'
+expect "voucher needs enough points" "$(post a voucher_make '{"points":2000}')" 400
+expect "one-time share code" "$(post a share_code "{\"member_id\":$SELF,\"add\":true,\"view\":false}")" 200; body_has "6 digits" '"code":"[0-9]\{6\}"'
+expect "share code needs a permission" "$(post a share_code "{\"member_id\":$SELF}")" 400
+expect "B cannot make a code for A's family" "$(post b share_code "{\"member_id\":$SELF,\"view\":true}")" 404
+expect "FHIR export" "$(get a fhir)" 200; body_has "FHIR bundle" '"resourceType": "Bundle"'; body_has "medicines as MedicationStatement" '"resourceType": "MedicationStatement"'
+expect "family member's phone for missed calls" "$(post a member_phone "{\"member_id\":$SELF,\"phone\":\"+91 98765 43210\",\"sms\":true}")" 200; body_has "phone cleaned, not yet verified" '"phone":"9876543210","verified":false'
+expect "bad phone refused" "$(post a member_phone "{\"member_id\":$SELF,\"phone\":\"12345\"}")" 400
+c=$(curl -s -o "$T/out" -w "%{http_code}" "$R/telephony.php?from=9876543210&to=123"); expect "missed-call webhook needs the secret" "$c" 401
+expect "low-data mode and village" "$(post a rural_save '{"low_data":true,"district":"Erode","village":"Chennimalai","health_worker":false}')" 200; body_has "saved" '"lowData":true'
+expect "steps in the health diary" "$(post a vital_save '{"kind":"steps","v1":6400}')" 200
+expect "a life sensor for watch-over needs a person" "$(post a device_add '{"name":"Door sensor","kind":"life"}')" 400
+expect "add a door sensor" "$(post a device_add "{\"name\":\"Amma door\",\"kind\":\"life\",\"member_id\":$SELF}")" 200; body_has "kind life" '"kind":"life"'
+
 echo "Your data (DPDP)"
 expect "export" "$(get a export)" 200; body_has "export has medicines" 'A private medicine'
 expect "delete needs password" "$(post a account_delete '{"password":"wrong"}')" 403

@@ -35,6 +35,9 @@ const MIGRATION_COLUMNS = [
         'district' => 'VARCHAR(60) NULL AFTER city',
         'local_block' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER status',
     ],
+    'devices' => [
+        'kind' => "VARCHAR(8) NOT NULL DEFAULT 'pillbox' AFTER member_id",   // pillbox, or life: a door/motion sensor for watch-over
+    ],
     'refill_requests' => [
         'network_order' => 'VARCHAR(16) NULL AFTER status',
     ],
@@ -58,6 +61,7 @@ const MIGRATION_COLUMNS = [
         'account_id' => 'INT UNSIGNED NULL AFTER share_view',
         'phone' => 'VARCHAR(15) NULL AFTER account_id',
         'sms_remind' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER phone',
+        'phone_verified' => 'TINYINT(1) NOT NULL DEFAULT 0 AFTER sms_remind',
     ],
     'dose_logs' => [
         'status' => "VARCHAR(8) NOT NULL DEFAULT 'taken' AFTER taken_at",

@@ -605,3 +605,90 @@ CREATE TABLE IF NOT EXISTS network_orders (
   PRIMARY KEY (user_id, number),
   CONSTRAINT fk_neto_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------- Round 3: ideas from Japanese household medicine apps, and rural features (core/careplus.php) ----------
+
+-- Repeat prescriptions (リフィル処方箋): "continue for 3 months", used up to N times before a new prescription.
+CREATE TABLE IF NOT EXISTS rx_repeats (
+  id               INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id          INT UNSIGNED NOT NULL,
+  member_id        INT UNSIGNED NULL,
+  doctor           VARCHAR(80)  NOT NULL,
+  issued_on        DATE         NOT NULL,
+  valid_until      DATE         NOT NULL,
+  repeats_allowed  TINYINT UNSIGNED NOT NULL DEFAULT 3,
+  repeats_used     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  items            TEXT         NOT NULL,              -- JSON list of medicine names as written
+  note             VARCHAR(200) NULL,
+  last_used        DATETIME     NULL,
+  created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_rxr_user (user_id, valid_until),
+  CONSTRAINT fk_rxr_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_rxr_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Mother and child (母子手帳 / India's MCP card): one active pregnancy per person.
+CREATE TABLE IF NOT EXISTS pregnancies (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED NOT NULL,
+  member_id   INT UNSIGNED NOT NULL,
+  lmp         DATE         NOT NULL,                  -- first day of the last menstrual period
+  edd         DATE         NOT NULL,                  -- expected date of delivery (LMP + 280 days)
+  anc_done    VARCHAR(20)  NOT NULL DEFAULT '',       -- check-ups done, e.g. "1,2"
+  status      VARCHAR(8)   NOT NULL DEFAULT 'active', -- active, ended
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_preg (user_id, status),
+  CONSTRAINT fk_preg_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_preg_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Health points (EPARK-style): earned for looking after health, spent as vouchers at network pharmacies.
+CREATE TABLE IF NOT EXISTS health_points (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED NOT NULL,
+  delta       INT          NOT NULL,
+  reason      VARCHAR(12)  NOT NULL,                  -- reading, all_doses, followup, vaccine, anc, steps, voucher, refund
+  ref         VARCHAR(40)  NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_hp (user_id, reason, created_at),
+  CONSTRAINT fk_hp_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS point_vouchers (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id     INT UNSIGNED NOT NULL,
+  code        CHAR(8)      NOT NULL,
+  points      INT          NOT NULL,
+  status      VARCHAR(10)  NOT NULL DEFAULT 'open',   -- open, used, cancelled, expired
+  expires_at  DATETIME     NOT NULL,
+  used_at     DATETIME     NULL,
+  used_by     VARCHAR(120) NULL,                      -- the pharmacy that accepted it
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_voucher (code),
+  CONSTRAINT fk_pv_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- One-time share codes (6 digits, 10 minutes) for a pharmacy without the card.
+CREATE TABLE IF NOT EXISTS share_codes (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  member_id   INT UNSIGNED NOT NULL,
+  code_hash   CHAR(64)     NOT NULL,
+  may_add     TINYINT(1)   NOT NULL DEFAULT 0,
+  may_view    TINYINT(1)   NOT NULL DEFAULT 0,
+  expires_at  DATETIME     NOT NULL,
+  used_at     DATETIME     NULL,
+  KEY idx_sc (code_hash),
+  CONSTRAINT fk_sc_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- SMS sent to family members without a smartphone (DLT templates). Phone numbers are hashed here.
+CREATE TABLE IF NOT EXISTS sms_out (
+  id          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  phone_hash  CHAR(64)     NOT NULL,
+  template    VARCHAR(20)  NOT NULL,
+  ref         VARCHAR(40)  NULL,
+  body        VARCHAR(300) NOT NULL,
+  status      VARCHAR(8)   NOT NULL DEFAULT 'queued',  -- queued, sent, failed, logged (no provider set)
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_smsout (template, ref)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

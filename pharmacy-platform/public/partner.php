@@ -4,6 +4,8 @@
    when the user places an order with a pharmacy (and they agreed to share them for that order). */
 declare(strict_types=1);
 require dirname(__DIR__) . '/core/bootstrap.php';
+require_once dirname(__DIR__) . '/core/migrate.php';
+try { ph_migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
 foreach (['compliance', 'stock', 'network', 'orders', 'delivery', 'sms', 'family', 'partner_sign'] as $f) require_once dirname(__DIR__) . "/core/$f.php";
 
 header('X-Content-Type-Options: nosniff');
@@ -79,7 +81,8 @@ case 'order_create':
         referral_join((int) $b['org_id'], $cid, $rc);
     $o = order_create($b, $cid, ['items' => (array) ($in['items'] ?? []), 'kind' => $in['kind'] ?? 'pickup', 'pickup_point_id' => $in['pickup_point_id'] ?? null, 'note' => $in['note'] ?? null,
                                  'source' => ($in['source'] ?? '') === 'refill' ? 'refill' : (($in['source'] ?? '') === 'asha' ? 'asha' : 'app'), 'customer_district' => $who['district'] ?? null,
-                                 'rx_date' => $in['rx_date'] ?? null, 'customer_pays_full' => !empty($in['customer_pays_full'])]);
+                                 'rx_date' => $in['rx_date'] ?? null, 'customer_pays_full' => !empty($in['customer_pays_full']),
+                                 'dose_pack' => !empty($in['dose_pack']), 'pickup_at' => $in['pickup_at'] ?? null, 'service' => $in['service'] ?? null]);
     if (!empty($in['pay']) && in_array($in['pay'], ['khata'], true)) $o['khataAsked'] = true;   // the shop decides at packing time
     json_out($o);
 

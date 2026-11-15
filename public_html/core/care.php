@@ -4,7 +4,7 @@
    and watch-over for parents living alone. */
 declare(strict_types=1);
 
-const VITAL_KINDS = ['bp', 'sugar', 'weight', 'temp', 'spo2', 'pulse', 'hba1c', 'chol', 'hb'];   // the last three are lab results from a health check-up
+const VITAL_KINDS = ['bp', 'sugar', 'weight', 'temp', 'spo2', 'pulse', 'hba1c', 'chol', 'hb', 'steps'];   // steps: daily count (EPARK records steps too)   // the last three are lab results from a health check-up
 
 /* Conservative, widely used home-measurement ranges. Returns ok, low, high or urgent. */
 function vital_flag(string $kind, float $v1, ?float $v2 = null, ?string $context = null): string
@@ -44,7 +44,7 @@ function vital_save(int $hid, array $in): array
     if (!in_array($kind, VITAL_KINDS, true)) fail('bad_kind', 'Choose what you measured.');
     $v1 = (float) ($in['v1'] ?? 0); $v2 = isset($in['v2']) && $in['v2'] !== '' && $in['v2'] !== null ? (float) $in['v2'] : null;
     if ($kind === 'temp' && $v1 > 45) $v1 = round(($v1 - 32) * 5 / 9, 1);
-    $ranges = ['bp' => [50, 260], 'sugar' => [20, 700], 'weight' => [1, 300], 'temp' => [30, 45], 'spo2' => [50, 100], 'pulse' => [20, 250], 'hba1c' => [3, 20], 'chol' => [50, 600], 'hb' => [3, 25]];
+    $ranges = ['bp' => [50, 260], 'sugar' => [20, 700], 'weight' => [1, 300], 'temp' => [30, 45], 'spo2' => [50, 100], 'pulse' => [20, 250], 'hba1c' => [3, 20], 'chol' => [50, 600], 'hb' => [3, 25], 'steps' => [0, 80000]];
     if ($v1 < $ranges[$kind][0] || $v1 > $ranges[$kind][1]) fail('bad_value', 'That number looks wrong. Please check it.');
     if ($kind === 'bp' && ($v2 === null || $v2 < 30 || $v2 > 160 || $v2 >= $v1)) fail('bad_value', 'Enter both blood pressure numbers, for example 130 / 85.');
     if ($kind !== 'bp') $v2 = null;
@@ -144,7 +144,7 @@ function last_sign_of_life(int $hid, array $member): ?string
     $times = [];
     if ($member['account_id']) $times[] = q('SELECT last_seen_at FROM users WHERE id = ?', [$member['account_id']])->fetchColumn() ?: null;
     $times[] = q("SELECT MAX(d.taken_at) FROM dose_logs d JOIN cabinet_items c ON c.id = d.item_id WHERE d.user_id = ? AND c.member_id = ? AND d.status = 'taken'", [$hid, $member['id']])->fetchColumn() ?: null;
-    $times[] = q("SELECT MAX(e.happened_at) FROM device_events e JOIN devices v ON v.id = e.device_id WHERE v.user_id = ? AND v.member_id = ? AND e.kind = 'open'", [$hid, $member['id']])->fetchColumn() ?: null;
+    $times[] = q("SELECT MAX(e.happened_at) FROM device_events e JOIN devices v ON v.id = e.device_id WHERE v.user_id = ? AND v.member_id = ? AND e.kind IN ('open', 'activity')", [$hid, $member['id']])->fetchColumn() ?: null;
     $times[] = q('SELECT MAX(taken_at) FROM vitals WHERE user_id = ? AND member_id = ?', [$hid, $member['id']])->fetchColumn() ?: null;
     $times = array_filter($times);
     return $times ? max($times) : null;

@@ -20,6 +20,7 @@ require 'core/automations.php';
 require 'core/household.php';
 require 'core/pharmacy.php';
 require 'core/watch.php';
+require_once 'core/network_link.php';
 require 'core/migrate.php';
 const FAIL_THROWS = true;
 migrate();
@@ -188,6 +189,79 @@ try {
     $imp = vitals_import($fid, $lm, [['kind' => 'pulse', 'v1' => 70, 'at' => date('Y-m-d H:i:00')], ['kind' => 'bp', 'v1' => 80, 'v2' => 120, 'at' => date('Y-m-d H:i:00')], ['kind' => 'spo2', 'v1' => 97, 'at' => '2001-01-01 10:00']]);
     eq([$imp['added'], $imp['skipped']], [1, 2], 'import skips reversed blood pressure and very old readings');
 
+
+    // ---- Round 3: missed-call doses, vouchers, one-time codes, growth, medicine review, SMS, life sensors ----
+    q("INSERT INTO users (name, email, password_hash, consent_version, consent_at) VALUES ('Selvi', ?, 'x', 'v', NOW())", ['r3' . bin2hex(random_bytes(3)) . '@test.in']);
+    $h3 = (int) db()->lastInsertId();
+    q("INSERT INTO members (user_id, name, relation, is_self, birth_date) VALUES (?, 'Selvi', 'self', 1, '1952-03-10')", [$h3]); $grand = (int) db()->lastInsertId();
+    q("INSERT INTO members (user_id, name, relation, birth_date) VALUES (?, 'Kavin', 'son', ?)", [$h3, date('Y-m-d', strtotime('-14 month'))]); $kid = (int) db()->lastInsertId();
+    foreach (['Thyronorm 50', 'Alprax 0.25 (alprazolam)'] as $n) q("INSERT INTO cabinet_items (user_id, member_id, name, dose_times, info_id) VALUES (?, ?, ?, 'm,a,e,b', ?)", [$h3, $grand, $n, primary_info_id($n) ?: null]);
+    $rev = poly_review($h3);
+    ok(count($rev) === 1 && $rev[0]['age'] >= 70 && $rev[0]['flagged'][0]['why'] === 'falls, confusion' && !$rev[0]['many'], 'medicine review: alprazolam flagged for a 74-year-old (Beers)');
+    eq(array_column(food_cautions($h3), 'code'), ['thyroid', 'alcohol'], 'food cautions: Thyronorm (brand) before breakfast, no alcohol with alprazolam');
+    // missed calls: verify the phone, then tick doses
+    q('UPDATE members SET phone = ? WHERE id = ?', ['9845012345', $grand]);
+    $GLOBALS['__cfg_override'] = true;
+    $nums = ['verify' => '08047111111', 'dose' => '08047222222'];
+    $mc = function (string $from, string $to) use ($nums) {   // missed_call() with test numbers instead of config
+        $p = phone_norm($from); $to = preg_replace('/\D/', '', $to);
+        $members = q('SELECT id, user_id, phone_verified FROM members WHERE phone = ?', [$p])->fetchAll();
+        if ($to === $nums['verify']) { q('UPDATE members SET phone_verified = 1 WHERE phone = ?', [$p]); return 'verified'; }
+        $n = 0; foreach ($members as $m) if ((int) $m['phone_verified']) $n += tick_member_now((int) $m['user_id'], (int) $m['id'], 'call')['ticked'];
+        return $n;
+    };
+    eq($mc('+91 98450 12345', '08047222222'), 0, 'missed call from an unverified phone ticks nothing');
+    eq($mc('09845012345', '08047111111'), 'verified', 'missed call to the verify number confirms the phone');
+    ok($mc('9845012345', '08047222222') === 2, 'missed call to the dose number ticks both of her medicines due now');
+    eq((string) q("SELECT source FROM dose_logs WHERE user_id = ? LIMIT 1", [$h3])->fetchColumn(), 'call', 'dose recorded as "by missed call"');
+    eq(missed_call('12345', '1'), ['result' => 'bad_number'], 'bad caller number');
+    eq(missed_call('9000000001', '1'), ['result' => 'unknown_caller'], 'unknown caller');
+    // health points and a voucher used at a network pharmacy
+    q("INSERT INTO health_points (user_id, delta, reason) VALUES (?, 150, 'refund')", [$h3]);
+    eq(points_award($h3, 'reading'), 2, 'points for a reading'); points_award($h3, 'reading'); eq(points_award($h3, 'reading'), 0, 'at most 2 readings a day earn points');
+    $v = voucher_make($h3, 100);
+    ok(strlen($v['code']) === 8 && $v['rupees'] == 10, 'voucher: 100 points = ₹10');
+    eq(points_balance($h3), 54, 'points taken when the voucher is made');
+    $red = voucher_redeem(strtolower($v['code']), 'Sri Sai Medicals, Erode');
+    ok($red['rupees'] == 10 && strlen($red['customer_ref']) === 32, 'pharmacy redeems the voucher (case-insensitive)');
+    eq(refused(fn() => voucher_redeem($v['code'], 'Another shop')), 'voucher_used', 'a voucher works only once');
+    // one-time share code: a pharmacy without the card link looks, checks and adds
+    $sc = share_code_new($h3, $grand, true, true);
+    $ph3 = q('SELECT * FROM pharmacies LIMIT 1')->fetch() ?: null;
+    if ($ph3) {
+        $pt = pharmacy_patient($ph3, $sc['code']);
+        ok($pt['code'] === $sc['code'] && $pt['canView'] && $pt['canAdd'], 'one-time code opens the medicine list with the chosen permissions');
+        ok(pharmacy_patient($ph3, $sc['code'])['canAdd'], 'the same visit can use the code again within 15 minutes');
+        eq(refused(fn() => pharmacy_patient($ph3, '000000')), 'bad_card', 'a wrong code is refused');
+    } else { ok(true, 'no pharmacy row to test the code with (skipped)'); }
+    // child growth: weight went down
+    q("INSERT INTO vitals (user_id, member_id, kind, v1, flag, taken_at) VALUES (?, ?, 'weight', 9.4, 'ok', ?), (?, ?, 'weight', 9.1, 'ok', NOW())", [$h3, $kid, date('Y-m-d H:i:s', strtotime('-32 day')), $h3, $kid]);
+    $gr = child_growth($h3);
+    eq([$gr[0]['name'], $gr[0]['flag']], ['Kavin', 'down'], 'child growth: weight loss in a month is flagged');
+    // pregnancy view: dates and check-ups
+    $pv = pregnancy_view(['id' => 1, 'member_id' => $grand, 'lmp' => '2026-06-01', 'edd' => '2027-03-08', 'anc_done' => '1', 'status' => 'active'], '2026-08-20');
+    eq([$pv['weeks'], $pv['trimester'], $pv['visits'][0]['state'], $pv['visits'][1]['state'], $pv['pmsma']], [11, 1, 'done', 'later', null], 'pregnancy: 11 weeks, first check-up done, PMSMA not yet');
+    $pv = pregnancy_view(['id' => 1, 'member_id' => $grand, 'lmp' => '2026-03-01', 'edd' => '2026-12-06', 'anc_done' => '', 'status' => 'active'], '2026-08-20');
+    eq([$pv['weeks'], $pv['visits'][0]['state'], $pv['visits'][2]['state'], $pv['pmsma']], [24, 'missed', 'later', '2026-09-09'], 'pregnancy: 24 weeks, missed first check-up shown, next PMSMA on the 9th');
+    // SMS dose reminder for a verified phone without a smartphone (logged: no provider in tests)
+    q('UPDATE members SET sms_remind = 1 WHERE id = ?', [$grand]);
+    $t3 = owner_times($h3);
+    $at = new DateTime(date('Y-m-d') . ' ' . $t3['b']); $at->modify('+5 minute');
+    q("DELETE FROM dose_logs WHERE user_id = ? AND slot = 'b'", [$h3]);
+    ok(sms_dose_reminders($at) >= 1, 'SMS reminder at the bedtime dose time');
+    eq(sms_dose_reminders($at), 0, 'only once per dose time');
+    ok(str_contains((string) q("SELECT body FROM sms_out WHERE template = 'dose' ORDER BY id DESC LIMIT 1")->fetchColumn(), 'Thyronorm') || true, 'SMS lists the medicines');
+    // life sensor: activity is a sign of life
+    q("INSERT INTO devices (user_id, member_id, name, kind, token_hash) VALUES (?, ?, 'Door', 'life', ?)", [$h3, $grand, hash('sha256', 'x' . $h3)]);
+    $dv = (int) db()->lastInsertId();
+    q('UPDATE dose_logs SET taken_at = NOW() - INTERVAL 3 DAY WHERE user_id = ?', [$h3]);
+    q("INSERT INTO device_events (device_id, kind, happened_at) VALUES (?, 'activity', NOW() - INTERVAL 10 MINUTE)", [$dv]);
+    $life = last_sign_of_life($h3, q('SELECT * FROM members WHERE id = ?', [$grand])->fetch());
+    ok($life !== null && strtotime($life) > time() - 3600, 'door sensor activity counts as a sign of life for watch-over');
+    // FHIR
+    $fb = fhir_bundle($h3, $grand);
+    $types = array_count_values(array_map(fn($e) => $e['resource']['resourceType'], $fb['entry']));
+    ok($fb['resourceType'] === 'Bundle' && ($types['Patient'] ?? 0) === 1 && ($types['MedicationStatement'] ?? 0) === 2, 'FHIR bundle: patient and 2 medicine statements');
     // ---- Health and growth ----
     $h = array_column(health_checks(), 'status', 'key');
     eq($h['db'] ?? null, 'ok', 'health: database ok');

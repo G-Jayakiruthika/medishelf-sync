@@ -14,6 +14,8 @@ require __DIR__ . '/core/support.php';
 require __DIR__ . '/core/health.php';
 require __DIR__ . '/core/safety.php';
 require __DIR__ . '/core/care.php';
+require_once __DIR__ . '/core/watch.php';
+require_once __DIR__ . '/core/careplus.php';
 require __DIR__ . '/core/household.php';
 require __DIR__ . '/core/catalog.php';
 require __DIR__ . '/core/migrate.php';
@@ -92,6 +94,10 @@ if ($hour >= 6 && state_get('daily_last') !== $today) {
 if ($hour >= 9 && state_get('digest_last') !== $today) { state_set('digest_last', $today); $ap[] = 'digest=' . send_digest($now); }
 if ($hour >= 10 && $hour < 20 && state_get('nudge_last') !== $today) { state_set('nudge_last', $today); $ap[] = 'nudges=' . json_encode(run_growth_nudges($now)); }
 if ($ap) echo 'autopilot: ' . implode(' ', $ap) . "\n";
+// Round 3: SMS dose reminders for members without a smartphone (every run), and the morning care reminders.
+$cp = ['sms' => sms_dose_reminders($now)];
+if ($hour >= 8 && state_get('careplus_last') !== $today) { state_set('careplus_last', $today); $cp += careplus_daily($now); }
+echo 'careplus: ' . json_encode($cp) . "\n";
 if (!push_enabled()) exit("housekeeping done; mailed=$mailed; automations push={$auto['push']} mail={$auto['mail']}; push not configured\n");
 
 $nowMin = (int) $now->format('H') * 60 + (int) $now->format('i');

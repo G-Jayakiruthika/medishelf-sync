@@ -9,6 +9,8 @@
 declare(strict_types=1);
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 require __DIR__ . '/core/bootstrap.php';
+require_once __DIR__ . '/core/migrate.php';
+try { ph_migrate_if_due(); } catch (Throwable $e) { error_log('migrate: ' . $e->getMessage()); }
 foreach (['network', 'orders', 'sms', 'devices', 'family'] as $f) require_once __DIR__ . "/core/$f.php";
 $log = fn(string $m) => print(date('H:i') . " $m\n");
 
@@ -37,7 +39,7 @@ if (date('N') === '1' && date('H') === '08' && (int) date('i') < 15) {
 // 4. Python analytics at night
 if (date('H') === '02' && (int) date('i') < 15) {
     $py = trim((string) shell_exec('command -v python3'));
-    if ($py !== '') { $out = shell_exec(escapeshellcmd($py) . ' ' . escapeshellarg(__DIR__ . '/analytics/run_all.py') . ' 2>&1'); $log('analytics: ' . trim((string) $out)); }
+    if ($py !== '') { require_once __DIR__ . '/core/analytics.php'; $log('analytics: ' . json_encode(analytics_run_all($py))); }
 }
 
 // 5. Clean-up

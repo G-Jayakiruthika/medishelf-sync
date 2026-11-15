@@ -27,7 +27,7 @@ function device_by_token(string $token): ?array
 function device_public(array $d): array
 {
     $seen = $d['last_seen'] ? strtotime($d['last_seen']) : null;
-    return ['id' => (int) $d['id'], 'name' => $d['name'], 'memberId' => $d['member_id'] ? (int) $d['member_id'] : null, 'compartments' => (int) $d['compartments'],
+    return ['id' => (int) $d['id'], 'name' => $d['name'], 'kind' => $d['kind'] ?? 'pillbox', 'memberId' => $d['member_id'] ? (int) $d['member_id'] : null, 'compartments' => (int) $d['compartments'],
             'paired' => (bool) $d['token_hash'], 'pairCode' => $d['token_hash'] ? null : $d['pair_code'], 'pairExpires' => $d['token_hash'] ? null : $d['pair_expires'],
             'battery' => $d['battery'] === null ? null : (int) $d['battery'], 'firmware' => $d['firmware'], 'lastSeen' => $d['last_seen'],
             'online' => $seen !== null && time() - $seen < 20 * 60];

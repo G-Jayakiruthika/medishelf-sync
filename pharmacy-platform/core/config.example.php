@@ -25,6 +25,11 @@ return [
     // Courier companies: API keys when you have business accounts (see core/delivery.php).
     'couriers' => ['porter' => '', 'shadowfax' => '', 'dunzo' => '', 'borzo' => '', 'indiapost' => ''],
 
+    // Network fees (core/fees.php): commission % on orders the network brings (family app, passed-on orders), by area,
+    // capped per order; 18% GST on the fee. Jan Aushadhi Kendras and shops marked fee_exempt pay nothing.
+    'fees' => ['urban' => 2.0, 'semiurban' => 1.5, 'rural' => 1.0, 'cap' => 50.0, 'gst' => 18.0],
+    'platform_upi' => '',        // the network's UPI ID, shown on each shop's monthly statement (e.g. aushadhbox@okaxis)
+
     'ip_header'      => '',      // 'HTTP_CF_CONNECTING_IP' behind Cloudflare
     'dev_show_codes' => false,   // test installs only: return SMS codes in API answers
 ];

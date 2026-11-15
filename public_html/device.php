@@ -60,15 +60,24 @@ try {
         $results = [];
         $events = is_array($in['events'] ?? null) ? array_slice($in['events'], 0, 100) : [];
         usort($events, fn($a, $b) => ((int) ($a['t'] ?? 0)) <=> ((int) ($b['t'] ?? 0)));
+        $life = ($d['kind'] ?? 'pillbox') === 'life';
         foreach ($events as $e) {
             $type = (string) ($e['type'] ?? '');
+            if ($life) {   // door, motion or power-use sensor: each event is a sign of life for watch-over (見守り)
+                if (!in_array($type, ['door', 'motion', 'power', 'button', 'boot'], true)) { $results[] = 'ignored'; continue; }
+                $t = (int) ($e['t'] ?? 0); if ($t < time() - 3 * 86400 || $t > time() + 300) $t = time();
+                $last = q("SELECT MAX(happened_at) FROM device_events WHERE device_id = ? AND kind = 'activity'", [$d['id']])->fetchColumn();
+                if (!$last || strtotime($last) < $t - 600) q("INSERT INTO device_events (device_id, kind, happened_at) VALUES (?, 'activity', ?)", [$d['id'], date('Y-m-d H:i:s', $t)]);   // one row per 10 minutes is enough
+                $results[] = 'noted';
+                continue;
+            }
             if (!in_array($type, ['open', 'close', 'button', 'boot'], true)) { $results[] = 'ignored'; continue; }
             $t = (int) ($e['t'] ?? 0);
             if ($t < time() - 3 * 86400 || $t > time() + 300) $t = time();   // clock not set yet, or too old
             $lid = isset($e['lid']) ? max(1, min(4, (int) $e['lid'])) : null;
             $results[] = box_event($d, $type, $lid, (new DateTime())->setTimestamp($t));
         }
-        json_out(['ok' => true, 'results' => $results] + box_schedule($d, new DateTime()));
+        json_out(['ok' => true, 'results' => $results] + ($life ? ['kind' => 'life'] : box_schedule($d, new DateTime())));
 
     default:
         fail('unknown_action', 'Unknown action.', 404);

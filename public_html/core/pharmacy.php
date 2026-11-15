@@ -9,6 +9,7 @@
    Only pharmacies approved by the site admin (drug licence checked) can use a card. The family sees every
    access, can block a pharmacy, and "New card" makes the old code stop working at once. */
 declare(strict_types=1);
+require_once __DIR__ . '/careplus.php';
 
 const CARD_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no 0/O, 1/I/L: easy to read out or type
 
@@ -69,8 +70,11 @@ function notify_household(int $hid, array $msg): int
 /* ---------- What a pharmacy may do with a card ---------- */
 function card_member(array $ph, string $code): array
 {
-    $code = card_normalize($code);
-    $m = $code ? q('SELECT m.*, u.id owner_id FROM members m JOIN users u ON u.id = m.user_id WHERE m.card_code = ?', [$code])->fetch() : null;
+    $m = function_exists('share_code_member') ? share_code_member(preg_replace('/\D/', '', $code) === trim($code) ? trim($code) : '') : null;   // a 6-digit one-time code
+    if (!$m) {
+        $code = card_normalize($code);
+        $m = $code ? q('SELECT m.*, u.id owner_id FROM members m JOIN users u ON u.id = m.user_id WHERE m.card_code = ?', [$code])->fetch() : null;
+    }
     if (!$m) fail('bad_card', 'This card was not found. It may have been replaced: ask for the new card.', 404);
     if (!$m['share_add'] && !$m['share_view']) fail('not_shared', 'The family has not allowed pharmacies to use this card. They can switch it on in the app (Account → AushadhBox card).', 403);
     $link = q('SELECT blocked FROM pharmacy_links WHERE member_id = ? AND pharmacy_id = ?', [$m['id'], $ph['id']])->fetch();
@@ -89,7 +93,7 @@ function pharmacy_patient(array $ph, string $code): array
 {
     $m = card_member($ph, $code);
     $hid = (int) $m['user_id'];
-    $out = ['code' => $m['card_code'], 'name' => masked_name($m['name']), 'canAdd' => (bool) $m['share_add'], 'canView' => (bool) $m['share_view']];
+    $out = ['code' => $m['via_code'] ?? $m['card_code'], 'name' => masked_name($m['name']), 'canAdd' => (bool) $m['share_add'], 'canView' => (bool) $m['share_view']];
     if ($m['share_view']) {
         $out['allergies'] = $m['allergies']; $out['conditions'] = $m['conditions']; $out['bloodGroup'] = $m['blood_group'];
         $out['medicines'] = array_map(fn($r) => ['name' => $r['name'], 'ingredient' => $r['ingredient'], 'times' => array_values(array_filter(explode(',', $r['dose_times']))), 'fromYou' => (int) $r['pharmacy_id'] === (int) $ph['id']],

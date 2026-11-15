@@ -115,4 +115,26 @@ H=$(curl -s -D - -o /dev/null "$R/app"); echo "$H" > "$T/out"; has "security pol
 expect "audit log" "$(get own audit)" 200; has "actions are logged" '"action":"order_packed"'
 expect "cashier cannot read the audit log" "$(get cash audit)" 403
 
+echo "Dose packing, pickup time, network fees and health-points vouchers"
+expect "order with dose times, packed by dose time (一包化)" "$(post own order_new "{\"customer_id\":$CID,\"items\":[{\"name\":\"Dolo 650\",\"qty\":2,\"times\":[\"m\",\"e\"]},{\"name\":\"Electral ORS\",\"qty\":1,\"times\":[\"a\"]}],\"kind\":\"pickup\",\"dose_pack\":true}")" 200
+LID=$(sed -E 's/.*"order":\{"id":([0-9]+).*/\1/' "$T/out"); has "dose pack saved" '"dosePack":true'
+expect "pouch labels" "$(get own "labels&id=$LID&days=2")" 200; has "morning pouch with Dolo" '"slot":"Morning","key":"m","meds":\["Dolo 650'; has "afternoon pouch with ORS" '"slot":"Afternoon","key":"a","meds":\["Electral'
+expect "rider cannot print labels" "$(get rid "labels&id=$LID")" 403
+expect "pickup time must be at least 15 minutes ahead" "$(post own order_new "{\"customer_id\":$CID,\"items\":[{\"name\":\"Dolo 650\"}],\"kind\":\"pickup\",\"pickup_at\":\"$(TZ=Asia/Kolkata date -d '-1 hour' '+%Y-%m-%d %H:%M')\"}")" 400
+expect "pickup time saved" "$(post own order_new "{\"customer_id\":$CID,\"items\":[{\"name\":\"Dolo 650\"}],\"kind\":\"pickup\",\"pickup_at\":\"$(TZ=Asia/Kolkata date -d '+3 hour' '+%Y-%m-%d %H:00')\"}")" 200; has "pickup at" '"pickupAt":"20'
+expect "a home visit needs an address" "$(post own order_new "{\"customer_id\":$CID,\"items\":[{\"name\":\"Dolo 650\"}],\"kind\":\"pickup\",\"service\":\"home_visit\"}")" 400
+expect "fee statement" "$(get own fees)" 200; has "rates shown to the shop" '"rates":{"urban":2'; has "walk-in orders carry no commission" '"commission":0'
+expect "cashier cannot read the fee statement" "$(get cash fees)" 403
+# A voucher made in the family app (test household with points), accepted at the counter
+FAM="$(cd "$(dirname "$0")/../../public_html" 2>/dev/null && pwd)"
+VCODE=$(cd "$FAM" && php -r 'require "core/bootstrap.php"; foreach (["doses","watch","pharmacy","network_link","careplus"] as $f) require_once "core/$f.php";
+  $u = q("SELECT id FROM users ORDER BY id DESC LIMIT 1")->fetchColumn(); q("INSERT INTO health_points (user_id, delta, reason) VALUES (?, 120, ?)", [$u, "refund"]); echo voucher_make((int) $u, 100)["code"];' 2>/dev/null)
+if [ -n "$VCODE" ]; then
+  expect "voucher accepted at the counter" "$(post own voucher_redeem "{\"code\":\"$VCODE\"}")" 200; has "₹10 off" '"rupees":10'
+  expect "the same voucher twice is refused" "$(post own voucher_redeem "{\"code\":\"$VCODE\"}")" 409
+  expect "statement shows the platform owes the shop" "$(get own fees)" 200; has "voucher credit line (the platform owes the shop ₹10)" "\"amount\":-10,\"gst\":0,\"ref\":\"$VCODE\""
+else echo "  (family app not found next to the platform: voucher test skipped)"; fi
+post own order_new "{\"customer_id\":$CID,\"items\":[{\"name\":\"Glycomet 500\"}],\"kind\":\"pickup\"}" >/dev/null; RXO=$(sed -E 's/.*"order":\{"id":([0-9]+).*/\1/' "$T/out")
+expect "voucher not valid on a prescription-only order" "$(post own voucher_redeem "{\"code\":\"ABCDEFGH\",\"order_id\":$RXO}")" 422; has "explains why" 'rx_only'
+
 echo; echo "$PASS passed, $FAIL failed"; rm -rf "$T"; [ "$FAIL" = 0 ]

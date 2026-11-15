@@ -465,3 +465,26 @@ CREATE TABLE IF NOT EXISTS hits (
   created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_hits (k, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Platform fees and credits per business (the network's income, and what it owes shops).
+--   commission  on orders that came through the network (the family app, or passed on by a linked pharmacy): shop owes the platform
+--   voucher     a customer's AushadhBox health-points voucher the shop accepted: the platform owes the shop
+--   settlement  a payment between the shop and the platform that closes the month
+CREATE TABLE IF NOT EXISTS fees (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  org_id      INT UNSIGNED NOT NULL,
+  branch_id   INT UNSIGNED NULL,
+  kind        VARCHAR(10)  NOT NULL,                      -- commission, voucher, settlement, adjustment
+  order_id    INT UNSIGNED NULL,
+  base        DECIMAL(10,2) NULL,                         -- value the commission was charged on (medicines, without delivery)
+  rate        DECIMAL(4,2) NULL,                          -- percent
+  amount      DECIMAL(10,2) NOT NULL,                     -- positive: the shop owes the platform; negative: the platform owes the shop
+  gst         DECIMAL(10,2) NOT NULL DEFAULT 0,           -- 18% GST on the platform's service (commission)
+  period      CHAR(7)      NOT NULL,                      -- YYYY-MM
+  ref         VARCHAR(40)  NULL,                          -- voucher code or UPI reference
+  note        VARCHAR(200) NULL,
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_fee_order (kind, order_id),
+  KEY idx_fee_org (org_id, period),
+  CONSTRAINT fk_fee_org FOREIGN KEY (org_id) REFERENCES orgs(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

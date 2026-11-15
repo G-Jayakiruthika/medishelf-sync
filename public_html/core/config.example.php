@@ -80,4 +80,13 @@ return [
 
     // ---- Optional: IndexNow (tells Bing and other search engines about new pages straight away) ----
     'indexnow_on' => true,
+
+    // ---- Optional: phones for family members without a smartphone (core/careplus.php) ----
+    // Missed calls (like 99DOTS in India's TB programme): rent two numbers from Exotel, Knowlarity or MyOperator and point
+    // their missed-call webhook at https://yourdomain/telephony.php?key=SECRET. The caller pays nothing.
+    'telephony' => ['secret' => '', 'verify_number' => '', 'dose_number' => ''],
+    // SMS dose reminders (MSG91 Flow API; DLT-registered templates are required in India). Without a key, messages are only logged.
+    'sms' => ['key' => '', 'templates' => [
+        'dose' => ['id' => '', 'text' => 'AushadhBox: {name}, time for your {time} medicines: {meds}. Missed call to confirm.'],
+    ]],
 ];

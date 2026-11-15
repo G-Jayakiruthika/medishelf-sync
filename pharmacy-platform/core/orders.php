@@ -10,6 +10,7 @@
    - points:    loyalty points used as money.
    A payment the customer or rider records stays "claimed" until the shop confirms it, so both sides agree on the books. */
 declare(strict_types=1);
+require_once __DIR__ . '/fees.php';
 require_once __DIR__ . '/network.php';
 
 const ORDER_FLOW = [
@@ -99,18 +100,31 @@ function order_create(array $b, ?int $customerId, array $o, ?int $staffId = null
         if (!$point) fail('bad_point', 'Choose one of this pharmacy\'s pickup points.');
         $fee = min(10.0, (float) $b['fee_base']);   // village rounds: small flat fee
     }
+    // Japanese pharmacy ideas: 一包化 (each dose time packed in its own pouch), a pickup time chosen when sending the
+    // prescription ahead (EPARK), and a home visit by the pharmacist for someone who can't come (訪問薬剤管理).
+    $dosePack = !empty($o['dose_pack']) ? 1 : 0;
+    $pickupAt = null;
+    if (!empty($o['pickup_at']) && $kind === 'pickup') {
+        $ts = strtotime((string) $o['pickup_at']);
+        if (!$ts || $ts < time() + 15 * 60 || $ts > time() + 14 * 86400) fail('bad_pickup', 'Choose a pickup time from 15 minutes to 14 days from now.');
+        $pickupAt = date('Y-m-d H:i:00', $ts);
+    }
+    $service = in_array($o['service'] ?? null, ['home_visit', 'review'], true) ? $o['service'] : null;
+    if ($service === 'home_visit' && $kind !== 'delivery') fail('visit_needs_address', 'A home visit needs the delivery address.');
+    foreach ($lines as $i => $l) $lines[$i]['times'] = implode(',', array_values(array_intersect(['m', 'a', 'e', 'b'], (array) ($items[$i]['times'] ?? []))));
     $otp = $kind === 'pickup' ? null : str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
     $number = order_number($b);
     $rxDate = isset($o['rx_date']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string) $o['rx_date']) ? $o['rx_date'] : null;
     $total = round($subtotal + $fee, 2);
-    $id = tx(function () use ($b, $customerId, $source, $kind, $point, $rules, $rxDate, $subtotal, $fee, $total, $dist, $worth, $otp, $o, $cust, $number, $lines) {
+    $id = tx(function () use ($b, $customerId, $source, $kind, $point, $rules, $rxDate, $subtotal, $fee, $total, $dist, $worth, $otp, $o, $cust, $number, $lines, $dosePack, $pickupAt, $service) {
         q('INSERT INTO orders (number, branch_id, asked_branch_id, customer_id, source, kind, pickup_point_id, rx_needed, rx_status, rx_date, subtotal, delivery_fee, total, distance_km, worth, otp_hash, note, address_enc)
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
           [$number, $b['id'], isset($o['asked_branch_id']) ? (int) $o['asked_branch_id'] : null, $customerId, $source, $kind, $point['id'] ?? null, $rules['rx'] ? 1 : 0,
            $rules['rx'] ? ($rxDate ? 'seen' : 'awaited') : null, $rxDate, round($subtotal, 2), $fee, $total, $dist, $worth, $otp ? hash('sha256', $number . $otp) : null,
            str_in($o, 'note', 300), $kind === 'delivery' ? ($cust['address_enc'] ?? null) : null]);
         $oid = (int) db()->lastInsertId();
-        foreach ($lines as $l) q('INSERT INTO order_items (order_id, product_id, name, qty, price, schedule, status) VALUES (?,?,?,?,?,?,?)', [$oid, $l['product_id'], $l['name'], $l['qty'], $l['price'], $l['schedule'], $l['status']]);
+        q('UPDATE orders SET dose_pack = ?, pickup_at = ?, service = ? WHERE id = ?', [$dosePack, $pickupAt, $service, $oid]);
+        foreach ($lines as $l) q('INSERT INTO order_items (order_id, product_id, name, qty, price, schedule, times, status) VALUES (?,?,?,?,?,?,?,?)', [$oid, $l['product_id'], $l['name'], $l['qty'], $l['price'], $l['schedule'], $l['times'], $l['status']]);
         return $oid;
     });
     audit($staffId ? 'staff' : 'customer', $staffId, (int) $b['org_id'], (int) $b['id'], 'order_new', "$number ($source, $kind, " . money($total) . ')');
@@ -123,7 +137,7 @@ function order(int $id): array { $o = q('SELECT * FROM orders WHERE id = ?', [$i
 function order_public(array $o, bool $forStaff = false): array
 {
     $b = branch((int) $o['branch_id']);
-    $items = q('SELECT id, product_id, name, qty, price, schedule, batch, exp, status FROM order_items WHERE order_id = ?', [$o['id']])->fetchAll();
+    $items = q('SELECT id, product_id, name, qty, price, schedule, times, batch, exp, status FROM order_items WHERE order_id = ?', [$o['id']])->fetchAll();
     $cust = $o['customer_id'] ? q('SELECT * FROM customers WHERE id = ?', [$o['customer_id']])->fetch() : null;
     $del = q('SELECT * FROM deliveries WHERE order_id = ?', [$o['id']])->fetch();
     $point = $o['pickup_point_id'] ? q('SELECT name, village, kind, days FROM pickup_points WHERE id = ?', [$o['pickup_point_id']])->fetch() : null;
@@ -131,7 +145,8 @@ function order_public(array $o, bool $forStaff = false): array
         'pharmacy' => ['code' => $b['code'], 'name' => $b['name'], 'phone' => $b['phone'], 'address' => $b['address'], 'village' => $b['village']],
         'askedPharmacy' => $o['asked_branch_id'] ? branch((int) $o['asked_branch_id'])['name'] : null,
         'items' => array_map(fn($i) => ['id' => (int) $i['id'], 'name' => $i['name'], 'qty' => (int) $i['qty'], 'price' => $i['price'] !== null ? (float) $i['price'] : null,
-                                        'schedule' => $i['schedule'], 'status' => $i['status'], 'batch' => $forStaff ? $i['batch'] : null, 'exp' => $i['exp']], $items),
+                                        'schedule' => $i['schedule'], 'times' => $i['times'] ?? '', 'status' => $i['status'], 'batch' => $forStaff ? $i['batch'] : null, 'exp' => $i['exp']], $items),
+        'dosePack' => (bool) ($o['dose_pack'] ?? 0), 'pickupAt' => $o['pickup_at'] ?? null, 'service' => $o['service'] ?? null,
         'rx' => ['needed' => (bool) $o['rx_needed'], 'status' => $o['rx_status'], 'date' => $o['rx_date']],
         'subtotal' => (float) $o['subtotal'], 'deliveryFee' => (float) $o['delivery_fee'], 'discount' => (float) $o['discount'], 'total' => (float) $o['total'],
         'paid' => (float) $o['paid'], 'payStatus' => $o['pay_status'], 'distanceKm' => $o['distance_km'] !== null ? (float) $o['distance_km'] : null,
@@ -178,6 +193,7 @@ function order_set_status(array $o, string $to, ?int $staffId, array $extra = []
    and the referral share for the pharmacy that passed the order on. */
 function order_completed(array $o): void
 {
+    if (function_exists('fee_record_order')) fee_record_order($o);
     if (!$o['customer_id']) return;
     $b = branch((int) $o['branch_id']);
     $paid = (float) $o['paid'];
@@ -204,7 +220,7 @@ function upi_link(array $b, float $amount, string $note): ?string
 function pay_record(array $b, array $in, string $by, ?int $staffId): array
 {
     $method = (string) ($in['method'] ?? '');
-    if (!in_array($method, ['upi_qr', 'upi_phone', 'other_qr', 'cash', 'card', 'points'], true)) fail('bad_method', 'Choose how it was paid.');
+    if (!in_array($method, ['upi_qr', 'upi_phone', 'other_qr', 'cash', 'card', 'points', 'voucher'], true) || ($method === 'voucher' && empty($in['_voucher_ok']))) fail('bad_method', 'Choose how it was paid.');
     $amount = round((float) ($in['amount'] ?? 0), 2);
     if ($amount <= 0 || $amount > 200000) fail('bad_amount', 'Enter the amount paid.');
     $utr = preg_replace('/[^A-Za-z0-9]/', '', (string) ($in['utr'] ?? '')) ?: null;

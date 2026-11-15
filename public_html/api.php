@@ -16,6 +16,7 @@ require __DIR__ . '/core/health.php';
 require __DIR__ . '/core/safety.php';
 require __DIR__ . '/core/assistant.php';
 require __DIR__ . '/core/care.php';
+require_once __DIR__ . '/core/careplus.php';
 require __DIR__ . '/core/household.php';
 require __DIR__ . '/core/pharmacy.php';
 require __DIR__ . '/core/watch.php';
@@ -124,6 +125,79 @@ try {
         $lang = lang_in($in['language'] ?? null);
         q('UPDATE users SET name = ?, phone = ?, language = ?, weekly_email = ? WHERE id = ?', [$name, $phone, $lang, array_key_exists('weekly_email', $in) ? (!empty($in['weekly_email']) ? 1 : 0) : (int) $user['weekly_email'], $user['id']]);
         json_out(['ok' => true]);
+
+    /* ---------------- Round 3: Japanese household-app ideas and rural features (core/careplus.php) ---------------- */
+    case 'careplus':   // everything the Care screen shows in one call
+        json_out(['repeats' => rx_repeats($hid), 'repeatDue' => rx_repeat_due($hid), 'review' => poly_review($hid), 'food' => food_cautions($hid),
+                  'pregnancies' => pregnancies($hid), 'growth' => child_growth($hid), 'points' => points_view($hid), 'numbers' => telephony_numbers(),
+                  'phones' => array_map(fn($m) => ['memberId' => (int) $m['id'], 'phone' => $m['phone'], 'verified' => (bool) $m['phone_verified'], 'sms' => (bool) $m['sms_remind']],
+                                        q('SELECT id, phone, phone_verified, sms_remind FROM members WHERE user_id = ?', [$hid])->fetchAll())]);
+
+    case 'rx_repeat_save':
+        rx_repeat_save($hid, input());
+        json_out(['ok' => true, 'repeats' => rx_repeats($hid)]);
+
+    case 'rx_repeat_use':
+        $r = rx_repeat_use($hid, (int) (input()['id'] ?? 0));
+        json_out(['ok' => true, 'repeats' => rx_repeats($hid)] + $r);
+
+    case 'rx_repeat_delete':
+        q('DELETE FROM rx_repeats WHERE id = ? AND user_id = ?', [(int) (input()['id'] ?? 0), $hid]);
+        json_out(['ok' => true, 'repeats' => rx_repeats($hid)]);
+
+    case 'pregnancy_start':
+        $in = input();
+        json_out(['ok' => true, 'pregnancy' => pregnancy_start($hid, (int) ($in['member_id'] ?? 0), (string) ($in['lmp'] ?? ''))]);
+
+    case 'pregnancy_anc':   // mark a check-up as done (or not)
+        $in = input();
+        $p = q("SELECT * FROM pregnancies WHERE id = ? AND user_id = ? AND status = 'active'", [(int) ($in['id'] ?? 0), $hid])->fetch();
+        if (!$p) fail('not_found', 'Pregnancy record not found.', 404);
+        $n = max(1, min(4, (int) ($in['n'] ?? 0)));
+        $done = array_values(array_unique(array_filter(array_map('intval', explode(',', $p['anc_done'])))));
+        $done = !empty($in['done']) ? array_values(array_unique(array_merge($done, [$n]))) : array_values(array_diff($done, [$n]));
+        sort($done);
+        q('UPDATE pregnancies SET anc_done = ? WHERE id = ?', [implode(',', $done), $p['id']]);
+        if (!empty($in['done'])) points_award($hid, 'anc', 'anc' . $p['id'] . '-' . $n);
+        json_out(['ok' => true, 'pregnancies' => pregnancies($hid)]);
+
+    case 'pregnancy_end':
+        q("UPDATE pregnancies SET status = 'ended' WHERE id = ? AND user_id = ?", [(int) (input()['id'] ?? 0), $hid]);
+        json_out(['ok' => true, 'pregnancies' => pregnancies($hid)]);
+
+    case 'points':
+        json_out(points_view($hid));
+
+    case 'voucher_make':
+        $r = voucher_make($hid, (int) (input()['points'] ?? 0));
+        json_out(['ok' => true, 'voucher' => $r] + points_view($hid));
+
+    case 'voucher_cancel':
+        voucher_cancel($hid, (string) (input()['code'] ?? ''));
+        json_out(['ok' => true] + points_view($hid));
+
+    case 'share_code':   // 6 digits for 10 minutes, for a pharmacy without the card link
+        $in = input();
+        json_out(['ok' => true] + share_code_new($hid, (int) ($in['member_id'] ?? 0), !empty($in['add']), !empty($in['view'])));
+
+    case 'fhir':   // FHIR R4 bundle of the medicine list, allergies and readings (for ABDM health lockers and doctors' systems)
+        $mid = (int) ($_GET['member_id'] ?? 0) ?: null;
+        if ($mid) own('members', $mid, $hid);
+        header('Content-Type: application/fhir+json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="aushadhbox-fhir-' . date('Y-m-d') . '.json"');
+        echo json_encode(fhir_bundle($hid, $mid), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
+        exit;
+
+    case 'member_phone':   // a phone for missed-call doses and SMS reminders (family members without a smartphone)
+        $in = input();
+        json_out(['ok' => true] + member_phone_set($hid, (int) ($in['member_id'] ?? 0), (string) ($in['phone'] ?? ''), !empty($in['sms'])));
+
+    case 'rural_save':   // low-data mode, village and district, health-worker (ASHA) mode
+        $in = input();
+        $hw = !empty($in['health_worker']) ? 1 : 0;
+        $set = ['low_data' => !empty($in['low_data']) ? 1 : 0, 'district' => str_in($in, 'district', 60), 'village' => str_in($in, 'village', 80), 'health_worker' => $hw];
+        q('UPDATE users SET low_data = ?, district = ?, village = ?, health_worker = ? WHERE id = ?', [$set['low_data'], $set['district'], $set['village'], $hw, $user['id']]);
+        json_out(['ok' => true, 'user' => public_user($set + $user)]);
 
     case 'language_save':
         $lang = lang_in(input()['language'] ?? null);
@@ -287,7 +361,8 @@ try {
         if (!empty($in['taken'])) dose_mark($hid, $id, $slot, $today, 'taken', null, 'app');
         else dose_unmark($hid, $id, $slot, $today);
         $st = q('SELECT stock_count FROM cabinet_items WHERE id = ?', [$id])->fetchColumn();
-        json_out(['ok' => true, 'stock' => $st === null ? null : (int) $st]);
+        $pts = !empty($in['taken']) ? points_check_all_doses($hid) : 0;
+        json_out(['ok' => true, 'stock' => $st === null ? null : (int) $st, 'points' => $pts]);
 
     case 'dose_slot_taken':   // "Taken" on a reminder notification: tick every dose due in that time slot today
         $in = input();
@@ -337,8 +412,10 @@ try {
             $id = (int) ($in['id'] ?? 0); own('devices', $id, $hid);
             q('UPDATE devices SET name = ?, member_id = ?, compartments = ? WHERE id = ?', [$name, $mid, $comp, $id]);
         } else {
-            if ((int) q('SELECT COUNT(*) FROM devices WHERE user_id = ?', [$hid])->fetchColumn() >= 6) fail('limit_devices', 'You can connect up to 6 pillboxes.');
-            q('INSERT INTO devices (user_id, member_id, name, compartments) VALUES (?,?,?,?)', [$hid, $mid, $name, $comp]);
+            if ((int) q('SELECT COUNT(*) FROM devices WHERE user_id = ?', [$hid])->fetchColumn() >= 10) fail('limit_devices', 'You can connect up to 10 pillboxes and sensors.');
+            $kind = ($in['kind'] ?? '') === 'life' ? 'life' : 'pillbox';
+            if ($kind === 'life' && !$mid) fail('need_member', 'Choose whose home the sensor is in.');
+            q('INSERT INTO devices (user_id, member_id, name, compartments, kind) VALUES (?,?,?,?,?)', [$hid, $mid, $name, $kind === 'life' ? 1 : $comp, $kind]);
             $id = (int) db()->lastInsertId();
             device_new_code($id);
         }
@@ -602,7 +679,7 @@ try {
     /* ---------------- Ideas from Japanese medication-notebook apps ---------------- */
     case 'vital_save':
         $r = vital_save($hid, input());
-        json_out(['ok' => true] + $r);
+        json_out(['ok' => true, 'points' => points_award($hid, (input()['kind'] ?? '') === 'steps' ? 'steps' : 'reading')] + $r);
 
     case 'vitals':
         json_out(['vitals' => vitals_list($hid, (int) ($_GET['member_id'] ?? 0) ?: null, max(7, min(365, (int) ($_GET['days'] ?? 90))))]);
@@ -613,7 +690,9 @@ try {
 
     case 'followup_answer':
         $in = input();
-        json_out(followup_answer($hid, (int) ($in['id'] ?? 0), (string) ($in['answer'] ?? ''), (string) ($in['note'] ?? '')));
+        $r = followup_answer($hid, (int) ($in['id'] ?? 0), (string) ($in['answer'] ?? ''), (string) ($in['note'] ?? ''));
+        points_award($hid, 'followup', 'fu' . (int) ($in['id'] ?? 0));
+        json_out($r);
 
     case 'appointment_save':
         $in = input();
@@ -652,6 +731,7 @@ try {
         $d = (string) ($in['date'] ?? date('Y-m-d'));
         if (!empty($in['given']) && (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d) || $d > date('Y-m-d'))) fail('bad_date', 'Choose the date it was given.');
         q('UPDATE vaccinations SET given_on = ? WHERE id = ? AND user_id = ?', [!empty($in['given']) ? $d : null, (int) ($in['id'] ?? 0), $hid]);
+        if (!empty($in['given'])) points_award($hid, 'vaccine', 'vx' . (int) ($in['id'] ?? 0));
         json_out(['ok' => true, 'vaccines' => vaccines_list($hid)]);
 
     case 'vaccines_mark_past':   // "already given": everything due before today for this child
@@ -750,9 +830,26 @@ try {
         if (empty($in['share_ok'])) fail('need_consent', 'Agree to share your name and phone with the pharmacy for this order.');
         $who = (array) ($in['customer'] ?? []);
         $who['name'] = mb_substr(trim((string) ($who['name'] ?? $user['name'])), 0, 80); $who['district'] = $who['district'] ?? ($user['district'] ?? null);
-        $r = network_or_fail(network_call('order_create', ['customer_ref' => customer_ref($hid), 'code' => $in['code'] ?? '', 'items' => (array) ($in['items'] ?? []), 'kind' => $in['kind'] ?? 'pickup',
-            'pickup_point_id' => $in['pickup_point_id'] ?? null, 'note' => $in['note'] ?? null, 'customer' => $who, 'referral_code' => $in['referral_code'] ?? null,
-            'customer_pays_full' => !empty($in['customer_pays_full']), 'source' => !empty($in['for_household']) ? 'asha' : 'app']));
+        // Dose times from the cabinet go with each medicine, so the pharmacy can pack each dose time in its own pouch (一包化).
+        $items = array_map(function ($it) use ($hid) {
+            if (!is_array($it)) return $it;
+            $t = q("SELECT dose_times FROM cabinet_items WHERE user_id = ? AND name = ? AND dose_times <> '' LIMIT 1", [$hid, (string) ($it['name'] ?? '')])->fetchColumn();
+            return $it + ['times' => $t ? explode(',', $t) : []];
+        }, array_slice((array) ($in['items'] ?? []), 0, 30));
+        // A repeat prescription: the pharmacy sees who prescribed it and which refill this is; the use is counted when the order is accepted here.
+        $note = $in['note'] ?? null; $rxDate = null; $rep = null;
+        if (!empty($in['rx_repeat_id'])) {
+            $rep = q('SELECT * FROM rx_repeats WHERE id = ? AND user_id = ?', [(int) $in['rx_repeat_id'], $hid])->fetch();
+            if (!$rep) fail('not_found', 'Prescription not found.', 404);
+            if ($rep['valid_until'] < date('Y-m-d') || (int) $rep['repeats_used'] >= (int) $rep['repeats_allowed']) fail('used_up', 'This prescription is used up or expired. Ask the doctor for a new one.');
+            $rxDate = $rep['issued_on'];
+            $note = trim('Repeat prescription by ' . $rep['doctor'] . ' (' . $rep['issued_on'] . '), refill ' . ((int) $rep['repeats_used'] + 1) . ' of ' . $rep['repeats_allowed'] . '. ' . (string) $note);
+        }
+        $r = network_or_fail(network_call('order_create', ['customer_ref' => customer_ref($hid), 'code' => $in['code'] ?? '', 'items' => $items, 'kind' => $in['kind'] ?? 'pickup',
+            'pickup_point_id' => $in['pickup_point_id'] ?? null, 'note' => $note, 'customer' => $who, 'referral_code' => $in['referral_code'] ?? null, 'rx_date' => $rxDate,
+            'customer_pays_full' => !empty($in['customer_pays_full']), 'source' => !empty($in['for_household']) ? 'asha' : ($rep ? 'refill' : 'app'),
+            'dose_pack' => !empty($in['dose_pack']), 'pickup_at' => $in['pickup_at'] ?? null, 'service' => in_array($in['service'] ?? '', ['home_visit', 'review'], true) ? $in['service'] : null]));
+        if ($rep && !empty($r['number'])) rx_repeat_use($hid, (int) $rep['id']);
         audit($user, 'network_order', ($r['number'] ?? '') . ' at ' . ($in['code'] ?? ''));
         if (!empty($r['number'])) q('INSERT IGNORE INTO network_orders (user_id, number, pharmacy, otp) VALUES (?,?,?,?)', [$hid, $r['number'], mb_substr((string) ($r['pharmacy']['name'] ?? ''), 0, 120), $r['otp'] ?? null]);
         json_out($r);
