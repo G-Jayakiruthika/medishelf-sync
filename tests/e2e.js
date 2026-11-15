@@ -142,6 +142,12 @@ async function journey(browser, label, viewport) {
   await p.click('[data-rporder]'); await p.waitForTimeout(600);
   ok((await p.inputValue('#shItems')).includes('Amlodipine'), 'refill order opens Pharmacies with the medicines');
 
+  // Privacy tab: what we keep, a request with a reference number
+  await p.evaluate(() => AB.go('privacy')); await p.waitForTimeout(900);
+  ok((await p.$$('#pvRegister details')).length >= 14, 'Privacy tab lists what we keep (record of processing)');
+  await p.fill('#pvDetails', 'Please send a copy of my data.'); await p.click('#pvReqForm button[type=submit]'); await p.waitForTimeout(800);
+  ok(/PR-\d{5}/.test(await p.textContent('#pvRequests')), 'privacy request gets a reference number');
+
   await p.selectOption('#langSelect', 'hi'); await p.waitForTimeout(400);
   ok((await p.textContent('#planBadge')).includes('प्रीमियम'), 'app switches to Hindi');
   const ov = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);

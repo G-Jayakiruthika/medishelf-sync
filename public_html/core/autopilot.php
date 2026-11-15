@@ -296,10 +296,16 @@ function build_digest(?string $day = null): array
     $ins = q("SELECT severity, title FROM insights WHERE day >= ? - INTERVAL 1 DAY AND dismissed = 0 ORDER BY FIELD(severity,'high','medium','low','good'), id DESC LIMIT 8", [$day])->fetchAll();
     $overdue = (int) q('SELECT COUNT(*) FROM contact_messages WHERE handled = 0 AND due_at < NOW()')->fetchColumn();
     $health = function_exists('health_checks') ? array_filter(health_checks(), fn($c) => $c['status'] !== 'ok') : [];
+    // Security events of that day (failed sign-ins, blocked requests, bots, two-factor failures), and checks that fail
+    $sec = [];
+    try { $sec = q('SELECT kind, COUNT(*) n FROM security_events WHERE created_at >= ? AND created_at < ? + INTERVAL 1 DAY GROUP BY kind ORDER BY n DESC', [$day, $day])->fetchAll(); } catch (Throwable $e) { /* table not there yet */ }
+    $secBad = function_exists('security_checks') ? array_filter(security_checks(), fn($c) => !$c['ok']) : [];
     $text = "Yesterday (" . date('D j M', strtotime($day)) . ")\n" . implode("\n", $lines) .
         "\n\nNow: {$snap['premium'][1]} Premium families · {$snap['total_users'][1]} users · conversion {$snap['conversion'][1]}% · {$snap['open_messages'][1]} open messages" . ($overdue ? " ($overdue overdue)" : '') .
         ($ins ? "\n\nWhat the autopilot noticed:\n" . implode("\n", array_map(fn($i) => '• [' . $i['severity'] . '] ' . $i['title'], $ins)) : "\n\nNothing unusual.") .
-        ($health ? "\n\nNeeds attention:\n" . implode("\n", array_map(fn($c) => '• ' . $c['label'] . ': ' . $c['detail'], $health)) : '');
+        ($health ? "\n\nNeeds attention:\n" . implode("\n", array_map(fn($c) => '• ' . $c['label'] . ': ' . $c['detail'], $health)) : '') .
+        ($sec ? "\n\nSecurity events: " . implode(' · ', array_map(fn($r) => str_replace('_', ' ', $r['kind']) . ' ' . $r['n'], $sec)) : '') .
+        ($secBad ? "\n\nSecurity settings to fix (Admin → Security):\n" . implode("\n", array_map(fn($c) => '• ' . $c['check'], $secBad)) : '');
     $summary = ai_text('digest', 'You write a 2-sentence morning summary for the founder of a small health app. Use only the facts given. Mention the single most important thing to do today.', $text, 160);
     return ['day' => $day, 'text' => ($summary ? $summary . "\n\n" : '') . $text, 'ai' => (bool) $summary];
 }

@@ -28,6 +28,8 @@ jobs:
           --health-interval=5s --health-timeout=5s --health-retries=20
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the security tests scan the whole git history for secrets
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -109,6 +111,17 @@ jobs:
 
       - name: Autopilot, support sorting and safety checks
         run: php tests/autopilot_test.php
+
+      - name: Security tests (headers, sessions, two-factor, isolation, injection, privacy rights, backups, git history)
+        run: bash tests/security_test.sh http://127.0.0.1:8080
+        env:
+          DB_CMD: mysql -h127.0.0.1 -uroot -proot aushadhbox
+
+      - name: Load test (smoke, 20 families for 10 seconds)
+        run: |
+          php tests/load_seed.php 20
+          python3 tests/load_test.py http://127.0.0.1:8080 --users 20 --seconds 10
+          php tests/load_seed.php clean
 
       - name: Browser tests (phone and desktop)
         run: |

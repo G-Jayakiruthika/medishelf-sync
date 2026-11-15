@@ -14,4 +14,9 @@ Only the latest code on the `main` branch gets security fixes.
 
 ## How the project is protected
 
-A full security review and test report is being written and will be added here (`docs/SECURITY-REPORT.md`).
+The full review is in [docs/SECURITY-REPORT.md](docs/SECURITY-REPORT.md): every protection, where it lives, and the test that proves
+it. In short: Argon2id passwords, two-factor sign-in for staff and admins, encryption of health details and phone numbers,
+CSRF tokens plus Origin checks, strict security headers and CSP, no cross-origin API access, parameterised queries,
+per-family and per-shop isolation, rate limits, bot traps, security event logging, encrypted backups with tested restore,
+and a privacy centre built to the ISO/IEC 29100 / 27701 structure for India's DPDP Act. `tests/security_test.sh` (167 checks)
+runs on every push.

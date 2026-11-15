@@ -6,6 +6,7 @@
    /poster/{code}    printable A4 QR poster for the counter */
 declare(strict_types=1);
 $path = trim(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/', '/');
+if (preg_match('#(^|/)\.(?!well-known)#', $path)) { http_response_code(404); exit('Not found'); }   // hidden files (.htaccess, .git), on any server
 if (PHP_SAPI === 'cli-server' && $path !== '' && is_file(__DIR__ . '/' . $path)) return false;   // php -S: real files (api.php, css, js) are served directly
 require dirname(__DIR__) . '/core/bootstrap.php';
 require_once dirname(__DIR__) . '/core/network.php';

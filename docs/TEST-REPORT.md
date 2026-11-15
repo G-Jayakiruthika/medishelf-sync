@@ -3,17 +3,18 @@
 | | |
 |---|---|
 | Date | 15 November 2026 |
-| Build | v3.2 (Care+, villages and basic phones, AushadhBox Pharmacy Network with fees and vouchers, 3D models) |
+| Build | v3.3 (security hardening, privacy tab, backups, load testing; v3.2: Care+, villages, pharmacy network, 3D) |
 | Environment | PHP 8.3, MariaDB 11.4, Python 3, Java 21, Chromium (Playwright), phone 390 px and desktop 1366 px |
-| Result | **All automated suites pass (948 checks).** No open defects. |
+| Result | **All automated suites pass (1,120 checks).** No open defects. Security review: [SECURITY-REPORT.md](SECURITY-REPORT.md). |
 
 ## 1. Automated suites
 
 | Suite | Command | Checks | Result |
 |---|---|---|---|
 | SEO and site health | `php tests/seo_check.php <url>` | 271 | ✅ all passed |
-| API, security, automations and Care+ | `bash tests/api_test.sh <url>` | 220 | ✅ all passed |
-| End-to-end browser journey | `node tests/e2e.js <url>` | 104 (49 phone + 49 desktop + 6 portal and watch) | ✅ all passed |
+| API, security, automations and Care+ | `bash tests/api_test.sh <url>` | 221 | ✅ all passed |
+| Security: attacks and protections, both apps | `bash tests/security_test.sh <url> [<pharmacy url>]` | 167 | ✅ all passed |
+| End-to-end browser journey | `node tests/e2e.js <url>` | 108 (51 phone + 51 desktop + 6 portal and watch) | ✅ all passed |
 | Prescription and bill reader | `node tests/rx_parse_test.js` | 36 | ✅ all passed |
 | Bluetooth meter parsers | `node tests/ble_parse_test.js` | 12 | ✅ all passed |
 | Watch and health-app import | `node tests/health_import_test.js` | 20 | ✅ all passed |
@@ -23,6 +24,7 @@
 | Demand forecasts, reorder, expiry, transfers, delivery rounds (Python) | `python3 -m unittest discover -s tests -t .` in `pharmacy-platform/analytics` | 19 | ✅ all passed |
 | Billing-software sync agent (Java) | `sh pharmacy-platform/sync-agent/build.sh` | 17 | ✅ all passed |
 | Fridge thermometer logic (MicroPython) | `python3 -m unittest test_logic` in `pharmacy-platform/iot/coldchain` | 6 | ✅ all passed |
+| Load: 10 to 400 families at once | `python3 tests/load_test.py <url> --users 10,50,100,200,400` | 0 errors | ✅ |
 | 3D models | rebuilt from `tools/models3d/spec.py` in CI; viewer checked in Chromium (no script errors, every screen's model drawn) | — | ✅ |
 
 Re-run all of them against the live site after every change. `api_test.sh` and `e2e.js` create test accounts; run them on a test copy or delete the accounts afterwards.

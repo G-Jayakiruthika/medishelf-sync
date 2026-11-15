@@ -74,7 +74,7 @@ Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hosting
 | **Barcodes** | A pack scanned with its barcode (EAN / GS1) is remembered, so the next family scanning the same pack gets the name filled in. |
 | **Cookie consent** | Accept / Reject / Choose banner in 10 languages. Analytics run **only after Accept**. Choices are logged as proof. Withdrawing deletes past statistics. |
 | **Admin** (`/admin.html`) | Revenue, Premium families, conversion, sign-ups, visitors, top pages, traffic sources, button clicks, devices, payments, contact messages, medicine-list import. |
-| **Privacy & security** | DPDP Act 2023 / Rules 2025: consent at sign-up, download my data, delete account, grievance officer, retention clean-up. bcrypt, CSRF, rate limits, ownership checks, CSP, HTTPS, private `core/` folder. |
+| **Privacy & security** | **Privacy tab** built to the ISO/IEC 29100 / 27701 structure for the DPDP Act 2023 / Rules 2025: what we keep and why (record of processing), consent history, choices, download, correction, deletion, nominee, requests and grievances with due dates; 18+ and guardian consent for children; one-click unsubscribe. **Security**: Argon2id, two-factor for admins and pharmacy staff, encryption of health details and phones, CSRF + Origin checks, strict headers and CSP, per-family isolation, rate limits, bot traps, security event log, encrypted backups with tested restore, load-tested to 400 users at once. See [SECURITY.md](SECURITY.md) and [docs/SECURITY-REPORT.md](docs/SECURITY-REPORT.md). |
 
 ## Folder structure
 ```

@@ -75,6 +75,7 @@ function start_session(): void
 
 function security_headers(bool $camera = true): void
 {
+    header_remove('X-Powered-By');   // never announce the PHP version
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: same-origin');
     header('X-Frame-Options: DENY');
