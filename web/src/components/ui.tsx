@@ -15,7 +15,7 @@ export function Dialog({ open, title, onClose, children, footer, wide }: {
     if (!open && d.open) d.close();
   }, [open]);
   return (
-    <dialog ref={ref} onClose={onClose} aria-labelledby="dlg-title" style={wide ? { width: 'min(820px, calc(100vw - 24px))' } : undefined}
+    <dialog ref={ref} onClose={onClose} aria-labelledby="dlg-title" className={wide ? 'wide' : undefined}
       onClick={e => { if (e.target === ref.current) onClose(); }}>
       {open && (
         <>

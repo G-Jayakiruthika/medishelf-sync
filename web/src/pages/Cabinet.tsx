@@ -183,14 +183,14 @@ function MedicineDialog({ initial, onClose, onSave, onDelete }: {
           <input value={exp} onChange={e => setExp(e.target.value)} placeholder="03/27" inputMode="numeric" maxLength={16} aria-describedby="exp-help" />
           <small id="exp-help">{exp && (parseExpiry(exp) || /^\d{4}-\d{2}$/.test(exp)) ? `Good until the end of ${monthLabel(/^\d{4}-\d{2}$/.test(exp) ? exp + '-01' : parseExpiry(exp))}` : 'As printed on the strip: 03/27, MAR 2027'}</small></label>
         <label className="field"><span>{t('batch')}</span><input value={m.batch_no ?? ''} onChange={e => set('batch_no', e.target.value || null)} maxLength={40} /></label>
-        <fieldset className="field full" style={{ border: 0, padding: 0, margin: 0 }}>
-          <legend className="small" style={{ fontWeight: 650, color: 'var(--muted)', marginBottom: 6 }}>{t('doseTimes')}</legend>
+        <div className="field full" role="group" aria-labelledby="dose-times-label">
+          <span id="dose-times-label">{t('doseTimes')}</span>
           <div className="chips">
             {SLOTS.map(s => <button type="button" key={s} className="chip" aria-pressed={m.dose_times.includes(s)} onClick={() => toggle(s)}>{t(s)}</button>)}
             {info?.times && !m.dose_times.length && <button type="button" className="btn ghost sm" onClick={() => set('dose_times', info.times.split(',').filter(Boolean) as Slot[])}>Usual: {info.times.split(',').map(s => t(s as Slot)).join(' + ')}</button>}
           </div>
           <small className="muted">Leave empty for “when needed” medicines like paracetamol.</small>
-        </fieldset>
+        </div>
         <label className="field"><span>{t('perDose')}</span><input type="number" min={1} max={20} value={m.per_dose} onChange={e => set('per_dose', Math.min(20, Math.max(1, Number(e.target.value) || 1)))} /></label>
         <label className="field"><span>{t('stock')}</span><input type="number" min={0} max={10000} value={m.stock_count ?? ''} placeholder="Not counting" onChange={e => set('stock_count', e.target.value === '' ? null : Math.min(10000, Math.max(0, Number(e.target.value))))} /></label>
         <label className="field"><span>{t('food')}</span>
