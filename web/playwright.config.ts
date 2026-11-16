@@ -10,7 +10,7 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:4173/medishelf-sync/',
     launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
   },
-  webServer: { command: 'npx vite preview --port 4173 --strictPort', url: 'http://127.0.0.1:4173/medishelf-sync/', reuseExistingServer: true },
+  webServer: { command: 'npx vite preview --host 127.0.0.1 --port 4173 --strictPort', url: 'http://127.0.0.1:4173/medishelf-sync/', reuseExistingServer: true },
   projects: [
     { name: 'laptop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'tablet', use: { ...devices['Desktop Chrome'], viewport: { width: 1024, height: 768 }, hasTouch: true } },
