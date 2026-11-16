@@ -48,8 +48,7 @@ jobs:
       - name: Build (uses the public Supabase URL and publishable key in web/.env.production)
         run: npm run build
       - name: No secrets in the built site
-        run: |
-          ! grep -rEl "service_role|sb_secret_|SUPABASE_ACCESS_TOKEN|-----BEGIN" dist
+        run: node scripts/check-secrets.mjs
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Browser tests (laptop, tablet, phone; demo mode)
