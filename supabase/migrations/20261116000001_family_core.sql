@@ -366,3 +366,8 @@ grant select on public.audit_log to authenticated;
 revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
 grant execute on function public.is_member(uuid, text[]), public.can_edit(uuid) to authenticated;
+
+-- Supabase grants every new function and sequence to anon and authenticated by default; keep only what the app calls.
+revoke execute on all functions in schema public from public, anon, authenticated;
+grant execute on function public.is_member(uuid, text[]), public.can_edit(uuid), public.delete_my_account() to authenticated;
+revoke all on all sequences in schema public from anon, authenticated;

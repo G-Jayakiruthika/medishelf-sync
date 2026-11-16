@@ -2,14 +2,11 @@
 #
 # One-time setup (repo Settings):
 #   Pages → Build and deployment → Source: "GitHub Actions"
-#   Secrets and variables → Actions → Variables (public values, safe to show):
-#       SUPABASE_URL        https://<project-ref>.supabase.co
-#       SUPABASE_ANON_KEY   the project's anon / publishable key
+#   The public Supabase URL and publishable key are in web/.env.production.
 #   Secrets (private) — only needed for automatic database migrations:
 #       SUPABASE_ACCESS_TOKEN   a personal access token from supabase.com/dashboard/account/tokens
 #       SUPABASE_DB_PASSWORD    the database password chosen when the project was created
 #   Variables: SUPABASE_PROJECT_REF   <project-ref>
-# Without the Supabase values the site is published in demo mode.
 name: Web app
 
 on:
@@ -48,21 +45,15 @@ jobs:
         run: npx vitest run
       - name: Database rules (row-level security against the real migrations, in PGlite)
         run: npx vitest run --config vitest.db.config.ts
-      - name: Build
+      - name: Build (uses the public Supabase URL and publishable key in web/.env.production)
         run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       - name: No secrets in the built site
         run: |
           ! grep -rEl "service_role|sb_secret_|SUPABASE_ACCESS_TOKEN|-----BEGIN" dist
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Browser tests (laptop, tablet, phone; demo mode)
-        run: npm run build && npx playwright test
-        env:
-          VITE_SUPABASE_URL: ""
-          VITE_SUPABASE_ANON_KEY: ""
+        run: npm run build:demo && npx playwright test
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -112,9 +103,6 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:

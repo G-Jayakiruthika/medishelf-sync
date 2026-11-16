@@ -3,7 +3,7 @@
 **Every medicine in your family, in one place:** what is in the cabinet, what expires soon, who has taken today's tablets,
 health readings, doctor visits and medical expenses. Works on laptops, tablets and phones, in English, தமிழ் and हिन्दी.
 
-**Live app:** https://g-jayakiruthika.github.io/medishelf-sync/ (opens a demo family until the database is connected)
+**Live app:** https://g-jayakiruthika.github.io/medishelf-sync/ (create an account, or look around with a sample family)
 
 Built end to end by **Jayakiruthika G** · [LinkedIn](https://www.linkedin.com/in/jayakiruthikag/) · [Figma designs](https://www.figma.com/design/PK9KGNnylGHJcH9ee9r4Qv)
 
@@ -12,7 +12,7 @@ Built end to end by **Jayakiruthika G** · [LinkedIn](https://www.linkedin.com/i
 | Layer | Used |
 |---|---|
 | Frontend | React 19, TypeScript (strict), Vite, React Router; responsive layout: sidebar on laptops, icon rail on tablets, bottom tabs on phones |
-| Backend | Supabase: PostgreSQL 17, Auth (e-mail + password, confirmation, rate limits), row-level security |
+| Backend | Supabase (Mumbai region): PostgreSQL 17, Auth, row-level security; policy helpers in a private schema outside the API |
 | Hosting | GitHub Pages (static), deployed by GitHub Actions |
 | Testing | Vitest (unit), PGlite (Postgres in WebAssembly) for database rules, Playwright at laptop, tablet and phone sizes |
 
