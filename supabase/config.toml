@@ -1,0 +1,33 @@
+# Supabase CLI settings for AushadhBox. Migrations live in supabase/migrations and are applied with `supabase db push`.
+project_id = "aushadhbox"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "https://g-jayakiruthika.github.io/medishelf-sync/"
+additional_redirect_urls = ["http://127.0.0.1:5173/medishelf-sync/", "http://127.0.0.1:4173/medishelf-sync/"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+minimum_password_length = 10
+password_requirements = "letters_digits"
+
+[auth.rate_limit]
+email_sent = 4
+sign_in_sign_ups = 30
+token_verifications = 30
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+secure_password_change = true
+double_confirm_changes = true

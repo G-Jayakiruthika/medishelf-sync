@@ -1,0 +1,123 @@
+# AushadhBox 2.0: test everything, then publish the app to GitHub Pages and apply database changes to Supabase.
+#
+# One-time setup (repo Settings):
+#   Pages → Build and deployment → Source: "GitHub Actions"
+#   Secrets and variables → Actions → Variables (public values, safe to show):
+#       SUPABASE_URL        https://<project-ref>.supabase.co
+#       SUPABASE_ANON_KEY   the project's anon / publishable key
+#   Secrets (private) — only needed for automatic database migrations:
+#       SUPABASE_ACCESS_TOKEN   a personal access token from supabase.com/dashboard/account/tokens
+#       SUPABASE_DB_PASSWORD    the database password chosen when the project was created
+#   Variables: SUPABASE_PROJECT_REF   <project-ref>
+# Without the Supabase values the site is published in demo mode.
+name: Web app
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - name: Dependency audit (fails on high or critical)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Type check
+        run: npx tsc -b
+      - name: Unit tests (dates, expiry, health checks)
+        run: npx vitest run
+      - name: Database rules (row-level security against the real migrations, in PGlite)
+        run: npx vitest run --config vitest.db.config.ts
+      - name: Build
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+      - name: No secrets in the built site
+        run: |
+          ! grep -rEl "service_role|sb_secret_|SUPABASE_ACCESS_TOKEN|-----BEGIN" dist
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests (laptop, tablet, phone; demo mode)
+        run: npm run build && npx playwright test
+        env:
+          VITE_SUPABASE_URL: ""
+          VITE_SUPABASE_ANON_KEY: ""
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/test-results
+          retention-days: 7
+
+  migrate:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.SUPABASE_PROJECT_REF != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Apply database migrations
+        run: |
+          supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
+          supabase db push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+  deploy:
+    needs: [test, migrate]
+    if: always() && needs.test.result == 'success' && needs.migrate.result != 'failure' && github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: web/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

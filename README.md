@@ -1,14 +1,80 @@
-# AushadhBox — family medicine cabinet and pharmacy network for India
+# AushadhBox — family medicine cabinet for India
 
-**AushadhBox helps Indian families keep track of their medicines and links them with neighbourhood pharmacies, in cities, towns and villages.**
-It is two linked products: a family web app (installable on phones, 10 Indian languages) and a separate pharmacy network for chemists.
+**Every medicine in your family, in one place:** what is in the cabinet, what expires soon, who has taken today's tablets,
+health readings, doctor visits and medical expenses. Works on laptops, tablets and phones, in English, தமிழ் and हिन्दी.
+
+**Live app:** https://g-jayakiruthika.github.io/medishelf-sync/ (opens a demo family until the database is connected)
+
 Built end to end by **Jayakiruthika G** · [LinkedIn](https://www.linkedin.com/in/jayakiruthikag/) · [Figma designs](https://www.figma.com/design/PK9KGNnylGHJcH9ee9r4Qv)
+
+## Version 2 (current): React + TypeScript + Supabase
+
+| Layer | Used |
+|---|---|
+| Frontend | React 19, TypeScript (strict), Vite, React Router; responsive layout: sidebar on laptops, icon rail on tablets, bottom tabs on phones |
+| Backend | Supabase: PostgreSQL 17, Auth (e-mail + password, confirmation, rate limits), row-level security |
+| Hosting | GitHub Pages (static), deployed by GitHub Actions |
+| Testing | Vitest (unit), PGlite (Postgres in WebAssembly) for database rules, Playwright at laptop, tablet and phone sizes |
+
+**Screens:** Today (dose timeline, adherence, things needing attention), Cabinet (search, filters, expiry read from "03/27"-style
+strip text, medicine information for 74 ingredients), Family (emergency card, guardian consent for children), Health
+(BP, sugar, SpO₂, temperature, pulse with plain-language flags and trends), Doctor visits (printable visit sheet), Expenses
+(by Indian financial year, CSV for tax filing), Privacy (DPDP Act 2023 rights), Settings (language, light/dark theme).
+
+**Security by design**
+- Every family table has `household_id`; PostgreSQL row-level security lets a person reach only households they belong to,
+  with owner / caregiver / viewer roles. Composite foreign keys stop linking a row to another family's person or medicine.
+- Column-level grants: people cannot change protected fields (adult confirmation, request status). Check constraints on every field.
+- An activity log written by database triggers; account deletion cascades through everything the person owns.
+- Only the public anon key reaches the browser; a CI step fails the build if a secret appears in the bundle.
+- Strict Content-Security-Policy, no third-party scripts or trackers, no inline scripts.
+- `npm audit` on every push.
+
+**Privacy (DPDP Act 2023; ISO/IEC 29100 principles, ISO/IEC 27701-style records):** consent records, download my data, correction,
+erasure and grievance requests with a 30-day due date, nominee (s.14), guardian consent for under-18s (s.9), optional
+marketing off by default, a register of what is kept, why and for how long, and [privacy notice and terms](web/public/legal.html).
+
+### Run it
+
+```sh
+cd web
+npm install
+npm run dev            # http://localhost:5173/medishelf-sync/  (demo mode)
+npm test               # unit tests
+npm run test:db        # database access rules against supabase/migrations
+npm run build && npx playwright test   # browser tests at laptop, tablet and phone sizes
+```
+
+To use real accounts, create a Supabase project, apply `supabase/migrations` (`supabase db push`), and put the project URL
+and anon key in `web/.env.local` (see `web/.env.example`). GitHub Actions does the same on every push to `main`
+(see the comments at the top of `.github/workflows/web.yml`).
+
+### Folders
+
+| Folder | What |
+|---|---|
+| `web/` | The React app |
+| `supabase/` | Database migrations, Supabase settings, test shim |
+| `hardware/` | ESP32 smart pillbox (firmware and simulator) |
+| `legacy-php/` | Version 1 (PHP + MySQL): family app, pharmacy network, tools and tests |
+| `docs/` | Design, user manual, security report and screenshots of version 1 |
+
+### Roadmap
+
+1. ✅ Foundation and family app (this release)
+2. Pharmacy network on the same database: portal, khata, orders, linked pharmacies
+3. Devices: ESP32 pillbox and fridge sensor through Supabase Edge Functions; Java stock-sync agent
+4. Reminders and weekly e-mail (pg_cron + Edge Functions), invitations for caregivers, scan-to-add
+
+## Version 1 (PHP + MySQL, in `legacy-php/`)
+
+The first version is kept for reference. It ran on shared PHP hosting and included the pharmacy network.
 
 | Family app (phone) | Pharmacy network | 3D models on every screen |
 |---|---|---|
 | ![Care+ screen](docs/screenshots/app-careplus.jpg) | ![Pharmacy landing](docs/screenshots/pharmacy-landing.jpg) ![Network fee statement](docs/screenshots/pharmacy-fees.jpg) | ![3D models](docs/screenshots/models-3d.jpg) |
 
-## Highlights
+### Highlights
 
 - **Scan to add:** reads medicine strips, prescriptions in Indian shorthand (1-0-1, BD, HS) and pharmacy bills into a ready list.
 - **Doses that actually get taken:** reminders, a smart ESP32 pillbox, missed-dose alerts to the family, SMS and "missed call = taken" for basic phones.
@@ -18,7 +84,7 @@ Built end to end by **Jayakiruthika G** · [LinkedIn](https://www.linkedin.com/i
 - **Privacy and security:** family-controlled consent per pharmacy, signed links between the two products, encrypted customer data, DPDP Act 2023 rights (see [SECURITY.md](SECURITY.md)).
 - **Quality:** 13 automated test suites (1,121 checks, including 167 security checks) and a load test run on every push with GitHub Actions.
 
-## Tech stack
+### Tech stack
 
 | Layer | Used |
 |---|---|
@@ -29,15 +95,15 @@ Built end to end by **Jayakiruthika G** · [LinkedIn](https://www.linkedin.com/i
 | Hardware | ESP32 (Arduino and MicroPython) pillbox and fridge sensor |
 | Design and tools | Figma, Blender (Python bpy), Playwright, GitHub Actions |
 
-## Run it locally
+### Run it locally
 
 ```sh
 # Family app (needs PHP 8.1+ and MySQL/MariaDB)
-cp public_html/core/config.example.php public_html/core/config.php   # fill in the database details
-cd public_html && php -S 127.0.0.1:8080 index.php                     # then open http://127.0.0.1:8080/install.php
+cp legacy-php/public_html/core/config.example.php legacy-php/public_html/core/config.php   # fill in the database details
+cd legacy-php/public_html && php -S 127.0.0.1:8080 index.php                     # then open http://127.0.0.1:8080/install.php
 # Pharmacy network (its own database)
-cp pharmacy-platform/core/config.example.php pharmacy-platform/core/config.php
-php pharmacy-platform/tools/install.php you@example.in "Your Name" 'a-strong-password' && cd pharmacy-platform/public && php -S 127.0.0.1:8090 index.php
+cp legacy-php/pharmacy-platform/core/config.example.php legacy-php/pharmacy-platform/core/config.php
+php legacy-php/pharmacy-platform/tools/install.php you@example.in "Your Name" 'a-strong-password' && cd legacy-php/pharmacy-platform/public && php -S 127.0.0.1:8090 index.php
 ```
 
 **Stack in one line:** PHP 8.1+ (no framework) · MySQL 8 / MariaDB 10.6+ · HTML, CSS, JavaScript (no build step) ·
@@ -48,7 +114,7 @@ Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hosting
 | ![Home page](docs/screenshots/website-home.jpg) | ![Cabinet](docs/screenshots/app-cabinet.jpg) | ![Admin](docs/screenshots/admin-dashboard.jpg) |
 | ![Home page on a phone](docs/screenshots/website-mobile.jpg) | ![Upgrade](docs/screenshots/app-upgrade.jpg) | ![Medicine page](docs/screenshots/medicine-page.jpg) |
 
-## What's in the box
+### What's in the box
 
 | Part | What it does |
 |---|---|
@@ -76,7 +142,7 @@ Progressive Web App · Razorpay · runs on any ₹150/month shared host (Hosting
 | **Admin** (`/admin.html`) | Revenue, Premium families, conversion, sign-ups, visitors, top pages, traffic sources, button clicks, devices, payments, contact messages, medicine-list import. |
 | **Privacy & security** | **Privacy tab** built to the ISO/IEC 29100 / 27701 structure for the DPDP Act 2023 / Rules 2025: what we keep and why (record of processing), consent history, choices, download, correction, deletion, nominee, requests and grievances with due dates; 18+ and guardian consent for children; one-click unsubscribe. **Security**: Argon2id, two-factor for admins and pharmacy staff, encryption of health details and phones, CSRF + Origin checks, strict headers and CSP, per-family isolation, rate limits, bot traps, security event log, encrypted backups with tested restore, load-tested to 400 users at once. See [SECURITY.md](SECURITY.md) and [docs/SECURITY-REPORT.md](docs/SECURITY-REPORT.md). |
 
-## Folder structure
+### Folder structure
 ```
 public_html/            ← upload the contents of this folder to your host
   index.php             website router (all public pages)
@@ -113,20 +179,20 @@ tests/                  seo_check.php, api_test.sh, e2e.js, rx_parse_test.js, bl
 tools/                  import_list.php, make_vapid_keys.php, build_assets.php, media generators, models3d/ (3D models: spec, Python and Blender builders)
 ```
 
-## Preview and GitHub automation
+### Preview and GitHub automation
 - `tools/preview/build_preview.py` builds a static demo of the site and app (the app runs on `tools/preview/demo-api.js`, an in-browser stand-in for the server) for showing the project without hosting.
 - `.github/workflows/test.yml` runs every test on each push; `deploy.yml` uploads to Hostinger after tests pass (switched on with repository secrets, see docs/DEPLOY.md); `health.yml` checks the live site every morning.
 
-## Run it on your laptop
+### Run it on your laptop
 1. Install PHP 8.1+ and MySQL/MariaDB (XAMPP on Windows is fine). Create a database `aushadhbox` (utf8mb4).
 2. Copy `public_html/core/config.example.php` to `config.php`; fill in the database and a `cron_key`. Set `'payments_demo' => true` to try Premium without Razorpay.
-3. `cd public_html && php -S localhost:8000 index.php`
+3. `cd legacy-php/public_html && php -S localhost:8000 index.php`
 4. Open `http://localhost:8000/install.php`, then `http://localhost:8000/`.
 
-## Go live
+### Go live
 Read **docs/DEPLOY.md** (Hostinger step by step, Razorpay, Google Search Console), then **docs/HANDOVER.md** for the launch checklist.
 
-## Data sources
+### Data sources
 - PMBJP product list, "List of 2110 generic medicines under PMBJP till 31.12.2025", Government of India (PIB).
 - CDSCO guidance on disposal of expired/unused drugs (2025); CDSCO FAQs on QR codes (2023); Drugs Rules 1945.
 - Ingredient guides are general information written for this project, not medical advice.
